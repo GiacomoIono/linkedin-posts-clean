@@ -104,7 +104,7 @@ def fetch_last_linkedin_post():
                 # ---------------------------------------
                 # 4. Prepend base URL to each image
                 # ---------------------------------------
-                base_url = "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts/refs/heads/main/images/"
+                base_url = "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/"
                 full_url_list = []
                 for fn in image_list:
                     full_image_url = base_url + fn
