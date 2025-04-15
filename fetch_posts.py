@@ -96,7 +96,7 @@ def fetch_last_linkedin_post():
                     for filename in os.listdir(images_dir):
                         # e.g. if filename is "2025-03-06.jpeg"
                         if (filename.startswith(post_date_str) and 
-                            filename.lower().endswith(".jpeg")):
+                            filename.lower().endswith(".jpg")):
                             image_list.append(filename)
 
                 image_list.sort()
