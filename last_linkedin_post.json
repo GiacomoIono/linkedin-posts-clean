@@ -1,11 +1,6 @@
 {
-  "content": "<p>I finally did it!</p><p>&nbsp;</p><p>I vibe-coded my new website. 🎉</p><p>&nbsp;</p><p>And yes, it does vibe 😎 </p><p>&nbsp;</p><p>LinkedIn is amazing for content discovery.<br>But it’s terrible for content re-discovery.</p><p>&nbsp;</p><p>So many creators are publishing blog-level content here, which I love and deliver great value to the platform.</p><p>&nbsp;</p><p>But after a few days the posts are gone!<br>Buried under the algorithm’s next dopamine hit.</p><p>&nbsp;</p><p>There is no easy way to search, filter and organise posts.</p><p>&nbsp;</p><p>FRUSTRATING AS HELL!</p><p>&nbsp;</p><p>So I built my own solution👇</p><p>&nbsp;</p><p>You can now browse, search, and filter all my posts!<br>(almost all, my script doesn't like retroactive vibes, so there are some gaps I'm still filling manually. But hey, respect the vibes 🏖️ )<br>https://lnkd.in/ep9dshhH</p><p>&nbsp;</p><p>The UI is intentionally clean, but I’m considering adding date range filters and possibly post categories. What do you think?</p><p>&nbsp;</p><p><br>Check it out, enjoy and tell me what you think,<br>I’d love your feedback!</p><p>&nbsp;</p>",
-  "url": "https://www.linkedin.com/feed/update/urn:li:share:7318306293004263426",
-  "published_at": "2025-04-17T08:30:16.606000",
-  "images": [
-    {
-      "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2025-04-17.jpg",
-      "alt": ""
-    }
-  ]
+  "content": "<p>Navigating LinkedIn posts is frustrating as hell.</p><p>&nbsp;</p><p>So I vibe coded my way out of it.</p><p>&nbsp;</p><p>On my new website, you can easily browse and search through all my LinkedIn posts. I wish every creator had one!</p><p>&nbsp;</p><p>I came up with the idea about 3 years ago, when I started posting consistently on LinkedIn.</p><p>&nbsp;</p><p>I tried different no-code solutions, but none really worked.</p><p>&nbsp;</p><p>Then OpenAI released its first reasoning model: o1.<br>That changed everything!</p><p>&nbsp;</p><p>o1 reasoned through the problem to find practical options tailored to my situation.</p><p>&nbsp;</p><p>It didn't just help write code, but it guided me choosing tools, shaping the overall structure, setting everything up.</p><p>&nbsp;</p><p>For sure it didn’t turn me into a developer. This isn’t some complex app after all.</p><p>&nbsp;</p><p>But it did allow me to ship a complete solution to a problem I had for years.<br>I didn’t just “play” with AI, I built something real with zero coding experience.</p><p>&nbsp;</p><p>So AI won’t replace developers, but it will turn more people into one, only when needed. And this is key!</p><p>&nbsp;</p><p>Here’s the result:<br>👉 https://lnkd.in/em3vcjSJ</p><p>&nbsp;</p><p>Have a look, would love your feedback!</p><p>&nbsp;</p>",
+  "url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7320405965982294016",
+  "published_at": "2025-04-22T13:20:10.489000",
+  "images": []
 }
