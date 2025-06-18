@@ -1,0 +1,44 @@
+name: Fetch latest LinkedIn post
+
+on:
+  schedule:
+    # Every day at 06:00 UTC (08:00 Europe/Zurich)
+    - cron:  '1 9 * * *'
+  workflow_dispatch:    # enables manual run from the Actions tab
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⤵️  Check out repo
+        uses: actions/checkout@v4
+        with:
+          # needed so we can push back
+          persist-credentials: true
+
+      - name: 🐍  Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦  Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: 🔐  Set env vars
+        run: echo "LINKEDIN_ACCESS_TOKEN=${{ secrets.LINKEDIN_ACCESS_TOKEN }}" >> $GITHUB_ENV
+
+      - name: ▶️  Run fetch script
+        run: python fetch_posts.py
+
+      - name: 📤  Commit & push if JSON changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet last_linkedin_post.json; then
+            git add last_linkedin_post.json
+            git commit -m "Update LinkedIn post $(date -u +'%Y-%m-%d')"
+            git push
+          else
+            echo "No new LinkedIn post."
+          fi
