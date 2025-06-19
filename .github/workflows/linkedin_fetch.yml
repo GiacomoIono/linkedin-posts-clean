@@ -35,10 +35,17 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
           if ! git diff --quiet last_linkedin_post.json; then
             git add last_linkedin_post.json
             git commit -m "Update LinkedIn post $(date -u +'%Y-%m-%d')"
-            git push
+
+            # bring in any remote commits made after this job started
+            git pull --rebase --autostash origin main
+
+            # now our branch is up-to-date, push normally
+            git push origin main
           else
             echo "No new LinkedIn post."
           fi
+
