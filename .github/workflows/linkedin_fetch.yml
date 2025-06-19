@@ -3,7 +3,7 @@ name: Fetch latest LinkedIn post
 on:
   schedule:
     # Every day at 06:00 UTC (08:00 Europe/Zurich)
-    - cron:  '1 9 * * *'
+    - cron:  '0 17 * * *'
   workflow_dispatch:    # enables manual run from the Actions tab
 
 jobs:
