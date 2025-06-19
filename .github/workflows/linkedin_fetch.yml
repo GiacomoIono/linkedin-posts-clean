@@ -1,4 +1,8 @@
 name: Fetch latest LinkedIn post
+concurrency:
+  group: linkedin-fetch           # any unique string
+  cancel-in-progress: true
+
 
 on:
   schedule:
@@ -16,6 +20,7 @@ jobs:
         with:
           # needed so we can push back
           persist-credentials: true
+          fetch-depth: 0
 
       - name: 🐍  Set up Python
         uses: actions/setup-python@v5
@@ -40,11 +45,11 @@ jobs:
             git add last_linkedin_post.json
             git commit -m "Update LinkedIn post $(date -u +'%Y-%m-%d')"
 
-            # bring in any remote commits made after this job started
-            git pull --rebase --autostash origin main
+            # make sure we're rebasing onto the very latest main
+            git fetch origin main
+            git rebase origin/main
 
-            # now our branch is up-to-date, push normally
-            git push origin main
+            git push origin HEAD:main
           else
             echo "No new LinkedIn post."
           fi
