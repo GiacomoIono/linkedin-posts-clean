@@ -45,11 +45,11 @@ jobs:
             git add last_linkedin_post.json
             git commit -m "Update LinkedIn post $(date -u +'%Y-%m-%d')"
 
-            # make sure we're rebasing onto the very latest main
-            git fetch origin main
-            git rebase origin/main
+            git fetch origin main          # make sure we have the newest tip
+            git rebase origin/main         # replay our commit on top
 
-            git push origin HEAD:main
+            # push only if the remote hasn’t moved since the fetch
+            git push --force-with-lease origin HEAD:main
           else
             echo "No new LinkedIn post."
           fi
