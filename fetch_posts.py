@@ -4,7 +4,7 @@ import json
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file test test 2 test 3
+# Load environment variables from .env file test test 2 test 3 test 3
 load_dotenv()
 
 # Get API credentials from environment variables
