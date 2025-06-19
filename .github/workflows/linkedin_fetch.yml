@@ -36,21 +36,34 @@ jobs:
       - name: ▶️  Run fetch script
         run: python fetch_posts.py
 
-      - name: 📤  Commit & push if JSON changed
+      - name: 📤  Commit & push (with up to 5 retries)
         run: |
+          set -e
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if ! git diff --quiet last_linkedin_post.json; then
-            git add last_linkedin_post.json
-            git commit -m "Update LinkedIn post $(date -u +'%Y-%m-%d')"
-
-            git fetch origin main          # make sure we have the newest tip
-            git rebase origin/main         # replay our commit on top
-
-            # push only if the remote hasn’t moved since the fetch
-            git push --force-with-lease origin HEAD:main
-          else
-            echo "No new LinkedIn post."
+          if git diff --quiet last_linkedin_post.json; then
+            echo "No new LinkedIn post." ; exit 0
           fi
+
+          git add last_linkedin_post.json
+          git commit -m "Update LinkedIn post $(date -u +'%Y-%m-%d')"
+
+          max=5
+          for i in $(seq 1 $max); do
+            echo "🔄  Push attempt $i of $max"
+            # make sure we’re on top of the very latest main
+            git fetch origin main
+            git rebase origin/main
+
+            # try the push; if it succeeds we're done
+            if git push --force-with-lease origin HEAD:main; then
+              echo "✅  Push succeeded" ; exit 0
+            fi
+
+            echo "⚠️  Remote changed between fetch and push, retrying…"
+            sleep 3  # tiny back-off to let the other job finish
+          done
+
+          echo "❌  Push failed after $max attempts." ; exit 1
 
