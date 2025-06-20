@@ -17,11 +17,11 @@ headers = {
     'LinkedIn-Version': '202312'
 }
 
-# Calculate timestamp for 5 days ago
+# Calculate timestamp for 3 days ago
 start_time = int((datetime.now() - timedelta(days=3)).timestamp() * 1000)
 params = {
     'q': 'memberAndApplication',
-    'count': 100,  # you could reduce this, but 50 ensures you don’t miss the latest post
+    'count': 200,  # you could reduce this, but 50 ensures you don’t miss the latest post
     'startTime': start_time
 }
 
@@ -96,7 +96,7 @@ def fetch_last_linkedin_post():
                     for filename in os.listdir(images_dir):
                         # e.g. if filename is "2025-03-06.jpeg"
                         if (filename.startswith(post_date_str) and 
-                            filename.lower().endswith(".jpeg")):
+                            filename.lower().endswith(".jpg")):
                             image_list.append(filename)
 
                 image_list.sort()
@@ -104,7 +104,7 @@ def fetch_last_linkedin_post():
                 # ---------------------------------------
                 # 4. Prepend base URL to each image
                 # ---------------------------------------
-                base_url = "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts/refs/heads/main/images/"
+                base_url = "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/"
                 full_url_list = []
                 for fn in image_list:
                     full_image_url = base_url + fn
