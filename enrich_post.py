@@ -189,13 +189,18 @@ def main():
 
     client = OpenAI()
 
-    # 1) SEO (headline + description) under data["seo"]; ensure no top-level "title"
+    # 1) SEO (headline + description) at the top level
     try:
-        seo = generate_seo_fields(client, model, plain_text, prompts)
-        data["seo"] = seo
-        if "title" in data:
-            data.pop("title", None)
-        print(f"🔎 SEO: {seo}")
+        seo_data = generate_seo_fields(client, model, plain_text, prompts)
+        # Add headline and description directly to the main data object
+        data["headline"] = seo_data.get("headline", "")
+        data["description"] = seo_data.get("description", "")
+        
+        # Remove old seo object if it exists from previous runs
+        if "seo" in data:
+            data.pop("seo", None)
+            
+        print(f"🔎 SEO: {seo_data}")
     except Exception as e:
         print(f"❌ Failed to generate SEO fields: {e}", file=sys.stderr)
         sys.exit(1)
