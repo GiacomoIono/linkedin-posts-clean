@@ -17,11 +17,11 @@ headers = {
     'LinkedIn-Version': '202312'
 }
 
-# Calculate timestamp for 3 days ago
-start_time = int((datetime.now() - timedelta(days=3)).timestamp() * 1000)
+# Calculate timestamp for 5 days ago
+start_time = int((datetime.now() - timedelta(days=5)).timestamp() * 1000)
 params = {
     'q': 'memberAndApplication',
-    'count': 200,  # you could reduce this, but 50 ensures you don’t miss the latest post
+    'count': 500,  # you could reduce this, but 200 ensures you don’t miss the latest post
     'startTime': start_time
 }
 
