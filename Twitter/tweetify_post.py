@@ -15,6 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parent
 INPUT_PATH = REPO_ROOT.parent / "last_linkedin_post.json"
 PROMPTS_PATH = REPO_ROOT.parent / "prompts.json"
 OUTPUT_PATH = REPO_ROOT / "tweet.json"
+DEFAULT_MODEL = "gpt-4o"
 
 DEFAULT_MAX_CHARS = 280
 DEFAULT_MAX_IMAGES = 4
@@ -120,10 +121,7 @@ def main():
         print("❌ OPENAI_API_KEY not found in .env", file=sys.stderr)
         sys.exit(1)
 
-    model = os.getenv("OPENAI_MODEL")
-    if not model:
-        print("❌ OPENAI_MODEL not found in .env", file=sys.stderr)
-        sys.exit(1)
+    model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
 
     tweet_max = int(os.getenv("TWEET_MAX_CHARS", DEFAULT_MAX_CHARS))
     max_images = int(os.getenv("TWEET_MAX_IMAGES", DEFAULT_MAX_IMAGES))

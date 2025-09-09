@@ -1,69 +1,77 @@
-name: Fetch latest LinkedIn post
+name: LinkedIn to X Full Pipeline
 concurrency:
-  group: linkedin-fetch           # any unique string
+  group: linkedin-to-x-pipeline
   cancel-in-progress: true
-
 
 on:
   schedule:
-    # Every day at 06:00 UTC (08:00 Europe/Zurich)
+    # Every day at 7pm
     - cron:  '0 17 * * *'
   workflow_dispatch:    # enables manual run from the Actions tab
 
 jobs:
-  fetch:
+  run-pipeline:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ⤵️  Check out repo
+      - name: ⤵️ Check out repo
         uses: actions/checkout@v4
         with:
-          # needed so we can push back
           persist-credentials: true
           fetch-depth: 0
 
-      - name: 🐍  Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: 📦  Install dependencies
+      - name: 📦 Install dependencies
         run: pip install -r requirements.txt
 
-      - name: 🔐  Set env vars
-        run: echo "LINKEDIN_ACCESS_TOKEN=${{ secrets.LINKEDIN_ACCESS_TOKEN }}" >> $GITHUB_ENV
+      - name: 🔐 Set all required env vars
+        env:
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: |
+          echo "LINKEDIN_ACCESS_TOKEN=$LINKEDIN_ACCESS_TOKEN" >> $GITHUB_ENV
+          echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> $GITHUB_ENV
+          echo "OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}" >> $GITHUB_ENV
+          echo "X_API_KEY=$X_API_KEY" >> $GITHUB_ENV
+          echo "X_API_SECRET=$X_API_SECRET" >> $GITHUB_ENV
+          "X_ACCESS_TOKEN=$X_ACCESS_TOKEN" >> $GITHUB_ENV
+          echo "X_ACCESS_TOKEN_SECRET=$X_ACCESS_TOKEN_SECRET" >> $GITHUB_ENV
 
-      - name: ▶️  Run fetch script
-        run: python fetch_posts.py
+      - name: ▶️ Run the entire pipeline
+        run: python run_pipeline.py
 
-      - name: 📤  Commit & push (with up to 5 retries)
+      - name: 📤 Commit & push results if new post was found
         run: |
           set -e
-          git config user.name  "github-actions[bot]"
+          git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet last_linkedin_post.json; then
-            echo "No new LinkedIn post." ; exit 0
+          # Check if any of the JSON files have changed
+          if git diff --quiet -- 'last_linkedin_post.json' 'last_linkedin_post.enriched.json' 'Twitter/tweet.json'; then
+            echo "No new post or changes to commit."
+            exit 0
           fi
 
-          git add last_linkedin_post.json
-          git commit -m "Update LinkedIn post $(date -u +'%Y-%m-%d')"
-
-          max=5
-          for i in $(seq 1 $max); do
-            echo "🔄  Push attempt $i of $max"
-            # make sure we’re on top of the very latest main
-            git fetch origin main
-            git rebase origin/main
-
-            # try the push; if it succeeds we're done
+          git add last_linkedin_post.json last_linkedin_post.enriched.json Twitter/tweet.json
+          git commit -m "chore(bot): Update post files for $(date -u +'%Y-%m-%d')"
+          
+          # Retry pushing
+          for i in $(seq 1 5); do
+            git fetch origin main && git rebase origin/main
             if git push --force-with-lease origin HEAD:main; then
-              echo "✅  Push succeeded" ; exit 0
+              echo "✅ Push successful"
+              exit 0
             fi
-
-            echo "⚠️  Remote changed between fetch and push, retrying…"
-            sleep 3  # tiny back-off to let the other job finish
+            sleep 3
           done
-
-          echo "❌  Push failed after $max attempts." ; exit 1
-
+          echo "❌ Push failed after 5 attempts."
+          exit 1
