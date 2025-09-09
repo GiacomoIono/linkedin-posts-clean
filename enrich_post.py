@@ -41,17 +41,6 @@ def soft_trim(s: str, limit: int) -> str:
         cut = cut[:cut.rfind(" ")]
     return cut.rstrip(" ,.;:!?")
 
-
-def _safe_output_text(resp) -> str:
-    # Works across minor SDK variations
-    txt = getattr(resp, "output_text", None)
-    if txt:
-        return txt.strip()
-    try:
-        return resp.output[0].content[0].text.strip()
-    except Exception:
-        return str(resp)
-
 def fill_placeholders(template: str, mapping: dict) -> str:
     out = template
     for k, v in mapping.items():
@@ -106,45 +95,30 @@ def generate_seo_fields(client: OpenAI, model: str, plain_text: str, prompts: di
         {
             "CONTENT": plain_text[:4000],
             "HEADLINE_MAX": str(HEADLINE_MAX),
-            "TITLE_MAX": str(HEADLINE_MAX),  # in case your prompt still says {TITLE_MAX}
+            "TITLE_MAX": str(HEADLINE_MAX),
             "DESC_MAX": str(DESC_MAX),
         },
     )
 
-    response = client.responses.create(
+    # MODIFIED: Use the modern client.chat.completions.create method
+    response = client.chat.completions.create(
         model=model,
-        input=[
-            {"role": "system", "content": [{"type": "input_text", "text": system_msg}]},
-            {"role": "user",   "content": [{"type": "input_text", "text": user_msg}]},
+        # MODIFIED: Use the 'messages' parameter with a simple structure
+        messages=[
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_msg},
         ],
         temperature=0.7,
-        max_output_tokens=200,
+        max_tokens=200,
+        # MODIFIED: Use reliable JSON mode
+        response_format={"type": "json_object"},
     )
 
-    raw = _safe_output_text(response).strip()
-
-    # Strip code fences if present
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:].lstrip()
-        if raw.endswith("```"):
-            raw = raw[:-3].rstrip()
-
-    # Strict parse or fallback extraction
-    data = None
+    # MODIFIED: Simplified parsing for the modern API response
     try:
-        data = json.loads(raw)
-    except Exception:
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            try:
-                data = json.loads(raw[start:end+1])
-            except Exception:
-                pass
-    if not isinstance(data, dict):
-        data = {"headline": "", "description": ""}
+        data = json.loads(response.choices[0].message.content or "{}")
+    except json.JSONDecodeError:
+        data = {} # Fallback if the model returns invalid JSON
 
     headline = sanitize(data.get("headline", ""))
     description = sanitize(data.get("description", ""))
@@ -163,19 +137,28 @@ def generate_alt_for_image(client: OpenAI, model: str, image_url: str, context_t
         prompts["alt_user"],
         {"CONTEXT": context_text[:500]},
     )
-    resp = client.responses.create(
+
+    # MODIFIED: Use the modern client.chat.completions.create method
+    resp = client.chat.completions.create(
         model=model,
-        input=[
-            {"role": "system", "content": [{"type": "input_text", "text": sys_prompt}]},
-            {"role": "user", "content": [
-                {"type": "input_text", "text": user_intro},
-                {"type": "input_image", "image_url": image_url},
-            ]},
+        # MODIFIED: Use 'messages' parameter with the correct vision format
+        messages=[
+            {"role": "system", "content": sys_prompt},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_intro},
+                    {"type": "image_url", "image_url": {"url": image_url}},
+                ],
+            },
         ],
         temperature=0.7,
-        max_output_tokens=60,
+        max_tokens=60,
     )
-    return sanitize(_safe_output_text(resp))
+
+    # MODIFIED: Simplified parsing for the modern API response
+    alt_text = resp.choices[0].message.content or ""
+    return sanitize(alt_text)
 
 # ---------- Main ----------
 
