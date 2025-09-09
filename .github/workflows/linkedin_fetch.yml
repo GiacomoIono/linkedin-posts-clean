@@ -53,23 +53,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check if any of the JSON files have changed
+          # Check if the python scripts actually modified the files
           if git diff --quiet -- 'last_linkedin_post.json' 'last_linkedin_post.enriched.json' 'Twitter/tweet.json'; then
             echo "No new post or changes to commit."
             exit 0
           fi
 
+          # Pull the latest changes from the main branch. This will create a merge
+          # commit if the remote has changed, automatically resolving the race condition.
+          git pull origin main
+
+          # Add, commit, and push the changes
           git add last_linkedin_post.json last_linkedin_post.enriched.json Twitter/tweet.json
           git commit -m "chore(bot): Update post files for $(date -u +'%Y-%m-%d')"
-          
-          # Retry pushing
-          for i in $(seq 1 5); do
-            git fetch origin main && git rebase origin/main
-            if git push --force-with-lease origin HEAD:main; then
-              echo "✅ Push successful"
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "❌ Push failed after 5 attempts."
-          exit 1
+          git push origin main
