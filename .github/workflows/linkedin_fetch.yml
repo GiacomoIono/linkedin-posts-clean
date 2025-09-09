@@ -32,7 +32,6 @@ jobs:
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
           X_API_KEY: ${{ secrets.X_API_KEY }}
           X_API_SECRET: ${{ secrets.X_API_SECRET }}
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
@@ -40,10 +39,9 @@ jobs:
         run: |
           echo "LINKEDIN_ACCESS_TOKEN=$LINKEDIN_ACCESS_TOKEN" >> $GITHUB_ENV
           echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> $GITHUB_ENV
-          echo "OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}" >> $GITHUB_ENV
           echo "X_API_KEY=$X_API_KEY" >> $GITHUB_ENV
           echo "X_API_SECRET=$X_API_SECRET" >> $GITHUB_ENV
-          "X_ACCESS_TOKEN=$X_ACCESS_TOKEN" >> $GITHUB_ENV
+          echo "X_ACCESS_TOKEN=$X_ACCESS_TOKEN" >> $GITHUB_ENV
           echo "X_ACCESS_TOKEN_SECRET=$X_ACCESS_TOKEN_SECRET" >> $GITHUB_ENV
 
       - name: ▶️ Run the entire pipeline

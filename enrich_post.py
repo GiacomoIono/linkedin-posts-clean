@@ -14,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parent
 INPUT_PATH = REPO_ROOT / "last_linkedin_post.json"
 OUTPUT_PATH = REPO_ROOT / "last_linkedin_post.enriched.json"
 PROMPTS_PATH = REPO_ROOT / "prompts.json"
+DEFAULT_MODEL = "gpt-4o"
 
 HEADLINE_MAX = 70
 DESC_MAX = 160
@@ -168,7 +169,7 @@ def main():
         print("❌ OPENAI_API_KEY not found in .env", file=sys.stderr)
         sys.exit(1)
 
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")  # choose gpt-4o for more polish if you want
+    model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
 
     if not INPUT_PATH.exists():
         print(f"❌ Missing {INPUT_PATH}", file=sys.stderr)
