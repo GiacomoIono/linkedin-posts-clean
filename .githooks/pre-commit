@@ -1,0 +1,36 @@
+
+set -e
+
+
+MAX=$((90*1024*1024))  # 90MB
+
+
+TMP=$(mktemp)
+trap 'rm -f "$TMP"' EXIT
+
+
+git diff --cached --name-only --diff-filter=AM -z | \
+while IFS= read -r -d '' f; do
+  [ -f "$f" ] || continue
+
+  size=$(stat -f%z "$f" 2>/dev/null || wc -c <"$f")
+  if [ "$size" -gt "$MAX" ]; then
+    printf '%s\t%s\n' "$f" "$size" >> "$TMP"
+  fi
+done
+
+if [ -s "$TMP" ]; then
+  echo "❌ Commit blocked: these files exceed 90MB:"
+  while IFS="$(printf '\t')" read -r file size; do
+    echo "   - $file ($size bytes)"
+  done < "$TMP"
+  echo
+  echo "Fix:"
+  echo "  • Remove or move the big file out of the repo, then:"
+  echo "      git reset -q HEAD <file>   # unstage"
+  echo "      rm <file>                  # if added by mistake"
+  echo "  • Or use Git LFS if you must track large binaries."
+  exit 1
+fi
+
+exit 0

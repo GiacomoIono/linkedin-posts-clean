@@ -13,3 +13,11 @@ __pycache__/
 
 # VSCode
 .vscode/
+# Avoid huge binaries in images/
+/images/*.mp4
+/images/*.mov
+/images/*.avi
+/images/*.mkv
+/images/*.zip
+/images/*.gz
+/images/*.7z
