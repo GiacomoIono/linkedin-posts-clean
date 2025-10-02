@@ -52,13 +52,31 @@ jobs:
           set -e
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+          git config pull.rebase true
+          git config rebase.autoStash true
+
+          # Skip if nothing relevant changed
           if git diff --quiet -- 'last_linkedin_post.json' 'last_linkedin_post.enriched.json' 'Twitter/tweet.json'; then
             echo "No new post or changes to commit."
             exit 0
           fi
-          
+
+          # Commit local changes first
           git add last_linkedin_post.json last_linkedin_post.enriched.json Twitter/tweet.json
           git commit -m "chore(bot): Update post files for $(date -u +'%Y-%m-%d')"
-          git pull --rebase origin main
-          git push origin main
+
+          # Rebase onto latest remote; handle conflicts gracefully
+          git fetch origin main
+          if ! git rebase origin/main; then
+            echo "⚠️ Rebase conflict; aborting and skipping push this run."
+            git rebase --abort || true
+            exit 0
+          fi
+          
+          # Push only if we're actually ahead
+          if git diff --quiet HEAD origin/main; then
+            echo "Nothing new to push (already up to date)."
+            exit 0
+          fi
+
+          git push origin HEAD:main
