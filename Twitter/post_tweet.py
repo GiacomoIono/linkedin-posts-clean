@@ -15,6 +15,7 @@ import tweepy
 # --- Configuration ---
 REPO_ROOT = Path(__file__).resolve().parent
 TWEET_JSON_PATH = REPO_ROOT / "tweet.json"
+LAST_LINKEDIN_PATH = REPO_ROOT.parent / "last_linkedin_post.json"
 
 # --- Main Functions ---
 
@@ -82,6 +83,21 @@ def main():
     except Exception as e:
         print(f"❌ Failed to parse {TWEET_JSON_PATH.name}: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # ---- Early exit: nothing new to post ----
+    # If tweet.json exists and its URL equals the current LinkedIn URL, skip posting.
+    try:
+        last_src = json.loads(LAST_LINKEDIN_PATH.read_text(encoding="utf-8")) if LAST_LINKEDIN_PATH.exists() else None
+    except Exception:
+        last_src = None  # if last_linkedin_post.json is corrupted, proceed (we'll rely on tweet.json only)
+
+    tweet_url_field = (tweet_data or {}).get("url", "")
+    last_url_field = (last_src or {}).get("url", "")
+
+    if not os.getenv("FORCE_POST") and tweet_url_field and last_url_field and tweet_url_field == last_url_field:
+        print("⏭️  No new LinkedIn post detected (same URL as tweet.json). Skipping X post.")
+        sys.exit(0)
+
 
     if not tweet_text:
         print("❌ Tweet content is empty. Nothing to post.", file=sys.stderr)

@@ -131,6 +131,21 @@ def main():
     prompts_doc = load_json(PROMPTS_PATH)
     prompt = pick_prompt(prompts_doc)
 
+    # ---- Early exit: nothing new to tweetify ----
+    # If tweet.json exists and its URL equals the current LinkedIn URL, skip work.
+    try:
+        existing_out = json.loads(OUTPUT_PATH.read_text(encoding="utf-8")) if OUTPUT_PATH.exists() else None
+    except Exception:
+        existing_out = None  # if tweet.json is corrupted, proceed to rebuild
+
+    current_url = (src or {}).get("url", "")
+    previous_url = (existing_out or {}).get("url", "")
+
+    if not os.getenv("FORCE_TWEETIFY") and current_url and previous_url and current_url == previous_url:
+        print("⏭️  No new LinkedIn post detected (same URL as tweet.json). Skipping tweetify.")
+        sys.exit(0)
+
+
     # Prepare input text + images
     src_text = strip_html_to_text(src.get("content", ""))
     raw_images = ensure_list_str(src.get("images", []))
