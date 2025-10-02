@@ -52,22 +52,13 @@ jobs:
           set -e
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Check if the python scripts actually modified the files
+          
           if git diff --quiet -- 'last_linkedin_post.json' 'last_linkedin_post.enriched.json' 'Twitter/tweet.json'; then
             echo "No new post or changes to commit."
             exit 0
           fi
-
-          # 1. ADD AND COMMIT THE NEW FILES FIRST
-          # This cleans the working directory so the next step can succeed.
+          
           git add last_linkedin_post.json last_linkedin_post.enriched.json Twitter/tweet.json
           git commit -m "chore(bot): Update post files for $(date -u +'%Y-%m-%d')"
-
-          # 2. PULL LATEST CHANGES FROM THE REMOTE REPO
-          # --rebase will put your new commit on top of any other recent changes.
           git pull --rebase origin main
-
-          # 3. PUSH YOUR NEW COMMIT
-          # Now that everything is in sync, this will succeed.
           git push origin main
