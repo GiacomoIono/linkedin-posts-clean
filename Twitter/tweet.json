@@ -1,6 +1,19 @@
 {
-  "content": "",
-  "url": "https://www.linkedin.com/feed/update/urn:li:share:7390787809827143681",
-  "published_at": "2025-11-02T16:32:08.359000",
-  "images": []
+  "content": "AI is shaking up small businesses. Guide to Lofoten's story shows how ChatGPT is sidelining local sites in favor of big aggregators. SEO and info businesses need to adapt or risk obsolescence. #AIImpact",
+  "url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7390815764590768128",
+  "published_at": "2025-11-03T07:30:04.931000",
+  "images": [
+    {
+      "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2025-11-03_1.jpg",
+      "alt": "Text: 'This is how ChatGPT is killing our small local business.'"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2025-11-03_2.jpg",
+      "alt": "Text explaining aggregator bias and SEO dynamics favoring big platforms."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2025-11-03_3.jpg",
+      "alt": "Text discussing stopping in-depth guides and impact on travelers."
+    }
+  ]
 }
