@@ -5,9 +5,9 @@
   "images": [
     {
       "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2025-11-13.jpg",
-      "alt": "Headline on Axios: Microsoft plans AI marketplace for publishers."
+      "alt": "Axios article titled \"Scoop: Microsoft looks to build AI marketplace for publishers."
     }
   ],
-  "headline": "Microsoft's Bold Move: A Marketplace for Content Creators",
-  "description": "Microsoft's new marketplace could reshape AI content use, giving publishers a lifeline as Google's 'death of clicks' threatens their revenue."
+  "headline": "Microsoft's New Marketplace: A Lifeline for Publishers?",
+  "description": "Discover how Microsoft's content marketplace aims to support publishers amid the rise of AI chatbots and the decline of search traffic."
 }
