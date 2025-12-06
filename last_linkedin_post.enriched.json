@@ -5,13 +5,13 @@
   "images": [
     {
       "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2025-12-05_1.jpg",
-      "alt": "Trending searches list showing \"Gemini\" as the top search."
+      "alt": "Trending searches list: Gemini, India vs England, Charlie Kirk, Club World Cup, India vs Australia."
     },
     {
       "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2025-12-05_2.jpg",
-      "alt": "Trending searches list with Deepseek at number 6."
+      "alt": "Trending searches list with \"Deepseek\" at number six."
     }
   ],
-  "headline": "Google's Year in Search: Top Trends Revealed for 2023",
-  "description": "Explore Google's 2023 search trends. Discover why DeepSeek ranks 6th and ChatGPT is absent this year. What's capturing the world's curiosity?"
+  "headline": "Google's Year in Search: Surprises in the Top 10",
+  "description": "Explore Google's top searches of the year. Guess who's missing? ChatGPT! Even DeepSeek made it to 6th place. Find out what topped the list!"
 }
