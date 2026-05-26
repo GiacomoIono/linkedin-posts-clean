@@ -55,12 +55,19 @@ def same_source_url(a: dict[str, Any] | None, b: dict[str, Any] | None) -> bool:
     return bool(post_identity(a) and post_identity(a) == post_identity(b))
 
 
-def already_synced_to_webflow(post: dict[str, Any]) -> dict[str, Any] | None:
+def webflow_state_entry(source_url: str) -> dict[str, Any] | None:
     state = load_webflow_state()
-    entry = state.get("items", {}).get(post.get("url", ""))
+    entry = state.get("items", {}).get(source_url)
     if not isinstance(entry, dict):
         return None
-    if entry.get("item_id") and entry.get("published"):
+    if entry.get("item_id"):
+        return entry
+    return None
+
+
+def already_synced_to_webflow(post: dict[str, Any]) -> dict[str, Any] | None:
+    entry = webflow_state_entry(post.get("url", ""))
+    if entry and entry.get("published"):
         return entry
     return None
 
@@ -79,7 +86,13 @@ def main() -> int:
     previous_raw = load_existing_raw_post()
     previous_enriched = load_existing_enriched_post()
     previous_tweet = load_existing_tweet()
-    matches_existing = same_source_url(latest_post, previous_raw) or same_source_url(latest_post, previous_enriched)
+    latest_source_url = post_identity(latest_post)
+    existing_webflow_entry = webflow_state_entry(latest_source_url)
+    matches_existing = (
+        same_source_url(latest_post, previous_raw)
+        or same_source_url(latest_post, previous_enriched)
+        or bool(existing_webflow_entry)
+    )
 
     mirror_json(RAW_POST_PATH, LEGACY_RAW_POST_PATH, latest_post)
     print(f"Latest LinkedIn post: {latest_post.get('url')}")
