@@ -1,6 +1,6 @@
-name: Webflow CMS JSON Pipeline
+name: Webflow CMS Pipeline
 concurrency:
-  group: webflow-cms-json-pipeline
+  group: webflow-cms-pipeline
   cancel-in-progress: true
 
 on:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish-cms-json:
+  publish-cms:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,10 +22,8 @@ jobs:
           from zoneinfo import ZoneInfo
 
           now = datetime.now(ZoneInfo("Europe/Zurich"))
-          should_run = now.hour == 20
-
           print(f"zurich_now={now.isoformat()}")
-          print(f"run_cms_pipeline={'true' if should_run else 'false'}")
+          print(f"run_cms_pipeline={'true' if now.hour == 20 else 'false'}")
           PY
 
       - name: Skip scheduled non-8pm run
@@ -51,76 +49,33 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         run: pip install -r requirements.txt
 
-      - name: Set required env vars
+      - name: Run Webflow CMS pipeline
         if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          X_API_KEY: ${{ secrets.X_API_KEY }}
-          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          OPENAI_MODEL: gpt-5-nano
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS || vars.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
+          WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'
+          WEBFLOW_PUBLISH: 'true'
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
-          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
-        run: |
-          echo "LINKEDIN_ACCESS_TOKEN=$LINKEDIN_ACCESS_TOKEN" >> "$GITHUB_ENV"
-          echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$GITHUB_ENV"
-          echo "X_API_KEY=$X_API_KEY" >> "$GITHUB_ENV"
-          echo "X_API_SECRET=$X_API_SECRET" >> "$GITHUB_ENV"
-          echo "X_ACCESS_TOKEN=$X_ACCESS_TOKEN" >> "$GITHUB_ENV"
-          echo "X_ACCESS_TOKEN_SECRET=$X_ACCESS_TOKEN_SECRET" >> "$GITHUB_ENV"
-          echo "REQUIRE_X_POSTING=false" >> "$GITHUB_ENV"
-
-      - name: Fetch latest LinkedIn post
-        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
+          X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
+          X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
+          REQUIRE_X_POSTING: 'false'
         run: |
           set +e
-          python fetch_posts.py
+          python -m pipeline.main
           status=$?
           set -e
 
           if [ "$status" -eq 2 ]; then
-            echo "NO_POSTS_FOUND=true" >> "$GITHUB_ENV"
-            echo "No recent LinkedIn posts found. Skipping enrichment and optional X steps."
+            echo "No recent LinkedIn posts found. Nothing to publish."
             exit 0
           fi
 
-          if [ "$status" -ne 0 ]; then
-            echo "LinkedIn fetch failed with exit code $status."
-            exit "$status"
-          fi
+          exit "$status"
 
-          echo "NO_POSTS_FOUND=false" >> "$GITHUB_ENV"
-
-      - name: Generate Webflow CMS JSON
-        if: (github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true') && env.NO_POSTS_FOUND != 'true'
-        run: python enrich_post.py
-
-      - name: Generate X draft (optional)
-        if: (github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true') && env.NO_POSTS_FOUND != 'true'
-        run: |
-          set +e
-          python Twitter/tweetify_post.py
-          status=$?
-
-          if [ "$status" -ne 0 ]; then
-            echo "::warning::tweetify_post.py failed with exit code $status. Continuing because X is optional."
-          fi
-
-          exit 0
-
-      - name: Post to X (optional)
-        if: (github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true') && env.NO_POSTS_FOUND != 'true'
-        run: |
-          set +e
-          python Twitter/post_tweet.py
-          status=$?
-
-          if [ "$status" -ne 0 ]; then
-            echo "::warning::post_tweet.py failed with exit code $status. Continuing because X is optional."
-          fi
-
-          exit 0
-
-      - name: Commit and push CMS results
+      - name: Commit and push pipeline outputs
         if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         run: |
           set -e
@@ -130,6 +85,7 @@ jobs:
           git config rebase.autoStash true
 
           changed_files=$(git status --porcelain -- \
+            data \
             last_linkedin_post.json \
             last_linkedin_post.enriched.json \
             Twitter/tweet.json \
@@ -137,7 +93,7 @@ jobs:
             images)
 
           if [ -z "$changed_files" ]; then
-            echo "No new post or changes to commit."
+            echo "No pipeline output changes to commit."
             exit 0
           fi
 
@@ -145,13 +101,14 @@ jobs:
           echo "$changed_files"
 
           git add \
+            data \
             last_linkedin_post.json \
             last_linkedin_post.enriched.json \
             Twitter/tweet.json \
             Twitter/posted_tweets.json \
             images
 
-          git commit -m "chore(bot): update CMS post files for $(date -u +'%Y-%m-%d')"
+          git commit -m "chore(bot): update Webflow CMS pipeline outputs for $(date -u +'%Y-%m-%d')"
 
           git fetch origin main
           if ! git rebase origin/main; then
