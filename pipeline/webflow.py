@@ -181,27 +181,43 @@ def base_field_values(post: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def field_keys(slug: str, field: dict[str, Any]) -> set[str]:
+    keys = {slug.lower()}
+    for key in ("displayName", "name", "apiName"):
+        value = field.get(key)
+        if value:
+            keys.add(slugify(str(value), limit=120))
+            keys.add(str(value).strip().lower())
+    return keys
+
+
+def key_matches(keys: set[str], candidates: set[str]) -> bool:
+    return bool(keys & candidates)
+
+
 def value_for_field(slug: str, field: dict[str, Any], values: dict[str, Any]) -> Any:
-    normalized = slug.lower()
+    keys = field_keys(slug, field)
     ftype = field_type(field)
 
-    if normalized in {"name", "slug"}:
-        return values[normalized]
-    if normalized in SOURCE_URL_SLUGS:
+    if "name" in keys:
+        return values["name"]
+    if "slug" in keys:
+        return values["slug"]
+    if key_matches(keys, SOURCE_URL_SLUGS) or any("linkedin" in key and "url" in key for key in keys):
         return values["source_url"]
-    if normalized in CONTENT_SLUGS:
+    if key_matches(keys, CONTENT_SLUGS) or any(("body" in key or "content" in key) for key in keys):
         return values["content"] if "rich" in ftype else values["plain_text"]
-    if normalized in HEADLINE_SLUGS:
+    if key_matches(keys, HEADLINE_SLUGS) or any(("headline" in key or "title" in key) for key in keys):
         return values["headline"]
-    if normalized in DESCRIPTION_SLUGS:
+    if key_matches(keys, DESCRIPTION_SLUGS) or any(("description" in key or "summary" in key or "excerpt" in key) for key in keys):
         return values["description"]
-    if normalized in DATE_SLUGS:
+    if key_matches(keys, DATE_SLUGS) or any("date" in key or "published" in key for key in keys):
         return values["published_at"]
-    if normalized in IMAGE_SLUGS:
+    if key_matches(keys, IMAGE_SLUGS) or any(("image" in key or "cover" in key or "thumbnail" in key) for key in keys):
         return values["image"]
-    if normalized in GALLERY_SLUGS:
+    if key_matches(keys, GALLERY_SLUGS) or any("gallery" in key for key in keys):
         return values["images"]
-    if normalized in ALT_SLUGS:
+    if key_matches(keys, ALT_SLUGS) or any("alt" in key for key in keys):
         return values["alt"]
 
     if not is_required(field):
