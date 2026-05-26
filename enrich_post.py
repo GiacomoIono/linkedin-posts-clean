@@ -109,7 +109,6 @@ def generate_seo_fields(client: OpenAI, model: str, plain_text: str, prompts: di
             {"role": "system", "content": system_msg},
             {"role": "user", "content": user_msg},
         ],
-        temperature=0.7,
         max_completion_tokens=200,
         # MODIFIED: Use reliable JSON mode
         response_format={"type": "json_object"},
@@ -153,7 +152,6 @@ def generate_alt_for_image(client: OpenAI, model: str, image_url: str, context_t
                 ],
             },
         ],
-        temperature=0.7,
         max_completion_tokens=60,
     )
 
