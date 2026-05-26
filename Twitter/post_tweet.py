@@ -8,6 +8,7 @@ import sys
 import json
 import requests
 import io
+from datetime import datetime, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 import tweepy
@@ -15,9 +16,58 @@ import tweepy
 # --- Configuration ---
 REPO_ROOT = Path(__file__).resolve().parent
 TWEET_JSON_PATH = REPO_ROOT / "tweet.json"
-LAST_LINKEDIN_PATH = REPO_ROOT.parent / "last_linkedin_post.json"
+POSTED_TWEETS_PATH = REPO_ROOT / "posted_tweets.json"
+
 
 # --- Main Functions ---
+
+def load_posted_tweets() -> dict:
+    """Loads the local posting ledger used to avoid reposting a LinkedIn URL."""
+    if not POSTED_TWEETS_PATH.exists():
+        return {"posted": []}
+
+    try:
+        data = json.loads(POSTED_TWEETS_PATH.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"❌ Failed to parse {POSTED_TWEETS_PATH.name}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if isinstance(data, list):
+        data = {"posted": data}
+
+    if not isinstance(data, dict) or not isinstance(data.get("posted"), list):
+        print(f"❌ {POSTED_TWEETS_PATH.name} must contain a JSON object with a 'posted' array.", file=sys.stderr)
+        sys.exit(1)
+
+    return data
+
+
+def find_posted_tweet(posted_doc: dict, linkedin_url: str) -> dict | None:
+    for item in posted_doc.get("posted", []):
+        if isinstance(item, dict) and item.get("linkedin_url") == linkedin_url:
+            return item
+    return None
+
+
+def save_posted_tweets(posted_doc: dict) -> None:
+    POSTED_TWEETS_PATH.write_text(
+        json.dumps(posted_doc, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8"
+    )
+
+
+def record_posted_tweet(posted_doc: dict, linkedin_url: str, tweet_id: str, tweet_url: str) -> None:
+    if not linkedin_url:
+        return
+
+    posted_doc.setdefault("posted", []).append({
+        "linkedin_url": linkedin_url,
+        "tweet_id": tweet_id,
+        "tweet_url": tweet_url,
+        "posted_at": datetime.now(timezone.utc).isoformat()
+    })
+    save_posted_tweets(posted_doc)
+
 
 def upload_image(api: tweepy.API, image_data: dict) -> str | None:
     """Downloads an image from a URL and uploads it to X using the v1.1 API, returning a media_id."""
@@ -30,21 +80,20 @@ def upload_image(api: tweepy.API, image_data: dict) -> str | None:
         print(f"🖼️  Downloading image: {url}")
         response = requests.get(url, timeout=30)
         response.raise_for_status()
-        
+
         print("   Uploading to X...")
-        # MODIFIED: Use the v1.1 API client and the correct method 'media_upload'
-        # We pass the filename and the file-like object.
+        # Use the v1.1 API client for media uploads.
         media = api.media_upload(
             filename="image.jpg",
             file=io.BytesIO(response.content)
         )
         media_id = media.media_id_string
-        
+
         # Attach alt text if available using the v1.1 endpoint
         if alt_text:
             api.create_media_metadata(media_id, alt_text)
             print(f"   Added ALT text: {alt_text[:50]}...")
-            
+
         print(f"   ✅ Upload successful. Media ID: {media_id}")
         return media_id
 
@@ -52,7 +101,7 @@ def upload_image(api: tweepy.API, image_data: dict) -> str | None:
         print(f"   ❌ Failed to download image {url}: {e}", file=sys.stderr)
     except Exception as e:
         print(f"   ❌ Failed to upload image {url}: {e}", file=sys.stderr)
-    
+
     return None
 
 
@@ -75,41 +124,37 @@ def main():
     if not TWEET_JSON_PATH.exists():
         print(f"❌ Input file not found: {TWEET_JSON_PATH.name}", file=sys.stderr)
         sys.exit(1)
-        
+
     try:
         tweet_data = json.loads(TWEET_JSON_PATH.read_text(encoding="utf-8"))
         tweet_text = tweet_data.get("content", "").strip()
+        linkedin_url = tweet_data.get("url", "").strip()
         images_to_upload = tweet_data.get("images", [])
     except Exception as e:
         print(f"❌ Failed to parse {TWEET_JSON_PATH.name}: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # ---- Early exit: nothing new to post ----
-    # If tweet.json exists and its URL equals the current LinkedIn URL, skip posting.
-    try:
-        last_src = json.loads(LAST_LINKEDIN_PATH.read_text(encoding="utf-8")) if LAST_LINKEDIN_PATH.exists() else None
-    except Exception:
-        last_src = None  # if last_linkedin_post.json is corrupted, proceed (we'll rely on tweet.json only)
-
-    tweet_url_field = (tweet_data or {}).get("url", "")
-    last_url_field = (last_src or {}).get("url", "")
-
-    if not os.getenv("FORCE_POST") and tweet_url_field and last_url_field and tweet_url_field == last_url_field:
-        print("⏭️  No new LinkedIn post detected (same URL as tweet.json). Skipping X post.")
-        sys.exit(0)
-
-
     if not tweet_text:
         print("❌ Tweet content is empty. Nothing to post.", file=sys.stderr)
         sys.exit(1)
-        
+
+    # ---- Early exit: this LinkedIn URL has already been posted to X ----
+    posted_doc = load_posted_tweets()
+    if not os.getenv("FORCE_POST") and linkedin_url:
+        existing_post = find_posted_tweet(posted_doc, linkedin_url)
+        if existing_post:
+            print("⏭️  LinkedIn URL already posted to X. Skipping X post.")
+            if existing_post.get("tweet_url"):
+                print(existing_post["tweet_url"])
+            sys.exit(0)
+
     # 3. Authenticate with BOTH X API versions
     try:
-        # MODIFIED: Create a v1.1 API object for media uploads
+        # Create a v1.1 API object for media uploads
         auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_token_secret)
         api_v1 = tweepy.API(auth)
-        
-        # MODIFIED: Create a v2 Client object for posting the tweet
+
+        # Create a v2 Client object for posting the tweet
         client_v2 = tweepy.Client(
             consumer_key=api_key,
             consumer_secret=api_secret,
@@ -126,11 +171,10 @@ def main():
     if images_to_upload:
         print(f"Found {len(images_to_upload)} images to upload.")
         for image_info in images_to_upload:
-            # MODIFIED: Pass the v1.1 api object to the upload function
             media_id = upload_image(api_v1, image_info)
             if media_id:
                 media_ids.append(media_id)
-    
+
     if images_to_upload and not media_ids:
         print("⚠️ Images were found but none could be uploaded. Posting tweet without images.", file=sys.stderr)
 
@@ -142,10 +186,12 @@ def main():
             media_ids=media_ids if media_ids else None
         )
         tweet_id = response.data['id']
-        tweet_url = f"https://x.com/user/status/{tweet_id}"
-        
+        tweet_url = f"https://x.com/i/web/status/{tweet_id}"
+
+        record_posted_tweet(posted_doc, linkedin_url, tweet_id, tweet_url)
+
         print("\n✨ Success! ✨")
-        print(f"Tweet posted successfully. View it here:")
+        print("Tweet posted successfully. View it here:")
         print(tweet_url)
 
     except tweepy.errors.Forbidden as e:
@@ -158,6 +204,7 @@ def main():
     except Exception as e:
         print(f"❌ Failed to post tweet: {e}", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
