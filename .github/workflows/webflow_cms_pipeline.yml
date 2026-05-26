@@ -5,8 +5,8 @@ concurrency:
 
 on:
   schedule:
-    # Every day at 17:00 UTC
-    - cron: '0 17 * * *'
+    # GitHub schedules use UTC. These two slots cover 20:00 Europe/Zurich across DST.
+    - cron: '0 18,19 * * *'
   workflow_dispatch:
 
 jobs:
@@ -14,21 +14,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check Zurich schedule time
+        id: zurich_time
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+
+          now = datetime.now(ZoneInfo("Europe/Zurich"))
+          should_run = now.hour == 20
+
+          print(f"zurich_now={now.isoformat()}")
+          print(f"run_cms_pipeline={'true' if should_run else 'false'}")
+          PY
+
+      - name: Skip scheduled non-8pm run
+        if: github.event_name == 'schedule' && steps.zurich_time.outputs.run_cms_pipeline != 'true'
+        run: |
+          echo "Current Zurich time is ${{ steps.zurich_time.outputs.zurich_now }}."
+          echo "Skipping this scheduled slot because the CMS pipeline runs at 20:00 Europe/Zurich."
+
       - name: Check out repo
+        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         uses: actions/checkout@v4
         with:
           persist-credentials: true
           fetch-depth: 0
 
       - name: Set up Python
+        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
+        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         run: pip install -r requirements.txt
 
       - name: Set required env vars
+        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -46,6 +70,7 @@ jobs:
           echo "REQUIRE_X_POSTING=false" >> "$GITHUB_ENV"
 
       - name: Fetch latest LinkedIn post
+        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         run: |
           set +e
           python fetch_posts.py
@@ -66,11 +91,11 @@ jobs:
           echo "NO_POSTS_FOUND=false" >> "$GITHUB_ENV"
 
       - name: Generate Webflow CMS JSON
-        if: env.NO_POSTS_FOUND != 'true'
+        if: (github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true') && env.NO_POSTS_FOUND != 'true'
         run: python enrich_post.py
 
       - name: Generate X draft (optional)
-        if: env.NO_POSTS_FOUND != 'true'
+        if: (github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true') && env.NO_POSTS_FOUND != 'true'
         run: |
           set +e
           python Twitter/tweetify_post.py
@@ -83,7 +108,7 @@ jobs:
           exit 0
 
       - name: Post to X (optional)
-        if: env.NO_POSTS_FOUND != 'true'
+        if: (github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true') && env.NO_POSTS_FOUND != 'true'
         run: |
           set +e
           python Twitter/post_tweet.py
@@ -96,6 +121,7 @@ jobs:
           exit 0
 
       - name: Commit and push CMS results
+        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         run: |
           set -e
           git config user.name "github-actions[bot]"
