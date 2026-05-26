@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import requests
@@ -165,7 +166,9 @@ def image_gallery(post: dict[str, Any]) -> list[dict[str, str]]:
 def base_field_values(post: dict[str, Any]) -> dict[str, Any]:
     headline = post.get("headline") or strip_html_to_text(post.get("content", ""))[:70] or "LinkedIn post"
     date_prefix = (post.get("published_at") or "")[:10]
-    slug_source = f"{date_prefix} {headline}".strip()
+    source_id_match = re.search(r"(\d{8,})", post.get("url", ""))
+    source_id = source_id_match.group(1)[-8:] if source_id_match else ""
+    slug_source = f"{date_prefix} {headline} {source_id}".strip()
     return {
         "name": headline,
         "slug": slugify(slug_source),
