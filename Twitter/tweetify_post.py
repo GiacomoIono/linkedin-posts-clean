@@ -1,7 +1,7 @@
 # tweetify_post.py
-# Build tweet.json from last_linkedin_post.json using prompts.json → tweet_generation.
+# Build tweet.json from last_linkedin_post.json using prompts.json -> tweet_generation.
 # - Input: last_linkedin_post.json  (HTML in "content", images under images[].url)
-# - Prompt: prompts.json → tweet_generation (array). Uses id from TWEET_PROMPT_ID or defaults to first.
+# - Prompt: prompts.json -> tweet_generation (array). Uses id from TWEET_PROMPT_ID or defaults to first.
 # - OpenAI: Chat Completions API with vision and JSON mode.
 # - Output: tweet.json with fields: content, url, published_at, images:[{url, alt}]
 
@@ -16,6 +16,8 @@ INPUT_PATH = REPO_ROOT.parent / "last_linkedin_post.json"
 PROMPTS_PATH = REPO_ROOT.parent / "prompts.json"
 OUTPUT_PATH = REPO_ROOT / "tweet.json"
 DEFAULT_MODEL = "gpt-5.5"
+DEFAULT_REASONING_EFFORT = "none"
+DEFAULT_OPENAI_MAX_COMPLETION_TOKENS = 2000
 
 DEFAULT_MAX_CHARS = 280
 DEFAULT_MAX_IMAGES = 4
@@ -87,29 +89,53 @@ def ensure_list_str(x: Any) -> List[str]:
                 out.append(str(url))
     return out
 
-def parse_model_json_text(resp) -> Dict[str, Any]:
-    """
-    Parse JSON whether structured outputs are supported or not.
-    Works with old/new openai SDKs that expose different response shapes.
-    """
-    raw = getattr(resp, "output_text", None)
-    if not raw:
-        try:
-            raw = resp.output[0].content[0].text
-        except Exception:
-            raw = ""
-    raw = (raw or "").strip()
+def supports_reasoning_effort(model: str) -> bool:
+    return (model or "").startswith("gpt-5")
+
+def chat_completion_kwargs(model: str, messages: list, max_completion_tokens: int, response_format: dict | None = None) -> dict:
+    kwargs = {
+        "model": model,
+        "messages": messages,
+        "max_completion_tokens": max_completion_tokens,
+    }
+
+    reasoning_effort = os.getenv("OPENAI_REASONING_EFFORT", DEFAULT_REASONING_EFFORT).strip()
+    if reasoning_effort and supports_reasoning_effort(model):
+        kwargs["reasoning_effort"] = reasoning_effort
+
+    if response_format:
+        kwargs["response_format"] = response_format
+
+    return kwargs
+
+def response_text_or_raise(response, label: str) -> str:
+    choice = response.choices[0] if response.choices else None
+    text = ((choice.message.content if choice and choice.message else None) or "").strip()
+    if text:
+        return text
+
+    finish_reason = getattr(choice, "finish_reason", "unknown") if choice else "missing_choice"
+    usage = getattr(response, "usage", None)
+    raise ValueError(
+        f"OpenAI returned empty {label} output (finish_reason={finish_reason}, usage={usage}). "
+        "Increase TWEET_OPENAI_MAX_COMPLETION_TOKENS or lower OPENAI_REASONING_EFFORT."
+    )
+
+def parse_model_json_response(response) -> Dict[str, Any]:
+    raw = response_text_or_raise(response, "tweet JSON")
     if raw.startswith("```"):
-        # Strip fenced code blocks like ```json ... ```
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:].lstrip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE).strip()
+        raw = re.sub(r"\s*```$", "", raw).strip()
+
     try:
-        return json.loads(raw)
-    except Exception as e:
-        print("❌ Could not parse JSON from model output.", file=sys.stderr)
-        print(f"Raw output was:\n{raw[:1000]}", file=sys.stderr)
-        sys.exit(1)
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Could not parse JSON from model output: {e}. Raw output was: {raw[:1000]}") from e
+
+    if not isinstance(parsed, dict):
+        raise ValueError(f"Model output must be a JSON object. Got: {type(parsed).__name__}")
+
+    return parsed
 
 # ---------- main ----------
 
@@ -125,6 +151,7 @@ def main():
 
     tweet_max = int(os.getenv("TWEET_MAX_CHARS", DEFAULT_MAX_CHARS))
     max_images = int(os.getenv("TWEET_MAX_IMAGES", DEFAULT_MAX_IMAGES))
+    openai_max_completion_tokens = int(os.getenv("TWEET_OPENAI_MAX_COMPLETION_TOKENS", DEFAULT_OPENAI_MAX_COMPLETION_TOKENS))
 
     # Load files
     src = load_json(INPUT_PATH)
@@ -132,7 +159,8 @@ def main():
     prompt = pick_prompt(prompts_doc)
 
     # ---- Early exit: nothing new to tweetify ----
-    # If tweet.json exists and its URL equals the current LinkedIn URL, skip work.
+    # Skip only when an existing tweet for this URL has non-empty content.
+    # If a prior run wrote a blank tweet.json, rebuild it instead of preserving the bad output.
     try:
         existing_out = json.loads(OUTPUT_PATH.read_text(encoding="utf-8")) if OUTPUT_PATH.exists() else None
     except Exception:
@@ -140,11 +168,13 @@ def main():
 
     current_url = (src or {}).get("url", "")
     previous_url = (existing_out or {}).get("url", "")
+    previous_content = ((existing_out or {}).get("content", "") or "").strip()
 
-    if not os.getenv("FORCE_TWEETIFY") and current_url and previous_url and current_url == previous_url:
+    if not os.getenv("FORCE_TWEETIFY") and current_url and previous_url and current_url == previous_url and previous_content:
         print("⏭️  No new LinkedIn post detected (same URL as tweet.json). Skipping tweetify.")
         sys.exit(0)
-
+    if current_url and previous_url and current_url == previous_url and not previous_content:
+        print("♻️  Existing tweet.json for this URL is empty. Rebuilding it.")
 
     # Prepare input text + images
     src_text = strip_html_to_text(src.get("content", ""))
@@ -162,79 +192,48 @@ def main():
     # Small reminder about the format (helpful in both paths)
     user_msg += (
         "\n\nResponse format:\n"
-        "- Return ONLY JSON with keys: tweet (string ≤ 280 chars) and images (array of objects with url and alt).\n"
+        "- Return ONLY JSON with keys: tweet (non-empty string ≤ 280 chars) and images (array of objects with url and alt).\n"
         "- Include ONLY the images you selected (max 4)."
     )
 
     # Build OpenAI call
     client = OpenAI()
 
-    # Vision blocks: model sees the actual images
-    user_blocks: List[Dict[str, Any]] = [{"type": "input_text", "text": user_msg}]
-    if image_urls:
-        user_blocks.append({"type": "input_text", "text": "Use the attached images for added context. Generate concise, human-first alt text."})
-        for url in image_urls:
-            user_blocks.append({"type": "input_image", "image_url": url})
-
-    # Preferred: JSON schema (if your SDK supports `response_format`)
-    json_schema = {
-        "name": "tweet_output",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "tweet": {"type": "string", "description": "One tweet optimized for X, ≤ 280 characters."},
-                "images": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "required": ["url", "alt"],
-                        "properties": {
-                            "url": {"type": "string"},
-                            "alt": {"type": "string", "description": "1 concise sentence, human-first."}
-                        }
-                    }
-                }
-            },
-            "required": ["tweet", "images"]
-        }
-    }
-
-# Reformat content for the modern OpenAI v1.x API
     messages: List[Dict[str, Any]] = [
         {"role": "system", "content": prompt["tweet_system"]},
     ]
-    
-    # The new API expects a different format for text and images
+
     user_content: List[Dict[str, Any]] = [{"type": "text", "text": user_msg}]
     if image_urls:
         user_content.append({"type": "text", "text": "Use the attached images for added context. Generate concise, human-first alt text."})
         for url in image_urls:
             user_content.append({"type": "image_url", "image_url": {"url": url}})
-            
+
     messages.append({"role": "user", "content": user_content})
 
     # Call the modern OpenAI API
     try:
-        # Use the standard client.chat.completions.create method
-        resp = client.chat.completions.create(
+        resp = client.chat.completions.create(**chat_completion_kwargs(
             model=model,
             messages=messages,
-            max_completion_tokens=400,
+            max_completion_tokens=openai_max_completion_tokens,
             # Use JSON mode so the saved tweet.json keeps a stable shape.
             response_format={"type": "json_object"},
-        )
-        # The response structure is also different in the new SDK
-        parsed = json.loads(resp.choices[0].message.content or "{}")
+        ))
+        parsed = parse_model_json_response(resp)
     except Exception as e:
         print(f"❌ OpenAI API error: {e}", file=sys.stderr)
         sys.exit(1)
 
     # Guardrails: trim tweet to max just in case; keep hashtags/emojis
     tweet_text = soft_trim(parsed.get("tweet", ""), tweet_max)
+    if not tweet_text:
+        print(f"❌ OpenAI returned JSON without a non-empty tweet: {parsed}", file=sys.stderr)
+        sys.exit(1)
+
     sel_images = parsed.get("images", []) or []
+    if not isinstance(sel_images, list):
+        sel_images = []
 
     # Final output shape per spec
     out: Dict[str, Any] = {
@@ -244,11 +243,12 @@ def main():
         "images": []
     }
 
-    # Only include url + alt for selected images
+    # Only include url + alt for selected source images
+    allowed_urls = set(raw_images)
     for it in sel_images:
-        url = (it or {}).get("url")
-        alt = (it or {}).get("alt", "").strip()
-        if url:
+        url = (it or {}).get("url") if isinstance(it, dict) else None
+        alt = ((it or {}).get("alt", "") if isinstance(it, dict) else "").strip()
+        if url and url in allowed_urls:
             out["images"].append({"url": url, "alt": alt})
 
     # Write
