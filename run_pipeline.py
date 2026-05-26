@@ -1,5 +1,5 @@
 # run_pipeline.py
-# Executes the entire LinkedIn to X pipeline in the correct order with delays.
+# Executes the LinkedIn to CMS pipeline, then optionally adapts/posts to X.
 
 import sys
 import subprocess
@@ -11,11 +11,13 @@ REPO_ROOT = Path(__file__).resolve().parent
 NO_POSTS_FOUND_EXIT_CODE = 2
 
 
-def run_script(script_path: Path, allowed_exit_codes=(0,)):
-    """Executes a Python script and checks for errors."""
+def run_script(script_path: Path, allowed_exit_codes=(0,), required=True):
+    """Execute a Python script and optionally allow the pipeline to continue after errors."""
     if not script_path.exists():
         print(f"❌ Script not found: {script_path.name}", file=sys.stderr)
-        sys.exit(1)
+        if required:
+            sys.exit(1)
+        return 1
 
     print(f"\n--- Running {script_path.name} ---")
 
@@ -29,7 +31,10 @@ def run_script(script_path: Path, allowed_exit_codes=(0,)):
 
     if result.returncode not in allowed_exit_codes:
         print(f"❌ {script_path.name} failed with exit code {result.returncode}", file=sys.stderr)
-        sys.exit(1)
+        if required:
+            sys.exit(1)
+        print(f"⚠️ Continuing because {script_path.name} is optional for the Webflow CMS JSON.")
+        return result.returncode
 
     if result.returncode == 0:
         print(f"✅ {script_path.name} finished successfully.")
@@ -37,9 +42,14 @@ def run_script(script_path: Path, allowed_exit_codes=(0,)):
     return result.returncode
 
 
+def pause_between_steps():
+    print("⏳ Pausing for 10 seconds...")
+    time.sleep(10)
+
+
 def main():
     """Run the full pipeline."""
-    print("🚀 Starting the full LinkedIn to X pipeline...")
+    print("🚀 Starting the LinkedIn to CMS pipeline, with optional X posting...")
 
     # Define the paths to your scripts in the correct order
     fetch_script = REPO_ROOT / "fetch_posts.py"
@@ -47,27 +57,30 @@ def main():
     tweetify_script = REPO_ROOT / "Twitter" / "tweetify_post.py"
     post_tweet_script = REPO_ROOT / "Twitter" / "post_tweet.py"
 
-    # Run scripts in sequence with a 10-second pause between each
-    fetch_status = run_script(fetch_script, allowed_exit_codes=(0, NO_POSTS_FOUND_EXIT_CODE))
+    # Required path: this keeps the public Webflow JSON up to date.
+    fetch_status = run_script(fetch_script, allowed_exit_codes=(0, NO_POSTS_FOUND_EXIT_CODE), required=True)
     if fetch_status == NO_POSTS_FOUND_EXIT_CODE:
         print("\nNo recent LinkedIn posts found. Keeping the existing CMS JSON untouched.")
         print("Pipeline stopped before enrichment, tweet generation, and X posting.")
         return
 
-    print("⏳ Pausing for 10 seconds...")
-    time.sleep(10)
+    pause_between_steps()
 
-    run_script(enrich_script)
-    print("⏳ Pausing for 10 seconds...")
-    time.sleep(10)
+    run_script(enrich_script, required=True)
 
-    run_script(tweetify_script)
-    print("⏳ Pausing for 10 seconds...")
-    time.sleep(10)
+    # Optional path: X/Twitter errors should be visible in logs but must not block Webflow JSON updates.
+    pause_between_steps()
+    tweetify_status = run_script(tweetify_script, required=False)
 
-    run_script(post_tweet_script)
+    if tweetify_status == 0:
+        pause_between_steps()
+        post_tweet_status = run_script(post_tweet_script, required=False)
+        if post_tweet_status != 0:
+            print("\n⚠️ X posting failed, but the CMS JSON was generated successfully.")
+    else:
+        print("\n⚠️ Tweet generation failed, so X posting was skipped. The CMS JSON was generated successfully.")
 
-    print("\n🎉 Pipeline completed successfully!")
+    print("\n🎉 Required pipeline completed successfully. Webflow CMS JSON is ready to commit/publish.")
 
 
 if __name__ == "__main__":
