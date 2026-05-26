@@ -1,7 +1,7 @@
 # enrich_post.py
 # Writes to last_linkedin_post.enriched.json (original JSON untouched)
 # - Loads prompts from prompts.json -> linkedin_post_enrichment (array)
-# - Uses OPENAI_MODEL (default gpt-4o-mini) and LINKEDIN_PROMPT_PROFILE (optional) from .env
+# - Uses OPENAI_MODEL (default gpt-5.5) and LINKEDIN_PROMPT_PROFILE (optional) from .env
 # - Produces seo.headline + seo.description (NO top-level "title")
 # - Generates ALT text for images with missing/empty "alt"
 
@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parent
 INPUT_PATH = REPO_ROOT / "last_linkedin_post.json"
 OUTPUT_PATH = REPO_ROOT / "last_linkedin_post.enriched.json"
 PROMPTS_PATH = REPO_ROOT / "prompts.json"
-DEFAULT_MODEL = "gpt-4o"
+DEFAULT_MODEL = "gpt-5.5"
 
 HEADLINE_MAX = 70
 DESC_MAX = 160
