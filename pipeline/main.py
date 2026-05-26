@@ -19,7 +19,7 @@ from .config import (
 from .enrichment import enrich_post
 from .linkedin import fetch_latest_linkedin_post
 from .utils import load_json, mirror_json, post_hash, post_identity, write_json
-from .webflow import sync_post_to_webflow
+from .webflow import load_webflow_state, sync_post_to_webflow
 from .x_posting import generate_tweet, post_to_x
 
 
@@ -55,6 +55,16 @@ def same_source_url(a: dict[str, Any] | None, b: dict[str, Any] | None) -> bool:
     return bool(post_identity(a) and post_identity(a) == post_identity(b))
 
 
+def already_synced_to_webflow(post: dict[str, Any]) -> dict[str, Any] | None:
+    state = load_webflow_state()
+    entry = state.get("items", {}).get(post.get("url", ""))
+    if not isinstance(entry, dict):
+        return None
+    if entry.get("item_id") and entry.get("published") and entry.get("signature") == post_hash(post):
+        return entry
+    return None
+
+
 def main() -> int:
     ensure_directories()
     config = load_config()
@@ -87,7 +97,15 @@ def main() -> int:
 
     mirror_json(ENRICHED_POST_PATH, LEGACY_ENRICHED_POST_PATH, enriched_post)
 
-    webflow_result = sync_post_to_webflow(enriched_post, config)
+    synced_entry = already_synced_to_webflow(enriched_post)
+    if matches_existing and synced_entry and not config.force_webflow_sync:
+        print("Webflow already synced with unchanged content. Skipping Webflow API call.")
+        webflow_result = {
+            "action": "skipped_already_synced",
+            "item_id": synced_entry.get("item_id"),
+        }
+    else:
+        webflow_result = sync_post_to_webflow(enriched_post, config)
     statuses["webflow"] = webflow_result
 
     if matches_existing and previous_tweet and same_source_url(previous_tweet, latest_post) and not config.force_tweetify:
