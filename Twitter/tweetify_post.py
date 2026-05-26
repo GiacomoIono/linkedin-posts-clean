@@ -222,7 +222,6 @@ def main():
         resp = client.chat.completions.create(
             model=model,
             messages=messages,
-            temperature=0.6,
             max_completion_tokens=400,
             # Use JSON mode so the saved tweet.json keeps a stable shape.
             response_format={"type": "json_object"},
