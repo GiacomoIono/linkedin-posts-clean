@@ -277,10 +277,8 @@ def build_field_data(post: dict[str, Any], collection: dict[str, Any]) -> dict[s
     return field_data
 
 
-def item_matches(item: dict[str, Any], source_url: str, slug: str) -> bool:
+def item_matches(item: dict[str, Any], source_url: str) -> bool:
     field_data = item.get("fieldData", {}) if isinstance(item.get("fieldData"), dict) else {}
-    if field_data.get("slug") == slug:
-        return True
     for value in field_data.values():
         if value == source_url:
             return True
@@ -324,13 +322,13 @@ def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[s
         existing_item = {"id": item_id}
     else:
         for item in client.list_items():
-            if item_matches(item, source_url, field_data["slug"]):
+            if item_matches(item, source_url):
                 existing_item = item
                 item_id = item.get("id")
                 break
 
-    if existing_item and state_entry.get("signature") == signature and state_entry.get("published"):
-        print(f"Webflow already synced for this post: {item_id}")
+    if existing_item and state_entry.get("published"):
+        print(f"Webflow already synced for this LinkedIn URL: {item_id}")
         return {"action": "skipped", "item_id": item_id}
 
     if item_id:
