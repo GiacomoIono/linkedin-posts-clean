@@ -285,6 +285,11 @@ def item_matches(item: dict[str, Any], source_url: str) -> bool:
     return False
 
 
+def item_slug(item: dict[str, Any]) -> str:
+    field_data = item.get("fieldData", {}) if isinstance(item.get("fieldData"), dict) else {}
+    return str(field_data.get("slug") or "")
+
+
 def response_item_id(response: dict[str, Any]) -> str:
     if response.get("id"):
         return str(response["id"])
@@ -308,8 +313,6 @@ def save_webflow_state(state: dict[str, Any]) -> None:
 
 def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
     client = WebflowClient(config.webflow_api_token, config.webflow_collection_id)
-    collection = client.get_collection()
-    field_data = build_field_data(post, collection)
     source_url = post.get("url", "")
     signature = post_hash(post)
 
@@ -327,9 +330,19 @@ def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[s
                 item_id = item.get("id")
                 break
 
-    if existing_item and state_entry.get("published"):
-        print(f"Webflow already synced for this LinkedIn URL: {item_id}")
-        return {"action": "skipped", "item_id": item_id}
+    if existing_item and not config.force_webflow_sync:
+        state["items"][source_url] = {
+            "item_id": str(item_id),
+            "slug": state_entry.get("slug") or item_slug(existing_item),
+            "signature": state_entry.get("signature") or signature,
+            "published": state_entry.get("published", True),
+        }
+        save_webflow_state(state)
+        print(f"Webflow already has this LinkedIn URL: {item_id}. Skipping Webflow write.")
+        return {"action": "skipped_existing_url", "item_id": str(item_id)}
+
+    collection = client.get_collection()
+    field_data = build_field_data(post, collection)
 
     if item_id:
         response = client.update_item(str(item_id), field_data)
