@@ -4,6 +4,11 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/linkedin_fetch.yml'
   schedule:
     # Every day at 7pm
     - cron:  '0 17 * * *'
