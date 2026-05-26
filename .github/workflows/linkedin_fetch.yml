@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ⤵️ Check out repo
+      - name: ↵ Check out repo
         uses: actions/checkout@v4
         with:
           persist-credentials: true
@@ -44,8 +44,55 @@ jobs:
           echo "X_ACCESS_TOKEN=$X_ACCESS_TOKEN" >> $GITHUB_ENV
           echo "X_ACCESS_TOKEN_SECRET=$X_ACCESS_TOKEN_SECRET" >> $GITHUB_ENV
 
-      - name: ▶️ Run the entire pipeline
-        run: python run_pipeline.py
+      - name: 📥 Fetch latest LinkedIn post
+        run: |
+          set +e
+          python fetch_posts.py
+          status=$?
+          set -e
+
+          if [ "$status" -eq 2 ]; then
+            echo "NO_POSTS_FOUND=true" >> "$GITHUB_ENV"
+            echo "No recent LinkedIn posts found. Skipping enrichment and X steps."
+            exit 0
+          fi
+
+          if [ "$status" -ne 0 ]; then
+            echo "LinkedIn fetch failed with exit code $status."
+            exit "$status"
+          fi
+
+          echo "NO_POSTS_FOUND=false" >> "$GITHUB_ENV"
+
+      - name: 🧠 Generate Webflow CMS JSON
+        if: env.NO_POSTS_FOUND != 'true'
+        run: python enrich_post.py
+
+      - name: 🐦 Generate X draft (optional)
+        if: env.NO_POSTS_FOUND != 'true'
+        run: |
+          set +e
+          python Twitter/tweetify_post.py
+          status=$?
+
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::tweetify_post.py failed with exit code $status. Continuing because X is optional."
+          fi
+
+          exit 0
+
+      - name: 📣 Post to X (optional)
+        if: env.NO_POSTS_FOUND != 'true'
+        run: |
+          set +e
+          python Twitter/post_tweet.py
+          status=$?
+
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::post_tweet.py failed with exit code $status. Continuing because X is optional."
+          fi
+
+          exit 0
 
       - name: 📤 Commit & push results if new post was found
         run: |
