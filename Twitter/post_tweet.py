@@ -2,6 +2,7 @@
 # Reads tweet.json and posts it to X using the v2 API.
 # - Handles image uploads with alt text.
 # - Posts the tweet with text and attached media.
+# - X posting is optional by default so Webflow CMS JSON publishing is never blocked.
 
 import os
 import sys
@@ -19,6 +20,20 @@ TWEET_JSON_PATH = REPO_ROOT / "tweet.json"
 POSTED_TWEETS_PATH = REPO_ROOT / "posted_tweets.json"
 
 
+def require_x_posting() -> bool:
+    return os.getenv("REQUIRE_X_POSTING", "").strip().lower() in {"1", "true", "yes"}
+
+
+def stop_for_x_issue(message: str, exit_code: int = 1) -> None:
+    """Log an X/Twitter issue without failing the CMS pipeline unless strict mode is enabled."""
+    print(message, file=sys.stderr)
+    if require_x_posting():
+        sys.exit(exit_code)
+
+    print("⚠️ X posting failed or was skipped, but this is optional. Continuing so the Webflow CMS JSON can publish.")
+    sys.exit(0)
+
+
 # --- Main Functions ---
 
 def load_posted_tweets() -> dict:
@@ -29,15 +44,13 @@ def load_posted_tweets() -> dict:
     try:
         data = json.loads(POSTED_TWEETS_PATH.read_text(encoding="utf-8"))
     except Exception as e:
-        print(f"❌ Failed to parse {POSTED_TWEETS_PATH.name}: {e}", file=sys.stderr)
-        sys.exit(1)
+        stop_for_x_issue(f"❌ Failed to parse {POSTED_TWEETS_PATH.name}: {e}")
 
     if isinstance(data, list):
         data = {"posted": data}
 
     if not isinstance(data, dict) or not isinstance(data.get("posted"), list):
-        print(f"❌ {POSTED_TWEETS_PATH.name} must contain a JSON object with a 'posted' array.", file=sys.stderr)
-        sys.exit(1)
+        stop_for_x_issue(f"❌ {POSTED_TWEETS_PATH.name} must contain a JSON object with a 'posted' array.")
 
     return data
 
@@ -117,13 +130,11 @@ def main():
     access_token_secret = os.getenv("X_ACCESS_TOKEN_SECRET")
 
     if not all([api_key, api_secret, access_token, access_token_secret]):
-        print("❌ Missing X API credentials in .env file.", file=sys.stderr)
-        sys.exit(1)
+        stop_for_x_issue("❌ Missing X API credentials in .env file.")
 
     # 2. Load the tweet data from tweet.json
     if not TWEET_JSON_PATH.exists():
-        print(f"❌ Input file not found: {TWEET_JSON_PATH.name}", file=sys.stderr)
-        sys.exit(1)
+        stop_for_x_issue(f"❌ Input file not found: {TWEET_JSON_PATH.name}")
 
     try:
         tweet_data = json.loads(TWEET_JSON_PATH.read_text(encoding="utf-8"))
@@ -131,12 +142,10 @@ def main():
         linkedin_url = tweet_data.get("url", "").strip()
         images_to_upload = tweet_data.get("images", [])
     except Exception as e:
-        print(f"❌ Failed to parse {TWEET_JSON_PATH.name}: {e}", file=sys.stderr)
-        sys.exit(1)
+        stop_for_x_issue(f"❌ Failed to parse {TWEET_JSON_PATH.name}: {e}")
 
     if not tweet_text:
-        print("❌ Tweet content is empty. Nothing to post.", file=sys.stderr)
-        sys.exit(1)
+        stop_for_x_issue("❌ Tweet content is empty. Nothing to post.")
 
     # ---- Early exit: this LinkedIn URL has already been posted to X ----
     posted_doc = load_posted_tweets()
@@ -163,8 +172,7 @@ def main():
         )
         print("🔐 Authenticated with X API successfully.")
     except Exception as e:
-        print(f"❌ Failed to authenticate with X API: {e}", file=sys.stderr)
-        sys.exit(1)
+        stop_for_x_issue(f"❌ Failed to authenticate with X API: {e}")
 
     # 4. Upload images using the v1.1 client
     media_ids = []
@@ -197,13 +205,11 @@ def main():
     except tweepy.errors.Forbidden as e:
         # Handle the specific duplicate content error
         if "duplicate content" in str(e).lower():
-            print("❌ Failed to post tweet: You are not allowed to create a Tweet with duplicate content.", file=sys.stderr)
+            stop_for_x_issue("❌ Failed to post tweet: You are not allowed to create a Tweet with duplicate content.")
         else:
-            print(f"❌ Failed to post tweet (403 Forbidden): {e}", file=sys.stderr)
-        sys.exit(1)
+            stop_for_x_issue(f"❌ Failed to post tweet (403 Forbidden): {e}")
     except Exception as e:
-        print(f"❌ Failed to post tweet: {e}", file=sys.stderr)
-        sys.exit(1)
+        stop_for_x_issue(f"❌ Failed to post tweet: {e}")
 
 
 if __name__ == "__main__":
