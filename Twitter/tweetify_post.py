@@ -2,7 +2,7 @@
 # Build tweet.json from last_linkedin_post.json using prompts.json → tweet_generation.
 # - Input: last_linkedin_post.json  (HTML in "content", images under images[].url)
 # - Prompt: prompts.json → tweet_generation (array). Uses id from TWEET_PROMPT_ID or defaults to first.
-# - OpenAI: Responses API with vision. Tries JSON schema; falls back to prompt-only JSON if SDK lacks response_format.
+# - OpenAI: Chat Completions API with vision and JSON mode.
 # - Output: tweet.json with fields: content, url, published_at, images:[{url, alt}]
 
 import os, sys, json, re, html
@@ -15,7 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parent
 INPUT_PATH = REPO_ROOT.parent / "last_linkedin_post.json"
 PROMPTS_PATH = REPO_ROOT.parent / "prompts.json"
 OUTPUT_PATH = REPO_ROOT / "tweet.json"
-DEFAULT_MODEL = "gpt-4o"
+DEFAULT_MODEL = "gpt-5.5"
 
 DEFAULT_MAX_CHARS = 280
 DEFAULT_MAX_IMAGES = 4
@@ -224,7 +224,7 @@ def main():
             messages=messages,
             temperature=0.6,
             max_tokens=400,
-            # Use "json_object" mode, which is standard for GPT-4 vision models
+            # Use JSON mode so the saved tweet.json keeps a stable shape.
             response_format={"type": "json_object"},
         )
         # The response structure is also different in the new SDK
