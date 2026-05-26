@@ -56,13 +56,13 @@ jobs:
           git config rebase.autoStash true
 
           # Skip if nothing relevant changed
-          if git diff --quiet -- 'last_linkedin_post.json' 'last_linkedin_post.enriched.json' 'Twitter/tweet.json'; then
+          if git diff --quiet -- 'last_linkedin_post.json' 'last_linkedin_post.enriched.json' 'Twitter/tweet.json' 'Twitter/posted_tweets.json'; then
             echo "No new post or changes to commit."
             exit 0
           fi
 
           # Commit local changes first
-          git add last_linkedin_post.json last_linkedin_post.enriched.json Twitter/tweet.json
+          git add last_linkedin_post.json last_linkedin_post.enriched.json Twitter/tweet.json Twitter/posted_tweets.json
           git commit -m "chore(bot): Update post files for $(date -u +'%Y-%m-%d')"
 
           # Rebase onto latest remote; handle conflicts gracefully
@@ -72,7 +72,7 @@ jobs:
             git rebase --abort || true
             exit 0
           fi
-          
+
           # Push only if we're actually ahead
           if git diff --quiet HEAD origin/main; then
             echo "Nothing new to push (already up to date)."
