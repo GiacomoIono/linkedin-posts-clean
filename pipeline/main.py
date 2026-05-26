@@ -60,7 +60,7 @@ def already_synced_to_webflow(post: dict[str, Any]) -> dict[str, Any] | None:
     entry = state.get("items", {}).get(post.get("url", ""))
     if not isinstance(entry, dict):
         return None
-    if entry.get("item_id") and entry.get("published") and entry.get("signature") == post_hash(post):
+    if entry.get("item_id") and entry.get("published"):
         return entry
     return None
 
@@ -99,7 +99,7 @@ def main() -> int:
 
     synced_entry = already_synced_to_webflow(enriched_post)
     if matches_existing and synced_entry and not config.force_webflow_sync:
-        print("Webflow already synced with unchanged content. Skipping Webflow API call.")
+        print("Webflow already synced for this LinkedIn URL. Skipping Webflow API call.")
         webflow_result = {
             "action": "skipped_already_synced",
             "item_id": synced_entry.get("item_id"),
