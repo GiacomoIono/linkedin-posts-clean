@@ -84,8 +84,8 @@ def main() -> int:
     mirror_json(RAW_POST_PATH, LEGACY_RAW_POST_PATH, latest_post)
     print(f"Latest LinkedIn post: {latest_post.get('url')}")
 
-    if matches_existing and previous_enriched and not config.force_enrich:
-        enriched_post = previous_enriched
+    if matches_existing and not config.force_enrich:
+        enriched_post = previous_enriched or latest_post
         print("Latest post matches existing stored post. Skipping OpenAI enrichment.")
         if not same_source_url(enriched_post, latest_post):
             enriched_post = dict(enriched_post)
