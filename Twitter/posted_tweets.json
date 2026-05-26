@@ -1,0 +1,11 @@
+{
+  "posted": [
+    {
+      "linkedin_url": "https://www.linkedin.com/feed/update/urn:li:share:7419649628104544256",
+      "tweet_id": "",
+      "tweet_url": "",
+      "posted_at": "",
+      "note": "Seeded from the pre-existing tweet.json so the fixed pipeline does not repost stale content."
+    }
+  ]
+}
