@@ -15,6 +15,9 @@ INPUT_PATH = REPO_ROOT / "last_linkedin_post.json"
 OUTPUT_PATH = REPO_ROOT / "last_linkedin_post.enriched.json"
 PROMPTS_PATH = REPO_ROOT / "prompts.json"
 DEFAULT_MODEL = "gpt-5.5"
+DEFAULT_REASONING_EFFORT = "none"
+SEO_MAX_COMPLETION_TOKENS = 1200
+ALT_MAX_COMPLETION_TOKENS = 500
 
 HEADLINE_MAX = 70
 DESC_MAX = 160
@@ -47,6 +50,45 @@ def fill_placeholders(template: str, mapping: dict) -> str:
     for k, v in mapping.items():
         out = out.replace("{" + k + "}", v)
     return out
+
+def supports_reasoning_effort(model: str) -> bool:
+    return (model or "").startswith("gpt-5")
+
+def chat_completion_kwargs(model: str, messages: list, max_completion_tokens: int, response_format: dict | None = None) -> dict:
+    kwargs = {
+        "model": model,
+        "messages": messages,
+        "max_completion_tokens": max_completion_tokens,
+    }
+
+    reasoning_effort = os.getenv("OPENAI_REASONING_EFFORT", DEFAULT_REASONING_EFFORT).strip()
+    if reasoning_effort and supports_reasoning_effort(model):
+        kwargs["reasoning_effort"] = reasoning_effort
+
+    if response_format:
+        kwargs["response_format"] = response_format
+
+    return kwargs
+
+def response_text_or_raise(response, label: str) -> str:
+    choice = response.choices[0] if response.choices else None
+    text = ((choice.message.content if choice and choice.message else None) or "").strip()
+    if text:
+        return text
+
+    finish_reason = getattr(choice, "finish_reason", "unknown") if choice else "missing_choice"
+    usage = getattr(response, "usage", None)
+    raise ValueError(
+        f"OpenAI returned empty {label} output (finish_reason={finish_reason}, usage={usage}). "
+        "Increase max completion tokens or lower OPENAI_REASONING_EFFORT."
+    )
+
+def parse_json_response(response, label: str) -> dict:
+    raw = response_text_or_raise(response, label)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"OpenAI returned invalid {label} JSON: {e}. Raw output: {raw[:500]}") from e
 
 # ---------- Prompts loader (array-based) ----------
 
@@ -101,24 +143,17 @@ def generate_seo_fields(client: OpenAI, model: str, plain_text: str, prompts: di
         },
     )
 
-    # MODIFIED: Use the modern client.chat.completions.create method
-    response = client.chat.completions.create(
+    response = client.chat.completions.create(**chat_completion_kwargs(
         model=model,
-        # MODIFIED: Use the 'messages' parameter with a simple structure
         messages=[
             {"role": "system", "content": system_msg},
             {"role": "user", "content": user_msg},
         ],
-        max_completion_tokens=200,
-        # MODIFIED: Use reliable JSON mode
+        max_completion_tokens=int(os.getenv("SEO_MAX_COMPLETION_TOKENS", SEO_MAX_COMPLETION_TOKENS)),
         response_format={"type": "json_object"},
-    )
+    ))
 
-    # MODIFIED: Simplified parsing for the modern API response
-    try:
-        data = json.loads(response.choices[0].message.content or "{}")
-    except json.JSONDecodeError:
-        data = {} # Fallback if the model returns invalid JSON
+    data = parse_json_response(response, "SEO")
 
     headline = sanitize(data.get("headline", ""))
     description = sanitize(data.get("description", ""))
@@ -129,6 +164,9 @@ def generate_seo_fields(client: OpenAI, model: str, plain_text: str, prompts: di
     headline = " ".join(headline.split())
     description = " ".join(description.split())
 
+    if not headline or not description:
+        raise ValueError(f"OpenAI returned incomplete SEO JSON: {data}")
+
     return {"headline": headline, "description": description}
 
 def generate_alt_for_image(client: OpenAI, model: str, image_url: str, context_text: str, prompts: dict) -> str:
@@ -138,10 +176,8 @@ def generate_alt_for_image(client: OpenAI, model: str, image_url: str, context_t
         {"CONTEXT": context_text[:500]},
     )
 
-    # MODIFIED: Use the modern client.chat.completions.create method
-    resp = client.chat.completions.create(
+    resp = client.chat.completions.create(**chat_completion_kwargs(
         model=model,
-        # MODIFIED: Use 'messages' parameter with the correct vision format
         messages=[
             {"role": "system", "content": sys_prompt},
             {
@@ -152,11 +188,10 @@ def generate_alt_for_image(client: OpenAI, model: str, image_url: str, context_t
                 ],
             },
         ],
-        max_completion_tokens=60,
-    )
+        max_completion_tokens=int(os.getenv("ALT_MAX_COMPLETION_TOKENS", ALT_MAX_COMPLETION_TOKENS)),
+    ))
 
-    # MODIFIED: Simplified parsing for the modern API response
-    alt_text = resp.choices[0].message.content or ""
+    alt_text = response_text_or_raise(resp, "ALT text")
     return sanitize(alt_text)
 
 # ---------- Main ----------
@@ -224,7 +259,7 @@ def main():
     # 3) Write to a NEW file
     try:
         OUTPUT_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print(f"\n✅ Wrote {OUTPUT_PATH.name} (seo.headline + seo.description + {updated} ALT)")
+        print(f"\n✅ Wrote {OUTPUT_PATH.name} (headline + description + {updated} ALT)")
         print("ℹ️ Original last_linkedin_post.json unchanged.")
     except Exception as e:
         print(f"❌ Failed to write output JSON: {e}", file=sys.stderr)
