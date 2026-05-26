@@ -1,0 +1,16 @@
+{
+  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7464761710386663424",
+  "last_raw_hash": "cdaa839e5266bc255a5f5b4ec0cbe83db6ed8949bafd37cbfc1fcd7470285eb3",
+  "last_enriched_hash": "ce6a3c6e99f9fe24ad9d28eaad127a10609756c0d803d1edccb773591b4fafc7",
+  "last_run_at": "2026-05-26T20:38:47.413747+00:00",
+  "statuses": {
+    "enrichment": "skipped_existing_post",
+    "webflow": {
+      "action": "updated",
+      "item_id": "6a15f013b4515f2468e97c0f",
+      "published": true
+    },
+    "tweetify": "skipped_existing_post",
+    "x": "failed: X post failed: 403 {\"client_id\":\"32986039\",\"detail\":\"When authenticating requests to the Twitter API v2 endpoints, you must use keys and tokens from a Twitter developer App that is attached to a Project. You can create a project via the developer portal.\",\"registration_url\":\"https://developer.twitter.com/en/docs/projects/overview\",\"title\":\"Client Forbidden\",\"required_enrollment\":\"Appropriate Level of API Access\",\"reason\":\"client-not-enrolled\",\"type\":\"https://api.twitter.com/2/problems/client-forbidden\"}"
+  }
+}
