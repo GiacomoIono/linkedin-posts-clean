@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import mimetypes
 import os
@@ -168,9 +169,13 @@ def upload_media(access_token: str, image: dict[str, Any]) -> str:
     content, content_type, filename = download_image(url)
     response = requests.post(
         f"{X_API_BASE_URL}/media/upload",
-        headers=x_headers(access_token),
-        data={"media_category": "tweet_image", "media_type": content_type.split(";")[0]},
-        files={"media": (filename, content, content_type)},
+        headers={**x_headers(access_token), "Content-Type": "application/json"},
+        json={
+            "media": base64.b64encode(content).decode("ascii"),
+            "media_category": "tweet_image",
+            "media_type": content_type.split(";")[0],
+            "shared": False,
+        },
         timeout=60,
     )
     if response.status_code >= 400:
