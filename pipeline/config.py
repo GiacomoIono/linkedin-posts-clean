@@ -60,6 +60,7 @@ class PipelineConfig:
     x_client_id: str
     x_client_secret: str
     require_x_posting: bool
+    force_webflow_sync: bool
     force_enrich: bool
     force_tweetify: bool
     force_x_post: bool
@@ -79,6 +80,7 @@ def load_config() -> PipelineConfig:
         x_client_id=first_env("X_CLIENT_ID"),
         x_client_secret=first_env("X_CLIENT_SECRET"),
         require_x_posting=env_bool("REQUIRE_X_POSTING", False),
+        force_webflow_sync=env_bool("FORCE_WEBFLOW_SYNC", False),
         force_enrich=env_bool("FORCE_ENRICH", False),
         force_tweetify=env_bool("FORCE_TWEETIFY", False),
         force_x_post=env_bool("FORCE_X_POST", False),
