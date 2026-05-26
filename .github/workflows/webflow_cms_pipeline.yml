@@ -61,6 +61,7 @@ jobs:
           WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS || vars.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
           WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'
           WEBFLOW_PUBLISH: 'true'
+          FORCE_WEBFLOW_SYNC: 'false'
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
           X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
