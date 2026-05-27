@@ -1,16 +1,16 @@
 {
-  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7464761710386663424",
-  "last_raw_hash": "cdaa839e5266bc255a5f5b4ec0cbe83db6ed8949bafd37cbfc1fcd7470285eb3",
-  "last_enriched_hash": "ce6a3c6e99f9fe24ad9d28eaad127a10609756c0d803d1edccb773591b4fafc7",
-  "last_run_at": "2026-05-26T20:38:47.413747+00:00",
+  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7465101550017847296",
+  "last_raw_hash": "8f66a7f93dba1a5a5326d37ccb56689a10993bf51e18e6e48dc15d27ecf95192",
+  "last_enriched_hash": "a7d695dcd7fedd7d3ecad8c79711684188d3e0b41480cc997304ef5ecc1dc73c",
+  "last_run_at": "2026-05-27T12:04:32.832922+00:00",
   "statuses": {
-    "enrichment": "skipped_existing_post",
+    "enrichment": "generated",
     "webflow": {
-      "action": "updated",
-      "item_id": "6a15f013b4515f2468e97c0f",
+      "action": "created",
+      "item_id": "6a16ddbeef0ac832809dbe89",
       "published": true
     },
-    "tweetify": "skipped_existing_post",
-    "x": "failed: X post failed: 403 {\"client_id\":\"32986039\",\"detail\":\"When authenticating requests to the Twitter API v2 endpoints, you must use keys and tokens from a Twitter developer App that is attached to a Project. You can create a project via the developer portal.\",\"registration_url\":\"https://developer.twitter.com/en/docs/projects/overview\",\"title\":\"Client Forbidden\",\"required_enrollment\":\"Appropriate Level of API Access\",\"reason\":\"client-not-enrolled\",\"type\":\"https://api.twitter.com/2/problems/client-forbidden\"}"
+    "tweetify": "generated",
+    "x": "failed: X post failed: 401 {\n  \"title\": \"Unauthorized\",\n  \"type\": \"about:blank\",\n  \"status\": 401,\n  \"detail\": \"Unauthorized\"\n}"
   }
 }
