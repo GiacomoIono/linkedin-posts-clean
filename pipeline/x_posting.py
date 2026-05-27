@@ -19,12 +19,11 @@ from .config import (
     PipelineConfig,
 )
 from .enrichment import completion_kwargs, response_text
-from .utils import load_json, mirror_json, sanitize_text, soft_trim, strip_html_to_text
+from .utils import load_json, mirror_json, sanitize_text, soft_trim, strip_html_to_text, write_json
 
 
 X_API_BASE_URL = "https://api.x.com/2"
 TWEET_MAX_CHARS = 280
-TWEET_MAX_COMPLETION_TOKENS = 900
 
 
 class XPostingError(RuntimeError):
@@ -102,8 +101,6 @@ def generate_tweet(post: dict[str, Any], config: PipelineConfig) -> dict[str, An
                 {"role": "system", "content": prompts["tweet_system"]},
                 {"role": "user", "content": user_content},
             ],
-            int(os.getenv("TWEET_OPENAI_MAX_COMPLETION_TOKENS", TWEET_MAX_COMPLETION_TOKENS)),
-            {"type": "json_object"},
         )
     )
     data = parse_tweet_response(response)
