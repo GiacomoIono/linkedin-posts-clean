@@ -28,7 +28,6 @@ PROMPTS_PATH = CONFIG_DIR / "prompts.json"
 LEGACY_PROMPTS_PATH = REPO_ROOT / "prompts.json"
 
 DEFAULT_OPENAI_MODEL = "gpt-5-nano"
-DEFAULT_OPENAI_REASONING_EFFORT = "minimal"
 DEFAULT_WEBFLOW_COLLECTION_ID = "63250855178122098387d7ef"
 NO_POSTS_FOUND_EXIT_CODE = 2
 VALID_OPENAI_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
@@ -50,9 +49,9 @@ def first_env(*names: str) -> str:
 
 
 def openai_reasoning_effort() -> str:
-    value = (first_env("OPENAI_REASONING_EFFORT") or DEFAULT_OPENAI_REASONING_EFFORT).strip().lower()
+    value = first_env("OPENAI_REASONING_EFFORT").strip().lower()
     if value == "none" or value not in VALID_OPENAI_REASONING_EFFORTS:
-        return DEFAULT_OPENAI_REASONING_EFFORT
+        return ""
     return value
 
 
