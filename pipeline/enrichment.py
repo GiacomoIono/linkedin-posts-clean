@@ -12,8 +12,6 @@ from .utils import sanitize_text, soft_trim, strip_html_to_text
 
 HEADLINE_MAX = 70
 DESCRIPTION_MAX = 160
-SEO_MAX_COMPLETION_TOKENS = 800
-ALT_MAX_COMPLETION_TOKENS = 400
 
 
 def load_prompts() -> dict[str, str]:
@@ -47,26 +45,11 @@ def fill_placeholders(template: str, mapping: dict[str, str]) -> str:
     return output
 
 
-def supports_reasoning_effort(model: str) -> bool:
-    return (model or "").startswith("gpt-5")
-
-
-def completion_kwargs(
-    config: PipelineConfig,
-    messages: list[dict[str, Any]],
-    max_completion_tokens: int,
-    response_format: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    kwargs: dict[str, Any] = {
+def completion_kwargs(config: PipelineConfig, messages: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
         "model": config.openai_model,
         "messages": messages,
-        "max_completion_tokens": max_completion_tokens,
     }
-    if response_format is not None:
-        kwargs["response_format"] = response_format
-    if config.openai_reasoning_effort and supports_reasoning_effort(config.openai_model):
-        kwargs["reasoning_effort"] = config.openai_reasoning_effort
-    return kwargs
 
 
 def response_text(response, label: str) -> str:
@@ -81,6 +64,10 @@ def response_text(response, label: str) -> str:
 
 def parse_json_response(response, label: str) -> dict[str, Any]:
     raw = response_text(response, label)
+    if raw.startswith("```"):
+        raw = raw.strip("`").strip()
+        if raw.lower().startswith("json"):
+            raw = raw[4:].strip()
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -107,8 +94,6 @@ def generate_seo(client: OpenAI, config: PipelineConfig, plain_text: str, prompt
                 {"role": "system", "content": prompts["seo_system"]},
                 {"role": "user", "content": user_msg},
             ],
-            int(os.getenv("SEO_MAX_COMPLETION_TOKENS", SEO_MAX_COMPLETION_TOKENS)),
-            {"type": "json_object"},
         )
     )
     data = parse_json_response(response, "SEO")
@@ -134,7 +119,6 @@ def generate_alt(client: OpenAI, config: PipelineConfig, image_url: str, plain_t
                     ],
                 },
             ],
-            int(os.getenv("ALT_MAX_COMPLETION_TOKENS", ALT_MAX_COMPLETION_TOKENS)),
         )
     )
     alt = sanitize_text(response_text(response, "ALT text"))
