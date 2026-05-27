@@ -19,7 +19,7 @@ from .config import (
     PipelineConfig,
 )
 from .enrichment import completion_kwargs, response_text
-from .utils import load_json, mirror_json, sanitize_text, soft_trim, strip_html_to_text, write_json
+from .utils import load_json, mirror_json, sanitize_text, soft_trim, strip_html_to_text
 
 
 X_API_BASE_URL = "https://api.x.com/2"
