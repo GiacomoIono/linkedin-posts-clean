@@ -28,8 +28,10 @@ PROMPTS_PATH = CONFIG_DIR / "prompts.json"
 LEGACY_PROMPTS_PATH = REPO_ROOT / "prompts.json"
 
 DEFAULT_OPENAI_MODEL = "gpt-5-nano"
+DEFAULT_OPENAI_REASONING_EFFORT = "minimal"
 DEFAULT_WEBFLOW_COLLECTION_ID = "63250855178122098387d7ef"
 NO_POSTS_FOUND_EXIT_CODE = 2
+VALID_OPENAI_REASONING_EFFORTS = {"minimal", "low", "medium", "high"}
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -45,6 +47,13 @@ def first_env(*names: str) -> str:
         if value and value.strip():
             return value.strip()
     return ""
+
+
+def openai_reasoning_effort() -> str:
+    value = (first_env("OPENAI_REASONING_EFFORT") or DEFAULT_OPENAI_REASONING_EFFORT).strip().lower()
+    if value == "none" or value not in VALID_OPENAI_REASONING_EFFORTS:
+        return DEFAULT_OPENAI_REASONING_EFFORT
+    return value
 
 
 @dataclass(frozen=True)
@@ -72,7 +81,7 @@ def load_config() -> PipelineConfig:
         linkedin_access_token=first_env("LINKEDIN_ACCESS_TOKEN"),
         openai_api_key=first_env("OPENAI_API_KEY"),
         openai_model=first_env("OPENAI_MODEL") or DEFAULT_OPENAI_MODEL,
-        openai_reasoning_effort=first_env("OPENAI_REASONING_EFFORT") or "none",
+        openai_reasoning_effort=openai_reasoning_effort(),
         webflow_api_token=first_env("WEBFLOW_API_TOKEN", "WEBFLOW_READ_AND_WRITE_BLOG_POSTS"),
         webflow_collection_id=first_env("WEBFLOW_COLLECTION_ID") or DEFAULT_WEBFLOW_COLLECTION_ID,
         webflow_publish=env_bool("WEBFLOW_PUBLISH", True),
