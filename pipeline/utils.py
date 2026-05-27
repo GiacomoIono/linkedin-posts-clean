@@ -24,11 +24,6 @@ def write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def mirror_json(primary_path: Path, legacy_path: Path, data: Any) -> None:
-    write_json(primary_path, data)
-    write_json(legacy_path, data)
-
-
 def strip_html_to_text(value: str) -> str:
     no_tags = re.sub(r"<[^>]+>", " ", value or "")
     unescaped = html.unescape(no_tags)
@@ -89,17 +84,3 @@ def iso_to_webflow(value: str) -> str:
         return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     except ValueError:
         return raw
-
-
-def newest_existing_post(*posts: dict[str, Any] | None) -> dict[str, Any] | None:
-    for post in posts:
-        if isinstance(post, dict) and post_identity(post):
-            return post
-    return None
-
-
-def http_error_message(response) -> str:
-    body = response.text.strip() if getattr(response, "text", "") else ""
-    if len(body) > 1000:
-        body = body[:1000] + "..."
-    return f"{response.status_code} {response.reason}: {body}"

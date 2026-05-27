@@ -10,16 +10,12 @@ import requests
 from openai import OpenAI
 
 from .config import (
-    LEGACY_POSTED_TWEETS_PATH,
-    LEGACY_PROMPTS_PATH,
-    LEGACY_TWEET_PATH,
     POSTED_TWEETS_PATH,
     PROMPTS_PATH,
-    TWEET_PATH,
     PipelineConfig,
 )
 from .enrichment import completion_kwargs, response_text
-from .utils import load_json, mirror_json, sanitize_text, soft_trim, strip_html_to_text
+from .utils import load_json, sanitize_text, soft_trim, strip_html_to_text, write_json
 
 
 X_API_BASE_URL = "https://api.x.com/2"
@@ -31,10 +27,9 @@ class XPostingError(RuntimeError):
 
 
 def load_tweet_prompts() -> dict[str, str]:
-    path = PROMPTS_PATH if PROMPTS_PATH.exists() else LEGACY_PROMPTS_PATH
-    if not path.exists():
+    if not PROMPTS_PATH.exists():
         raise RuntimeError(f"Missing prompts file: {PROMPTS_PATH}")
-    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc = json.loads(PROMPTS_PATH.read_text(encoding="utf-8"))
     prompt_sets = doc.get("tweet_generation")
     if not isinstance(prompt_sets, list) or not prompt_sets:
         raise RuntimeError("prompts.json must contain a non-empty tweet_generation array.")
@@ -126,9 +121,7 @@ def generate_tweet(post: dict[str, Any], config: PipelineConfig) -> dict[str, An
 
 
 def load_posted_tweets() -> dict[str, Any]:
-    data = load_json(POSTED_TWEETS_PATH, None)
-    if data is None:
-        data = load_json(LEGACY_POSTED_TWEETS_PATH, {"posted": []})
+    data = load_json(POSTED_TWEETS_PATH, {"posted": []})
     if isinstance(data, list):
         data = {"posted": data}
     if not isinstance(data, dict) or not isinstance(data.get("posted"), list):
@@ -137,7 +130,7 @@ def load_posted_tweets() -> dict[str, Any]:
 
 
 def save_posted_tweets(data: dict[str, Any]) -> None:
-    mirror_json(POSTED_TWEETS_PATH, LEGACY_POSTED_TWEETS_PATH, data)
+    write_json(POSTED_TWEETS_PATH, data)
 
 
 def already_posted(posted_doc: dict[str, Any], linkedin_url: str) -> dict[str, Any] | None:

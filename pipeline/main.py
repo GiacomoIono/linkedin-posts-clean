@@ -6,9 +6,6 @@ from typing import Any
 
 from .config import (
     ENRICHED_POST_PATH,
-    LEGACY_ENRICHED_POST_PATH,
-    LEGACY_RAW_POST_PATH,
-    LEGACY_TWEET_PATH,
     NO_POSTS_FOUND_EXIT_CODE,
     PIPELINE_STATE_PATH,
     RAW_POST_PATH,
@@ -18,21 +15,21 @@ from .config import (
 )
 from .enrichment import enrich_post
 from .linkedin import fetch_latest_linkedin_post
-from .utils import load_json, mirror_json, post_hash, post_identity, write_json
+from .utils import load_json, post_hash, post_identity, write_json
 from .webflow import load_webflow_state, sync_post_to_webflow
 from .x_posting import generate_tweet, post_to_x
 
 
 def load_existing_raw_post() -> dict[str, Any] | None:
-    return load_json(RAW_POST_PATH, None) or load_json(LEGACY_RAW_POST_PATH, None)
+    return load_json(RAW_POST_PATH, None)
 
 
 def load_existing_enriched_post() -> dict[str, Any] | None:
-    return load_json(ENRICHED_POST_PATH, None) or load_json(LEGACY_ENRICHED_POST_PATH, None)
+    return load_json(ENRICHED_POST_PATH, None)
 
 
 def load_existing_tweet() -> dict[str, Any] | None:
-    return load_json(TWEET_PATH, None) or load_json(LEGACY_TWEET_PATH, None)
+    return load_json(TWEET_PATH, None)
 
 
 def save_pipeline_state(latest_post: dict[str, Any], enriched_post: dict[str, Any], statuses: dict[str, Any]) -> None:
@@ -94,7 +91,7 @@ def main() -> int:
         or bool(existing_webflow_entry)
     )
 
-    mirror_json(RAW_POST_PATH, LEGACY_RAW_POST_PATH, latest_post)
+    write_json(RAW_POST_PATH, latest_post)
     print(f"Latest LinkedIn post: {latest_post.get('url')}")
 
     if matches_existing and not config.force_enrich:
@@ -108,7 +105,7 @@ def main() -> int:
         enriched_post = enrich_post(latest_post, config)
         statuses["enrichment"] = "generated"
 
-    mirror_json(ENRICHED_POST_PATH, LEGACY_ENRICHED_POST_PATH, enriched_post)
+    write_json(ENRICHED_POST_PATH, enriched_post)
 
     synced_entry = already_synced_to_webflow(enriched_post)
     if matches_existing and synced_entry and not config.force_webflow_sync:
@@ -132,7 +129,7 @@ def main() -> int:
     else:
         try:
             tweet = generate_tweet(enriched_post, config)
-            mirror_json(TWEET_PATH, LEGACY_TWEET_PATH, tweet)
+            write_json(TWEET_PATH, tweet)
             statuses["tweetify"] = "generated"
         except Exception as exc:
             tweet = None
@@ -140,7 +137,7 @@ def main() -> int:
             print(f"Optional X draft generation failed: {exc}")
 
     if tweet:
-        mirror_json(TWEET_PATH, LEGACY_TWEET_PATH, tweet)
+        write_json(TWEET_PATH, tweet)
         try:
             statuses["x"] = post_to_x(tweet, config)
         except Exception as exc:

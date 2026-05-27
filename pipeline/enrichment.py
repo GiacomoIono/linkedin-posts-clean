@@ -6,7 +6,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from .config import LEGACY_PROMPTS_PATH, PROMPTS_PATH, PipelineConfig
+from .config import PROMPTS_PATH, PipelineConfig
 from .utils import sanitize_text, soft_trim, strip_html_to_text
 
 
@@ -15,11 +15,10 @@ DESCRIPTION_MAX = 160
 
 
 def load_prompts() -> dict[str, str]:
-    path = PROMPTS_PATH if PROMPTS_PATH.exists() else LEGACY_PROMPTS_PATH
-    if not path.exists():
+    if not PROMPTS_PATH.exists():
         raise RuntimeError(f"Missing prompts file: {PROMPTS_PATH}")
 
-    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc = json.loads(PROMPTS_PATH.read_text(encoding="utf-8"))
     prompt_sets = doc.get("linkedin_post_enrichment")
     if not isinstance(prompt_sets, list) or not prompt_sets:
         raise RuntimeError("prompts.json must contain a non-empty linkedin_post_enrichment array.")

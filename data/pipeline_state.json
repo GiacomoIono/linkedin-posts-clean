@@ -2,15 +2,14 @@
   "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7465101550017847296",
   "last_raw_hash": "8f66a7f93dba1a5a5326d37ccb56689a10993bf51e18e6e48dc15d27ecf95192",
   "last_enriched_hash": "a7d695dcd7fedd7d3ecad8c79711684188d3e0b41480cc997304ef5ecc1dc73c",
-  "last_run_at": "2026-05-27T12:04:32.832922+00:00",
+  "last_run_at": "2026-05-27T14:09:06.189442+00:00",
   "statuses": {
-    "enrichment": "generated",
+    "enrichment": "skipped_existing_post",
     "webflow": {
-      "action": "created",
-      "item_id": "6a16ddbeef0ac832809dbe89",
-      "published": true
+      "action": "skipped_already_synced",
+      "item_id": "6a16ddbeef0ac832809dbe89"
     },
-    "tweetify": "generated",
-    "x": "failed: X post failed: 401 {\n  \"title\": \"Unauthorized\",\n  \"type\": \"about:blank\",\n  \"status\": 401,\n  \"detail\": \"Unauthorized\"\n}"
+    "tweetify": "skipped_existing_post",
+    "x": "failed: X_ACCESS_TOKEN is missing."
   }
 }

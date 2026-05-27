@@ -63,8 +63,6 @@ jobs:
           WEBFLOW_PUBLISH: 'true'
           FORCE_WEBFLOW_SYNC: 'false'
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
-          X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
-          X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
           REQUIRE_X_POSTING: 'false'
         run: |
           set +e
@@ -90,10 +88,6 @@ jobs:
 
           changed_files=$(git status --porcelain -- \
             data \
-            last_linkedin_post.json \
-            last_linkedin_post.enriched.json \
-            Twitter/tweet.json \
-            Twitter/posted_tweets.json \
             images)
 
           if [ -z "$changed_files" ]; then
@@ -106,10 +100,6 @@ jobs:
 
           git add \
             data \
-            last_linkedin_post.json \
-            last_linkedin_post.enriched.json \
-            Twitter/tweet.json \
-            Twitter/posted_tweets.json \
             images
 
           git commit -m "chore(bot): update Webflow CMS pipeline outputs for $(date -u +'%Y-%m-%d')"
