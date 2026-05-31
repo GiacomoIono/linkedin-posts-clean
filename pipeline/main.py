@@ -13,7 +13,7 @@ from .config import (
     ensure_directories,
     load_config,
 )
-from .enrichment import enrich_post
+from .enrichment import backfill_missing_alt, enrich_post, has_missing_image_alt
 from .linkedin import fetch_latest_linkedin_post
 from .utils import load_json, post_hash, post_identity, write_json
 from .webflow import WEBFLOW_PAYLOAD_VERSION, load_webflow_state, sync_post_to_webflow
@@ -99,7 +99,13 @@ def main() -> int:
     write_json(RAW_POST_PATH, latest_post)
     print(f"Latest LinkedIn post: {latest_post.get('url')}")
 
-    if matches_existing and not config.force_enrich:
+    needs_alt_backfill = same_source_url(previous_enriched, latest_post) and has_missing_image_alt(previous_enriched)
+
+    if matches_existing and needs_alt_backfill and not config.force_enrich:
+        print("Existing enriched post is missing image ALT text. Running ALT backfill.")
+        enriched_post = backfill_missing_alt(previous_enriched or latest_post, config)
+        statuses["enrichment"] = "alt_backfilled"
+    elif matches_existing and not config.force_enrich:
         enriched_post = previous_enriched or latest_post
         print("Latest post matches existing stored post. Skipping OpenAI enrichment.")
         if not same_source_url(enriched_post, latest_post):

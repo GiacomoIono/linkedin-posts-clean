@@ -1,6 +1,4 @@
 from __future__ import annotations
-
-import re
 from typing import Any
 
 import requests
@@ -10,7 +8,10 @@ from .utils import iso_to_webflow, load_json, post_hash, slugify, strip_html_to_
 
 
 WEBFLOW_BASE_URL = "https://api.webflow.com/v2"
-WEBFLOW_PAYLOAD_VERSION = 2
+WEBFLOW_PAYLOAD_VERSION = 4
+AUTHOR_NAME = "Giacomo Iotti"
+AUTHOR_COLLECTION_ID = "63250855178122e0e087d804"
+AUTHOR_ITEM_ID = "632508551781225a7587d893"
 
 SOURCE_URL_SLUGS = {
     "linkedin-url",
@@ -52,13 +53,16 @@ DESCRIPTION_SLUGS = {
     "seo-description",
     "meta-description",
     "summary",
+    "summery",
     "excerpt",
     "short-description",
     "post-summary",
+    "post-summery",
 }
 DATE_SLUGS = {"date", "published-at", "published_at", "published-date", "publish-date"}
 IMAGE_SLUGS = {"image", "main-image", "cover-image", "featured-image", "thumbnail", "post-image"}
 GALLERY_SLUGS = {"images", "gallery", "image-gallery", "post-images"}
+AUTHOR_SLUGS = {"author", "post-author", "writer", "byline"}
 ALT_SLUGS = {
     "alt",
     "alt-tag",
@@ -215,13 +219,8 @@ def image_alt_text(post: dict[str, Any]) -> str:
 
 def base_field_values(post: dict[str, Any]) -> dict[str, Any]:
     headline = post.get("headline") or strip_html_to_text(post.get("content", ""))[:70] or "LinkedIn post"
-    date_prefix = (post.get("published_at") or "")[:10]
-    source_id_match = re.search(r"(\d{8,})", post.get("url", ""))
-    source_id = source_id_match.group(1)[-8:] if source_id_match else ""
-    slug_source = f"{date_prefix} {headline} {source_id}".strip()
     return {
         "name": headline,
-        "slug": slugify(slug_source),
         "headline": post.get("headline") or headline,
         "description": post.get("description") or "",
         "content": post.get("content") or "",
@@ -231,6 +230,8 @@ def base_field_values(post: dict[str, Any]) -> dict[str, Any]:
         "image": first_image(post),
         "images": image_gallery(post),
         "alt": image_alt_text(post),
+        "author": AUTHOR_NAME,
+        "author_item_id": AUTHOR_ITEM_ID,
     }
 
 
@@ -250,6 +251,10 @@ def key_matches(keys: set[str], candidates: set[str]) -> bool:
 
 def is_link_field_type(ftype: str) -> bool:
     return "link" in ftype or "url" in ftype
+
+
+def is_reference_field_type(ftype: str) -> bool:
+    return "reference" in ftype or "itemref" in ftype
 
 
 def looks_like_source_url_field(keys: set[str], ftype: str) -> bool:
@@ -294,24 +299,32 @@ def looks_like_image_field(keys: set[str], ftype: str) -> bool:
     return any("image" in key or "cover" in key or "thumbnail" in key for key in keys)
 
 
+def looks_like_author_field(keys: set[str]) -> bool:
+    return key_matches(keys, AUTHOR_SLUGS) or any("author" in key or "byline" in key for key in keys)
+
+
 def value_for_field(slug: str, field: dict[str, Any], values: dict[str, Any]) -> Any:
     keys = field_keys(slug, field)
     ftype = field_type(field)
 
     if "name" in keys:
         return values["name"]
-    if "slug" in keys:
-        return values["slug"]
     if looks_like_source_url_field(keys, ftype):
         return values["source_url"]
     if key_matches(keys, CONTENT_SLUGS) or any(("body" in key or "content" in key) for key in keys):
         return values["content"] if "rich" in ftype else values["plain_text"]
     if key_matches(keys, HEADLINE_SLUGS) or any(("headline" in key or "title" in key) for key in keys):
         return values["headline"]
-    if key_matches(keys, DESCRIPTION_SLUGS) or any(("description" in key or "summary" in key or "excerpt" in key) for key in keys):
+    if key_matches(keys, DESCRIPTION_SLUGS) or any(
+        ("description" in key or "summary" in key or "summery" in key or "excerpt" in key) for key in keys
+    ):
         return values["description"]
     if key_matches(keys, DATE_SLUGS) or any("date" in key or "published" in key for key in keys):
         return values["published_at"]
+    if looks_like_author_field(keys):
+        if is_reference_field_type(ftype):
+            return values["author_item_id"]
+        return values["author"]
     if looks_like_alt_field(keys):
         return values["alt"]
     if looks_like_gallery_field(keys, ftype):
@@ -340,7 +353,7 @@ def value_for_field(slug: str, field: dict[str, Any], values: dict[str, Any]) ->
 def build_field_data(post: dict[str, Any], collection: dict[str, Any]) -> dict[str, Any]:
     values = base_field_values(post)
     fields = collection.get("fields", [])
-    field_data = {"name": values["name"], "slug": values["slug"]}
+    field_data = {"name": values["name"]}
 
     if not isinstance(fields, list) or not fields:
         field_data.update(
@@ -349,6 +362,7 @@ def build_field_data(post: dict[str, Any], collection: dict[str, Any]) -> dict[s
                 "description": values["description"],
                 "linkedin-url": values["source_url"],
                 "published-at": values["published_at"],
+                "author": values["author"],
             }
         )
         if values["alt"]:
@@ -363,6 +377,8 @@ def build_field_data(post: dict[str, Any], collection: dict[str, Any]) -> dict[s
     for field in fields:
         slug = field_slug(field)
         if not slug:
+            continue
+        if slug.lower() == "slug":
             continue
         value = value_for_field(slug, field, values)
         if value is None or value == "" or value == []:
@@ -383,6 +399,13 @@ def item_matches(item: dict[str, Any], source_url: str) -> bool:
         if value == source_url:
             return True
     return False
+
+
+def find_item_by_source_url(client: WebflowClient, source_url: str) -> dict[str, Any] | None:
+    for item in client.list_items():
+        if item_matches(item, source_url):
+            return item
+    return None
 
 
 def item_slug(item: dict[str, Any]) -> str:
@@ -424,11 +447,9 @@ def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[s
     if item_id:
         existing_item = {"id": item_id}
     else:
-        for item in client.list_items():
-            if item_matches(item, source_url):
-                existing_item = item
-                item_id = item.get("id")
-                break
+        existing_item = find_item_by_source_url(client, source_url)
+        if existing_item:
+            item_id = existing_item.get("id")
 
     payload_is_current = (
         state_entry.get("signature") == signature
@@ -450,8 +471,23 @@ def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[s
     field_data = build_field_data(post, collection)
 
     if item_id:
-        response = client.update_item(str(item_id), field_data)
-        action = "updated"
+        try:
+            response = client.update_item(str(item_id), field_data)
+            action = "updated"
+        except WebflowError as exc:
+            if "404" not in str(exc) and "resource_not_found" not in str(exc):
+                raise
+            stale_item_id = str(item_id)
+            print(f"Stored Webflow item ID was not found: {stale_item_id}. Looking up by LinkedIn URL.")
+            existing_item = find_item_by_source_url(client, source_url)
+            item_id = existing_item.get("id") if existing_item else ""
+            if item_id:
+                response = client.update_item(str(item_id), field_data)
+                action = "updated"
+            else:
+                response = client.create_item(field_data)
+                item_id = response_item_id(response)
+                action = "created"
     else:
         response = client.create_item(field_data)
         item_id = response_item_id(response)

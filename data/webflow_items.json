@@ -19,10 +19,10 @@
       "published": true
     },
     "https://www.linkedin.com/feed/update/urn:li:share:7466795473731760129": {
-      "item_id": "6a1c6bee61f9122100c5ddf1",
-      "slug": "2026-05-31-swiss-trains-stay-on-time-challenging-italy-s-stereotypes-31760129",
-      "signature": "a1ea29ba7e59c08f68d2b5f72294541cb72d58dde224210ef63607fef2f4969c",
-      "payload_version": 2,
+      "item_id": "6a1c81c87c77b9e96df2dbcb",
+      "slug": "",
+      "signature": "2e7cbd6332e045c9570a424babe7473c6c19581af52bdfb4fb4edff6b081aa15",
+      "payload_version": 4,
       "published": true
     }
   }

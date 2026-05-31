@@ -1,16 +1,15 @@
 {
   "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7466795473731760129",
   "last_raw_hash": "c8e90a8eb963b60e1614199b8b43768bd570d8bbcca4ca7f8d9623b30a8aa80f",
-  "last_enriched_hash": "a1ea29ba7e59c08f68d2b5f72294541cb72d58dde224210ef63607fef2f4969c",
-  "last_run_at": "2026-05-31T17:12:16.258581+00:00",
+  "last_enriched_hash": "2e7cbd6332e045c9570a424babe7473c6c19581af52bdfb4fb4edff6b081aa15",
+  "last_run_at": "2026-05-31T19:20:14.406637+00:00",
   "statuses": {
-    "enrichment": "generated",
+    "enrichment": "skipped_existing_post",
     "webflow": {
-      "action": "created",
-      "item_id": "6a1c6bee61f9122100c5ddf1",
-      "published": true
+      "action": "skipped_already_synced",
+      "item_id": "6a1c81c87c77b9e96df2dbcb"
     },
-    "tweetify": "failed: Error code: 401 - {'error': {'message': \"You have insufficient permissions for this operation. Missing scopes: model.request. Check that you have the correct role in your organization (Reader, Writer, Owner) and project (Member, Owner), and if you're using a restricted API key, that it has the necessary scopes.\", 'type': 'invalid_request_error', 'param': None, 'code': 'missing_scope'}}",
+    "tweetify": "skipped_existing_post_no_artifact",
     "x": "skipped_no_tweet"
   }
 }
