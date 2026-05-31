@@ -10,16 +10,30 @@ from .utils import iso_to_webflow, load_json, post_hash, slugify, strip_html_to_
 
 
 WEBFLOW_BASE_URL = "https://api.webflow.com/v2"
+WEBFLOW_PAYLOAD_VERSION = 2
 
 SOURCE_URL_SLUGS = {
     "linkedin-url",
     "linkedin_url",
+    "linkedin-link",
+    "linkedin_post_link",
+    "linkedin-post",
+    "linkedin-post-link",
+    "linkedin-post-url",
     "source-url",
     "source_url",
+    "source-link",
     "original-url",
     "original_url",
+    "original-post",
+    "original-post-url",
     "external-url",
+    "external-link",
+    "canonical-url",
+    "permalink",
+    "url",
     "post-url",
+    "post-link",
 }
 CONTENT_SLUGS = {
     "content",
@@ -45,7 +59,29 @@ DESCRIPTION_SLUGS = {
 DATE_SLUGS = {"date", "published-at", "published_at", "published-date", "publish-date"}
 IMAGE_SLUGS = {"image", "main-image", "cover-image", "featured-image", "thumbnail", "post-image"}
 GALLERY_SLUGS = {"images", "gallery", "image-gallery", "post-images"}
-ALT_SLUGS = {"alt", "alt-text", "image-alt", "image-description"}
+ALT_SLUGS = {
+    "alt",
+    "alt-tag",
+    "alt-tags",
+    "alt-text",
+    "image-alt",
+    "image-alt-tag",
+    "image-alt-tags",
+    "image-alt-text",
+    "image-description",
+    "images-alt",
+    "images-alt-tag",
+    "images-alt-tags",
+    "images-alt-text",
+    "main-image-alt",
+    "main-image-alt-tag",
+    "featured-image-alt",
+    "featured-image-alt-tag",
+    "cover-image-alt",
+    "cover-image-alt-tag",
+    "thumbnail-alt",
+    "thumbnail-alt-tag",
+}
 
 
 class WebflowError(RuntimeError):
@@ -163,6 +199,20 @@ def image_gallery(post: dict[str, Any]) -> list[dict[str, str]]:
     return gallery
 
 
+def image_alt_text(post: dict[str, Any]) -> str:
+    for key in ("alt", "image_alt", "image_alt_tag", "images_alt_tag"):
+        alt = str(post.get(key) or "").strip()
+        if alt:
+            return alt
+
+    for image in post.get("images", []) or []:
+        if isinstance(image, dict):
+            alt = str(image.get("alt") or "").strip()
+            if alt:
+                return alt
+    return ""
+
+
 def base_field_values(post: dict[str, Any]) -> dict[str, Any]:
     headline = post.get("headline") or strip_html_to_text(post.get("content", ""))[:70] or "LinkedIn post"
     date_prefix = (post.get("published_at") or "")[:10]
@@ -180,7 +230,7 @@ def base_field_values(post: dict[str, Any]) -> dict[str, Any]:
         "published_at": iso_to_webflow(post.get("published_at", "")),
         "image": first_image(post),
         "images": image_gallery(post),
-        "alt": (first_image(post) or {}).get("alt", ""),
+        "alt": image_alt_text(post),
     }
 
 
@@ -198,6 +248,52 @@ def key_matches(keys: set[str], candidates: set[str]) -> bool:
     return bool(keys & candidates)
 
 
+def is_link_field_type(ftype: str) -> bool:
+    return "link" in ftype or "url" in ftype
+
+
+def looks_like_source_url_field(keys: set[str], ftype: str) -> bool:
+    if key_matches(keys, SOURCE_URL_SLUGS):
+        return True
+
+    if any("linkedin" in key and ("url" in key or "link" in key) for key in keys):
+        return True
+
+    if not is_link_field_type(ftype):
+        return False
+
+    return any(
+        "linkedin" in key
+        or "source" in key
+        or "original" in key
+        or "external" in key
+        or "canonical" in key
+        or "permalink" in key
+        or key in {"post", "post-link", "post-url"}
+        for key in keys
+    )
+
+
+def looks_like_alt_field(keys: set[str]) -> bool:
+    return key_matches(keys, ALT_SLUGS) or any("alt" in key for key in keys)
+
+
+def looks_like_gallery_field(keys: set[str], ftype: str) -> bool:
+    if key_matches(keys, GALLERY_SLUGS) or any("gallery" in key for key in keys):
+        return True
+    if "multi" in ftype and "image" in ftype:
+        return True
+    return any(key == "images" or key.endswith("-images") for key in keys)
+
+
+def looks_like_image_field(keys: set[str], ftype: str) -> bool:
+    if key_matches(keys, IMAGE_SLUGS):
+        return True
+    if "image" in ftype:
+        return True
+    return any("image" in key or "cover" in key or "thumbnail" in key for key in keys)
+
+
 def value_for_field(slug: str, field: dict[str, Any], values: dict[str, Any]) -> Any:
     keys = field_keys(slug, field)
     ftype = field_type(field)
@@ -206,7 +302,7 @@ def value_for_field(slug: str, field: dict[str, Any], values: dict[str, Any]) ->
         return values["name"]
     if "slug" in keys:
         return values["slug"]
-    if key_matches(keys, SOURCE_URL_SLUGS) or any("linkedin" in key and "url" in key for key in keys):
+    if looks_like_source_url_field(keys, ftype):
         return values["source_url"]
     if key_matches(keys, CONTENT_SLUGS) or any(("body" in key or "content" in key) for key in keys):
         return values["content"] if "rich" in ftype else values["plain_text"]
@@ -216,12 +312,12 @@ def value_for_field(slug: str, field: dict[str, Any], values: dict[str, Any]) ->
         return values["description"]
     if key_matches(keys, DATE_SLUGS) or any("date" in key or "published" in key for key in keys):
         return values["published_at"]
-    if key_matches(keys, IMAGE_SLUGS) or any(("image" in key or "cover" in key or "thumbnail" in key) for key in keys):
-        return values["image"]
-    if key_matches(keys, GALLERY_SLUGS) or any("gallery" in key for key in keys):
-        return values["images"]
-    if key_matches(keys, ALT_SLUGS) or any("alt" in key for key in keys):
+    if looks_like_alt_field(keys):
         return values["alt"]
+    if looks_like_gallery_field(keys, ftype):
+        return values["images"]
+    if looks_like_image_field(keys, ftype):
+        return values["image"]
 
     if not is_required(field):
         return None
@@ -255,8 +351,12 @@ def build_field_data(post: dict[str, Any], collection: dict[str, Any]) -> dict[s
                 "published-at": values["published_at"],
             }
         )
+        if values["alt"]:
+            field_data["images-alt-tag"] = values["alt"]
         if values["image"]:
             field_data["image"] = values["image"]
+        if values["images"]:
+            field_data["images"] = values["images"]
         return field_data
 
     missing_required = []
@@ -330,11 +430,16 @@ def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[s
                 item_id = item.get("id")
                 break
 
-    if existing_item and not config.force_webflow_sync:
+    payload_is_current = (
+        state_entry.get("signature") == signature
+        and state_entry.get("payload_version") == WEBFLOW_PAYLOAD_VERSION
+    )
+    if existing_item and not config.force_webflow_sync and payload_is_current:
         state["items"][source_url] = {
             "item_id": str(item_id),
             "slug": state_entry.get("slug") or item_slug(existing_item),
-            "signature": state_entry.get("signature") or signature,
+            "signature": signature,
+            "payload_version": WEBFLOW_PAYLOAD_VERSION,
             "published": state_entry.get("published", True),
         }
         save_webflow_state(state)
@@ -362,6 +467,7 @@ def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[s
         "item_id": str(item_id),
         "slug": field_data.get("slug", ""),
         "signature": signature,
+        "payload_version": WEBFLOW_PAYLOAD_VERSION,
         "published": published,
     }
     save_webflow_state(state)

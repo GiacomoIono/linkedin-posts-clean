@@ -16,7 +16,7 @@ from .config import (
 from .enrichment import enrich_post
 from .linkedin import fetch_latest_linkedin_post
 from .utils import load_json, post_hash, post_identity, write_json
-from .webflow import load_webflow_state, sync_post_to_webflow
+from .webflow import WEBFLOW_PAYLOAD_VERSION, load_webflow_state, sync_post_to_webflow
 from .x_posting import generate_tweet, post_to_x
 
 
@@ -64,7 +64,12 @@ def webflow_state_entry(source_url: str) -> dict[str, Any] | None:
 
 def already_synced_to_webflow(post: dict[str, Any]) -> dict[str, Any] | None:
     entry = webflow_state_entry(post.get("url", ""))
-    if entry and entry.get("published"):
+    if (
+        entry
+        and entry.get("published")
+        and entry.get("signature") == post_hash(post)
+        and entry.get("payload_version") == WEBFLOW_PAYLOAD_VERSION
+    ):
         return entry
     return None
 
