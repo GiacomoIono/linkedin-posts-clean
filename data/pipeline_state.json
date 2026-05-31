@@ -1,13 +1,13 @@
 {
-  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7465517505990602752",
-  "last_raw_hash": "706d3b847c0e94ca6123e05981dbfd17da8a5af92defd86a2a8f2ce3ef50b35e",
-  "last_enriched_hash": "2863dd31fdefe0c11be74fe1e2c48391d5a27085c9e5b3f7aa33004392560c61",
-  "last_run_at": "2026-05-28T16:02:15.389612+00:00",
+  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7466795473731760129",
+  "last_raw_hash": "c8e90a8eb963b60e1614199b8b43768bd570d8bbcca4ca7f8d9623b30a8aa80f",
+  "last_enriched_hash": "a1ea29ba7e59c08f68d2b5f72294541cb72d58dde224210ef63607fef2f4969c",
+  "last_run_at": "2026-05-31T17:12:16.258581+00:00",
   "statuses": {
     "enrichment": "generated",
     "webflow": {
       "action": "created",
-      "item_id": "6a1867038c3a0d8f46c7d2d6",
+      "item_id": "6a1c6bee61f9122100c5ddf1",
       "published": true
     },
     "tweetify": "failed: Error code: 401 - {'error': {'message': \"You have insufficient permissions for this operation. Missing scopes: model.request. Check that you have the correct role in your organization (Reader, Writer, Owner) and project (Member, Owner), and if you're using a restricted API key, that it has the necessary scopes.\", 'type': 'invalid_request_error', 'param': None, 'code': 'missing_scope'}}",
