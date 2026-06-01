@@ -152,7 +152,7 @@ def generate_seo(client: OpenAI, config: PipelineConfig, plain_text: str, prompt
 
 
 def generate_alt(client: OpenAI, config: PipelineConfig, image_url: str, plain_text: str, prompts: dict[str, str]) -> str:
-    user_intro = fill_placeholders(prompts["alt_user"], {"CONTEXT": plain_text[:700]})
+    user_intro = fill_placeholders(prompts["alt_user"], {"CONTEXT": plain_text[:700], "IMAGE_URL": image_url})
     response = client.chat.completions.create(
         **completion_kwargs(
             config,
@@ -174,11 +174,19 @@ def generate_alt(client: OpenAI, config: PipelineConfig, image_url: str, plain_t
     return alt
 
 
-def generate_context_alt(client: OpenAI, config: PipelineConfig, plain_text: str, prompts: dict[str, str]) -> str:
+def generate_context_alt(
+    client: OpenAI,
+    config: PipelineConfig,
+    plain_text: str,
+    prompts: dict[str, str],
+    image_url: str = "",
+) -> str:
     user_msg = (
-        "The image input could not be analyzed. Generate one accessible ALT text sentence "
-        "from the post context only. Prefer any explicit picture/photo description in the text. "
-        "Use 8-18 words, avoid opinions, emojis, hashtags, and the phrase Image of.\n\n"
+        "The image input could not be analyzed. Generate one conservative accessible ALT text sentence "
+        "from the post context only. Do not pretend to see the image. Prefer any explicit picture/photo "
+        "description in the text. Otherwise, describe it generically as a visual related to the post topic. "
+        "Use 8-18 words, avoid opinions, emojis, hashtags, and phrases like Image of or Picture of.\n\n"
+        f"Image source URL:\n{image_url or 'Unavailable'}\n\n"
         f"Post context:\n{plain_text[:1000]}"
     )
     response = client.chat.completions.create(
@@ -219,7 +227,7 @@ def populate_missing_alt(
         return "explicit_context"
 
     try:
-        item["alt"] = generate_context_alt(client, config, plain_text, prompts)
+        item["alt"] = generate_context_alt(client, config, plain_text, prompts, image_url)
         return "context"
     except Exception as exc:
         print(f"ALT context generation failed for {image_url}: {exc}")

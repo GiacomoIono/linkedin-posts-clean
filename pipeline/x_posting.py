@@ -53,6 +53,21 @@ def replace_double_braces(template: str, mapping: dict[str, str]) -> str:
     return output
 
 
+def tweet_image_urls(post: dict[str, Any], limit: int = 4) -> list[str]:
+    urls = []
+    for image in post.get("images", []) or []:
+        if isinstance(image, dict) and image.get("url"):
+            urls.append(str(image["url"]))
+    return urls[:limit]
+
+
+def tweet_user_content(user_msg: str, image_urls: list[str]) -> list[dict[str, Any]]:
+    content: list[dict[str, Any]] = [{"type": "text", "text": user_msg}]
+    for url in image_urls:
+        content.append({"type": "image_url", "image_url": {"url": url}})
+    return content
+
+
 def parse_tweet_response(response) -> dict[str, Any]:
     raw = response_text(response, "tweet JSON")
     if raw.startswith("```"):
@@ -68,14 +83,25 @@ def parse_tweet_response(response) -> dict[str, Any]:
     return data
 
 
+def selected_tweet_images(data: dict[str, Any], allowed_urls: list[str]) -> list[dict[str, str]]:
+    allowed = set(allowed_urls)
+    selected = []
+    for item in data.get("images", []) or []:
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        if url in allowed:
+            selected.append({"url": str(url), "alt": sanitize_text(str(item.get("alt", "")))})
+    return selected
+
+
 def generate_tweet(post: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
     if not config.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is missing.")
 
     prompts = load_tweet_prompts()
     source_text = strip_html_to_text(post.get("content", ""))
-    image_urls = [image.get("url") for image in post.get("images", []) or [] if isinstance(image, dict) and image.get("url")]
-    image_urls = image_urls[:4]
+    image_urls = tweet_image_urls(post)
     user_msg = replace_double_braces(
         prompts["tweet_user"],
         {
@@ -84,17 +110,13 @@ def generate_tweet(post: dict[str, Any], config: PipelineConfig) -> dict[str, An
         },
     )
 
-    user_content: list[dict[str, Any]] = [{"type": "text", "text": user_msg}]
-    for url in image_urls:
-        user_content.append({"type": "image_url", "image_url": {"url": url}})
-
     client = OpenAI(api_key=config.openai_api_key)
     response = client.chat.completions.create(
         **completion_kwargs(
             config,
             [
                 {"role": "system", "content": prompts["tweet_system"]},
-                {"role": "user", "content": user_content},
+                {"role": "user", "content": tweet_user_content(user_msg, image_urls)},
             ],
         )
     )
@@ -103,20 +125,11 @@ def generate_tweet(post: dict[str, Any], config: PipelineConfig) -> dict[str, An
     if not tweet_text:
         raise RuntimeError(f"OpenAI returned tweet JSON without a non-empty tweet: {data}")
 
-    allowed_urls = set(image_urls)
-    selected_images = []
-    for item in data.get("images", []) or []:
-        if not isinstance(item, dict):
-            continue
-        url = item.get("url")
-        if url in allowed_urls:
-            selected_images.append({"url": url, "alt": sanitize_text(str(item.get("alt", "")))})
-
     return {
         "content": tweet_text,
         "url": post.get("url", ""),
         "published_at": post.get("published_at", ""),
-        "images": selected_images,
+        "images": selected_tweet_images(data, image_urls),
     }
 
 
@@ -203,6 +216,33 @@ def create_post(access_token: str, tweet_text: str, media_ids: list[str]) -> dic
     return response.json()
 
 
+def upload_tweet_images(access_token: str, images: list[dict[str, Any]], limit: int = 4) -> list[str]:
+    media_ids = []
+    for image in images:
+        if len(media_ids) >= limit:
+            break
+        try:
+            media_ids.append(upload_media(access_token, image))
+        except Exception as exc:
+            print(f"X image upload skipped: {exc}")
+    return media_ids
+
+
+def tweet_id_from_response(response: dict[str, Any]) -> str:
+    return str(response.get("data", {}).get("id") or "")
+
+
+def remember_posted_tweet(posted_doc: dict[str, Any], linkedin_url: str, tweet_id: str, tweet_url: str) -> None:
+    posted_doc.setdefault("posted", []).append(
+        {
+            "linkedin_url": linkedin_url,
+            "tweet_id": tweet_id,
+            "tweet_url": tweet_url,
+        }
+    )
+    save_posted_tweets(posted_doc)
+
+
 def post_to_x(tweet: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
     if not config.x_access_token:
         raise XPostingError("X_ACCESS_TOKEN is missing.")
@@ -219,28 +259,13 @@ def post_to_x(tweet: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
             print("X post skipped: LinkedIn URL already appears in posted_tweets ledger.")
             return {"action": "skipped", "tweet_url": existing.get("tweet_url", "")}
 
-    media_ids = []
-    for image in tweet.get("images", []) or []:
-        if len(media_ids) >= 4:
-            break
-        try:
-            media_ids.append(upload_media(config.x_access_token, image))
-        except Exception as exc:
-            print(f"X image upload skipped: {exc}")
-
+    media_ids = upload_tweet_images(config.x_access_token, tweet.get("images", []) or [])
     response = create_post(config.x_access_token, tweet_text, media_ids)
-    tweet_id = str(response.get("data", {}).get("id") or "")
+    tweet_id = tweet_id_from_response(response)
     if not tweet_id:
         raise XPostingError(f"X post response did not include an id: {response}")
 
     tweet_url = f"https://x.com/i/web/status/{tweet_id}"
-    posted_doc.setdefault("posted", []).append(
-        {
-            "linkedin_url": linkedin_url,
-            "tweet_id": tweet_id,
-            "tweet_url": tweet_url,
-        }
-    )
-    save_posted_tweets(posted_doc)
+    remember_posted_tweet(posted_doc, linkedin_url, tweet_id, tweet_url)
     print(f"X post published: {tweet_url}")
     return {"action": "posted", "tweet_id": tweet_id, "tweet_url": tweet_url}

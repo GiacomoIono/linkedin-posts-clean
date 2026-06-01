@@ -5,8 +5,8 @@ concurrency:
 
 on:
   schedule:
-    # GitHub schedules use UTC. These two slots cover 20:00 Europe/Zurich across DST.
-    - cron: '0 18,19 * * *'
+    # GitHub schedules use UTC. These two slots cover 04:00 Europe/Zurich across DST.
+    - cron: '0 2,3 * * *'
   workflow_dispatch:
 
 env:
@@ -26,14 +26,14 @@ jobs:
 
           now = datetime.now(ZoneInfo("Europe/Zurich"))
           print(f"zurich_now={now.isoformat()}")
-          print(f"run_cms_pipeline={'true' if now.hour == 20 else 'false'}")
+          print(f"run_cms_pipeline={'true' if now.hour == 4 else 'false'}")
           PY
 
-      - name: Skip scheduled non-8pm run
+      - name: Skip scheduled non-4am run
         if: github.event_name == 'schedule' && steps.zurich_time.outputs.run_cms_pipeline != 'true'
         run: |
           echo "Current Zurich time is ${{ steps.zurich_time.outputs.zurich_now }}."
-          echo "Skipping this scheduled slot because the CMS pipeline runs at 20:00 Europe/Zurich."
+          echo "Skipping this scheduled slot because the CMS pipeline runs at 04:00 Europe/Zurich."
 
       - name: Check out repo
         if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
@@ -62,6 +62,7 @@ jobs:
           WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'
           WEBFLOW_PUBLISH: 'true'
           FORCE_WEBFLOW_SYNC: 'false'
+          RUN_X_PIPELINE: 'false'
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           REQUIRE_X_POSTING: 'false'
         run: |

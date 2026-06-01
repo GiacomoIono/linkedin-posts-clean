@@ -10,6 +10,7 @@ from .config import (
     PIPELINE_STATE_PATH,
     RAW_POST_PATH,
     TWEET_PATH,
+    PipelineConfig,
     ensure_directories,
     load_config,
 )
@@ -74,6 +75,99 @@ def already_synced_to_webflow(post: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def matches_existing_post(
+    latest_post: dict[str, Any],
+    previous_raw: dict[str, Any] | None,
+    previous_enriched: dict[str, Any] | None,
+    existing_webflow_entry: dict[str, Any] | None,
+) -> bool:
+    return (
+        same_source_url(latest_post, previous_raw)
+        or same_source_url(latest_post, previous_enriched)
+        or bool(existing_webflow_entry)
+    )
+
+
+def prepare_enriched_post(
+    latest_post: dict[str, Any],
+    previous_enriched: dict[str, Any] | None,
+    matches_existing: bool,
+    config: PipelineConfig,
+) -> tuple[dict[str, Any], str]:
+    needs_alt_backfill = same_source_url(previous_enriched, latest_post) and has_missing_image_alt(previous_enriched)
+
+    if matches_existing and needs_alt_backfill and not config.force_enrich:
+        print("Existing enriched post is missing image ALT text. Running ALT backfill.")
+        return backfill_missing_alt(previous_enriched or latest_post, config), "alt_backfilled"
+
+    if matches_existing and not config.force_enrich:
+        print("Latest post matches existing stored post. Skipping OpenAI enrichment.")
+        enriched_post = previous_enriched or latest_post
+        if not same_source_url(enriched_post, latest_post):
+            enriched_post = dict(enriched_post)
+            enriched_post["url"] = latest_post.get("url", "")
+        return enriched_post, "skipped_existing_post"
+
+    return enrich_post(latest_post, config), "generated"
+
+
+def sync_webflow_if_needed(enriched_post: dict[str, Any], matches_existing: bool, config: PipelineConfig) -> dict[str, Any]:
+    synced_entry = already_synced_to_webflow(enriched_post)
+    if matches_existing and synced_entry and not config.force_webflow_sync:
+        print("Webflow already synced for this LinkedIn URL. Skipping Webflow API call.")
+        return {
+            "action": "skipped_already_synced",
+            "item_id": synced_entry.get("item_id"),
+        }
+    return sync_post_to_webflow(enriched_post, config)
+
+
+def run_x_pipeline_if_enabled(
+    enriched_post: dict[str, Any],
+    latest_post: dict[str, Any],
+    matches_existing: bool,
+    config: PipelineConfig,
+) -> dict[str, Any]:
+    if not config.run_x_pipeline:
+        print("RUN_X_PIPELINE is false. Skipping X pipeline.")
+        return {
+            "tweetify": "skipped_x_pipeline_disabled",
+            "x": "skipped_x_pipeline_disabled",
+        }
+
+    previous_tweet = load_existing_tweet()
+    if matches_existing and previous_tweet and same_source_url(previous_tweet, latest_post) and not config.force_tweetify:
+        tweet = previous_tweet
+        print("Latest post matches existing tweet artifact. Skipping OpenAI tweet generation.")
+        tweetify_status = "skipped_existing_post"
+    elif matches_existing and not config.force_tweetify:
+        tweet = None
+        print("Latest post matches existing post and no tweet artifact was found. Skipping OpenAI tweet generation.")
+        tweetify_status = "skipped_existing_post_no_artifact"
+    else:
+        try:
+            tweet = generate_tweet(enriched_post, config)
+            write_json(TWEET_PATH, tweet)
+            tweetify_status = "generated"
+        except Exception as exc:
+            tweet = None
+            tweetify_status = f"failed: {exc}"
+            print(f"Optional X draft generation failed: {exc}")
+
+    if not tweet:
+        return {"tweetify": tweetify_status, "x": "skipped_no_tweet"}
+
+    write_json(TWEET_PATH, tweet)
+    try:
+        x_status = post_to_x(tweet, config)
+    except Exception as exc:
+        x_status = f"failed: {exc}"
+        print(f"Optional X posting failed: {exc}")
+        if config.require_x_posting:
+            raise
+    return {"tweetify": tweetify_status, "x": x_status}
+
+
 def main() -> int:
     ensure_directories()
     config = load_config()
@@ -87,77 +181,23 @@ def main() -> int:
 
     previous_raw = load_existing_raw_post()
     previous_enriched = load_existing_enriched_post()
-    previous_tweet = load_existing_tweet()
     latest_source_url = post_identity(latest_post)
     existing_webflow_entry = webflow_state_entry(latest_source_url)
-    matches_existing = (
-        same_source_url(latest_post, previous_raw)
-        or same_source_url(latest_post, previous_enriched)
-        or bool(existing_webflow_entry)
-    )
+    matches_existing = matches_existing_post(latest_post, previous_raw, previous_enriched, existing_webflow_entry)
 
     write_json(RAW_POST_PATH, latest_post)
     print(f"Latest LinkedIn post: {latest_post.get('url')}")
 
-    needs_alt_backfill = same_source_url(previous_enriched, latest_post) and has_missing_image_alt(previous_enriched)
-
-    if matches_existing and needs_alt_backfill and not config.force_enrich:
-        print("Existing enriched post is missing image ALT text. Running ALT backfill.")
-        enriched_post = backfill_missing_alt(previous_enriched or latest_post, config)
-        statuses["enrichment"] = "alt_backfilled"
-    elif matches_existing and not config.force_enrich:
-        enriched_post = previous_enriched or latest_post
-        print("Latest post matches existing stored post. Skipping OpenAI enrichment.")
-        if not same_source_url(enriched_post, latest_post):
-            enriched_post = dict(enriched_post)
-            enriched_post["url"] = latest_post.get("url", "")
-        statuses["enrichment"] = "skipped_existing_post"
-    else:
-        enriched_post = enrich_post(latest_post, config)
-        statuses["enrichment"] = "generated"
-
+    enriched_post, statuses["enrichment"] = prepare_enriched_post(
+        latest_post,
+        previous_enriched,
+        matches_existing,
+        config,
+    )
     write_json(ENRICHED_POST_PATH, enriched_post)
 
-    synced_entry = already_synced_to_webflow(enriched_post)
-    if matches_existing and synced_entry and not config.force_webflow_sync:
-        print("Webflow already synced for this LinkedIn URL. Skipping Webflow API call.")
-        webflow_result = {
-            "action": "skipped_already_synced",
-            "item_id": synced_entry.get("item_id"),
-        }
-    else:
-        webflow_result = sync_post_to_webflow(enriched_post, config)
-    statuses["webflow"] = webflow_result
-
-    if matches_existing and previous_tweet and same_source_url(previous_tweet, latest_post) and not config.force_tweetify:
-        tweet = previous_tweet
-        print("Latest post matches existing tweet artifact. Skipping OpenAI tweet generation.")
-        statuses["tweetify"] = "skipped_existing_post"
-    elif matches_existing and not config.force_tweetify:
-        tweet = None
-        print("Latest post matches existing post and no tweet artifact was found. Skipping OpenAI tweet generation.")
-        statuses["tweetify"] = "skipped_existing_post_no_artifact"
-    else:
-        try:
-            tweet = generate_tweet(enriched_post, config)
-            write_json(TWEET_PATH, tweet)
-            statuses["tweetify"] = "generated"
-        except Exception as exc:
-            tweet = None
-            statuses["tweetify"] = f"failed: {exc}"
-            print(f"Optional X draft generation failed: {exc}")
-
-    if tweet:
-        write_json(TWEET_PATH, tweet)
-        try:
-            statuses["x"] = post_to_x(tweet, config)
-        except Exception as exc:
-            statuses["x"] = f"failed: {exc}"
-            print(f"Optional X posting failed: {exc}")
-            if config.require_x_posting:
-                raise
-    else:
-        statuses["x"] = "skipped_no_tweet"
+    statuses["webflow"] = sync_webflow_if_needed(enriched_post, matches_existing, config)
+    statuses.update(run_x_pipeline_if_enabled(enriched_post, latest_post, matches_existing, config))
 
     save_pipeline_state(latest_post, enriched_post, statuses)
     print("Required Webflow CMS pipeline completed successfully.")

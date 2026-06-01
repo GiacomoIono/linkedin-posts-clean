@@ -1,0 +1,172 @@
+{
+  "id": "63250855178122098387d7ef",
+  "displayName": "Blog Posts",
+  "singularName": "Blog Post",
+  "slug": "posts",
+  "createdOn": "2015-12-17T00:53:29.776Z",
+  "lastUpdated": "2025-06-09T09:01:40.612Z",
+  "fields": [
+    {
+      "id": "831ef4c3bccf3215fcb73cb65b4afe42",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "PlainText",
+      "slug": "post-summary",
+      "displayName": "Post Summary",
+      "helpText": "A summary of the blog post that appears on blog post grid",
+      "validations": {
+        "singleLine": false,
+        "maxLength": 170
+      }
+    },
+    {
+      "id": "8d386742e8b9230756e0ff9ffb261731",
+      "isEditable": true,
+      "isRequired": true,
+      "type": "RichText",
+      "slug": "post-body",
+      "displayName": "Post Body",
+      "helpText": null,
+      "validations": null
+    },
+    {
+      "id": "c9c9a7df9d96215511f327654639dab6",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "MultiImage",
+      "slug": "post-images",
+      "displayName": "Post Images",
+      "helpText": "Multiimage",
+      "validations": null
+    },
+    {
+      "id": "415145d63a9bcb19818af001e5c48fcf",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "DateTime",
+      "slug": "published-date",
+      "displayName": "Published Date",
+      "helpText": "Select",
+      "validations": {
+        "format": "date-time"
+      }
+    },
+    {
+      "id": "ca60b38553e9b0424f274979cb679522",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "Link",
+      "slug": "linkedin-post-link",
+      "displayName": "Linkedin Post Link",
+      "helpText": null,
+      "validations": null
+    },
+    {
+      "id": "154db2e34a3bab8e7cbc5fe84d592b46",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "Reference",
+      "slug": "category",
+      "displayName": "Category",
+      "helpText": null,
+      "validations": {
+        "collectionId": "632508551781224b1f87d818"
+      }
+    },
+    {
+      "id": "d9765ede63d93de29a859f5a4eb01148",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "MultiReference",
+      "slug": "tags",
+      "displayName": "Tags",
+      "helpText": null,
+      "validations": {
+        "collectionId": "6325085517812249e887d81f"
+      }
+    },
+    {
+      "id": "503fdaec4a257110811a3c20900ae22f",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "Image",
+      "slug": "main-image",
+      "displayName": "Main Image",
+      "helpText": null,
+      "validations": null
+    },
+    {
+      "id": "ada9b365328a26f02352ae79157cc288",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "Image",
+      "slug": "thumbnail-image",
+      "displayName": "Thumbnail image",
+      "helpText": "Smaller version of main image that is used on blog post grid, optimal image size 600px x 180px",
+      "validations": null
+    },
+    {
+      "id": "d719b176b90b878095a367559971889f",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "Switch",
+      "slug": "featured",
+      "displayName": "Featured?",
+      "helpText": null,
+      "validations": null
+    },
+    {
+      "id": "76adcd390cdedc09e408fb100ea49a75",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "Reference",
+      "slug": "author",
+      "displayName": "Author",
+      "helpText": "Select Author",
+      "validations": {
+        "collectionId": "63250855178122e0e087d804"
+      }
+    },
+    {
+      "id": "ee6af8bcc0f3772e9848f2b004476d7c",
+      "isEditable": true,
+      "isRequired": false,
+      "type": "Reference",
+      "slug": "month",
+      "displayName": "Month",
+      "helpText": "Nov 22",
+      "validations": {
+        "collectionId": "632508551781227c4087d820"
+      }
+    },
+    {
+      "id": "3dc45ecc83440ecd5a7cbc14b2230cc4",
+      "isEditable": true,
+      "isRequired": true,
+      "type": "PlainText",
+      "slug": "name",
+      "displayName": "Headline",
+      "helpText": "Max 60 characters",
+      "validations": {
+        "maxLength": 256
+      }
+    },
+    {
+      "id": "42df062743f8bf4e94f677bff26db630",
+      "isEditable": true,
+      "isRequired": true,
+      "type": "PlainText",
+      "slug": "slug",
+      "displayName": "Slug",
+      "helpText": null,
+      "validations": {
+        "maxLength": 256,
+        "pattern": {},
+        "messages": {
+          "pattern": "Must be alphanumerical and not contain any spaces or special characters",
+          "maxLength": "Must be less than 256 characters"
+        }
+      }
+    }
+  ]
+}

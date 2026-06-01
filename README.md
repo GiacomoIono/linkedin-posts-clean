@@ -1,32 +1,20 @@
 # LinkedIn Posts Clean
 
-Automation for turning the latest LinkedIn post into a Webflow CMS blog item, with OpenAI enrichment and optional X posting.
+This project takes your latest LinkedIn post and turns it into a Webflow blog post.
 
-The pipeline:
+In plain English, the pipeline does this:
 
-1. Fetches recent LinkedIn post activity.
-2. Converts the newest post into HTML.
-3. Attaches matching images from `images/`.
-4. Generates SEO headline, description, and missing image alt text.
-5. Creates or updates the matching item in Webflow CMS.
-6. Optionally generates and publishes an X post.
-7. Stores run state and generated artifacts under `data/`.
+1. Looks for your newest LinkedIn post from the last 48 hours.
+2. Turns the post text into simple blog-post HTML.
+3. Finds matching images in the `images/` folder.
+4. Uses OpenAI to create the headline, summary, and missing image ALT text.
+5. Sends the post to the Webflow Blog Posts collection.
+6. Skips X/Twitter unless you explicitly turn that part on.
+7. Saves a record of what happened in the `data/` folder.
 
-## Project Structure
+## Quick Start
 
-```text
-pipeline/                 Python pipeline code
-config/prompts.json        OpenAI prompt profiles for SEO, alt text, and X posts
-data/                      Latest raw/enriched posts, X ledger, and Webflow sync state
-images/                    Post images named by LinkedIn post date
-tests/                     Unit tests for Webflow payload behavior
-.github/workflows/         Scheduled GitHub Actions pipeline
-requirements.txt           Python dependencies
-```
-
-## Setup
-
-Use Python 3.11 or newer.
+Create the Python environment:
 
 ```bash
 python3 -m venv .venv
@@ -34,7 +22,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create a local `.env` file for secrets and runtime settings. The file is ignored by git.
+Create a local `.env` file:
 
 ```bash
 LINKEDIN_ACCESS_TOKEN=
@@ -45,113 +33,224 @@ WEBFLOW_API_TOKEN=
 WEBFLOW_COLLECTION_ID=63250855178122098387d7ef
 WEBFLOW_PUBLISH=true
 
+RUN_X_PIPELINE=false
 X_ACCESS_TOKEN=
 REQUIRE_X_POSTING=false
 ```
 
-`WEBFLOW_READ_AND_WRITE_BLOG_POSTS` can be used instead of `WEBFLOW_API_TOKEN`.
-
-## Environment Variables
-
-| Variable | Required | Default | Purpose |
-| --- | --- | --- | --- |
-| `LINKEDIN_ACCESS_TOKEN` | Yes | None | Reads recent LinkedIn member change logs. |
-| `OPENAI_API_KEY` | Yes for new/enriched posts | None | Generates SEO metadata, alt text, and X drafts. |
-| `OPENAI_MODEL` | No | `gpt-5-nano` | Model used for OpenAI chat completions. |
-| `WEBFLOW_API_TOKEN` | Yes | None | Creates, updates, and publishes Webflow CMS items. |
-| `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` | No | None | Fallback Webflow token variable. |
-| `WEBFLOW_COLLECTION_ID` | No | `63250855178122098387d7ef` | Target Webflow collection. |
-| `WEBFLOW_PUBLISH` | No | `true` | Publishes Webflow items after create/update. |
-| `X_ACCESS_TOKEN` | No | None | Publishes generated X posts. Missing token is non-fatal by default. |
-| `REQUIRE_X_POSTING` | No | `false` | Fails the run if X posting fails. |
-| `FORCE_WEBFLOW_SYNC` | No | `false` | Writes to Webflow even when state says the item is current. |
-| `FORCE_ENRICH` | No | `false` | Regenerates OpenAI enrichment for an existing post. |
-| `FORCE_TWEETIFY` | No | `false` | Regenerates the X draft for an existing post. |
-| `FORCE_X_POST` | No | `false` | Ignores the posted-tweets ledger and posts to X again. |
-| `LINKEDIN_PROMPT_PROFILE` | No | First profile | Selects a `linkedin_post_enrichment` prompt profile by `id`. |
-| `TWEET_PROMPT_ID` | No | First profile | Selects a `tweet_generation` prompt profile by `id`. |
-
-## Alt Text
-
-Every image with a URL should leave enrichment with a non-empty `alt` value. The pipeline tries these paths in order:
-
-- OpenAI vision using the image URL and post context.
-- Explicit source text such as `In the picture:`.
-- OpenAI text-only fallback using the post context.
-- Local generic post-context fallback.
-
-If an existing enriched post is missing image alt text, the next pipeline run re-enters enrichment instead of skipping it.
-
-## Running Locally
-
-Run the full pipeline:
+Then run:
 
 ```bash
 python -m pipeline.main
 ```
 
-If no recent LinkedIn post is found, the command exits with code `2`. The GitHub workflow treats that as a clean no-op.
-
-Run tests:
+To run the tests:
 
 ```bash
 python -m unittest discover -s tests
 ```
 
-## Image Matching
+## The Important Settings
 
-Images are matched to LinkedIn posts by publish date. For a post published on `2026-05-31`, files such as these are attached automatically:
+Most days, these are the only settings you need to care about:
+
+| Setting | What it does |
+| --- | --- |
+| `LINKEDIN_ACCESS_TOKEN` | Lets the script read your recent LinkedIn activity. |
+| `OPENAI_API_KEY` | Lets the script write the headline, summary, and image ALT text. |
+| `WEBFLOW_API_TOKEN` | Lets the script create, update, and publish Webflow posts. |
+| `WEBFLOW_PUBLISH` | When `true`, Webflow items are published after they are written. |
+| `RUN_X_PIPELINE` | When `false`, the X pipeline is skipped completely. This is the default. |
+| `X_ACCESS_TOKEN` | Needed only if `RUN_X_PIPELINE=true`. |
+
+`WEBFLOW_READ_AND_WRITE_BLOG_POSTS` can also be used instead of `WEBFLOW_API_TOKEN`.
+
+## LinkedIn Window
+
+The LinkedIn scraper looks back exactly 48 hours from the time the script runs.
+
+That means it is a rolling time window, not "today and yesterday" as calendar days. For example, if the script runs at 04:00 on June 3, it searches back to 04:00 on June 1.
+
+If no LinkedIn post is found in that window, the script exits cleanly with code `2`. The GitHub Action treats that as "nothing to do", not as a failure.
+
+## Images
+
+Put images in the `images/` folder and name them by the LinkedIn post date.
+
+For one image:
 
 ```text
-images/2026-05-31.jpeg
-images/2026-05-31_1.jpg
-images/2026-05-31_2.png
+images/2026-06-01.jpg
 ```
 
-Supported image extensions are `.jpg`, `.jpeg`, `.png`, and `.webp`. Public image URLs are built from the `main` branch on GitHub.
+For multiple images:
 
-## Generated Data
+```text
+images/2026-06-01_1.jpg
+images/2026-06-01_2.jpg
+images/2026-06-01_3.jpg
+```
 
-The pipeline writes these JSON artifacts:
+Supported formats are `.jpg`, `.jpeg`, `.png`, and `.webp`.
 
-| File | Purpose |
+When there are multiple images, the number decides the order. `_1` is first, `_2` is second, and so on. When there is only one image, the filename can just be the date.
+
+The pipeline sends:
+
+- all images to Webflow's `post-images` field, in the right order;
+- the first image to `main-image`;
+- the first image to `thumbnail-image`;
+- an `alt` value for every image.
+
+Important: image URLs are built from the GitHub `main` branch. So if you run the pipeline locally with brand-new local images, Webflow can only fetch them after those images exist on GitHub.
+
+## ALT Text
+
+Every image should leave the enrichment step with ALT text.
+
+The pipeline tries, in order:
+
+1. OpenAI vision, using the actual image URL and the LinkedIn post context.
+2. Any explicit image description already written in the post.
+3. A text-only OpenAI fallback.
+4. A simple local fallback.
+
+The ALT prompt includes both:
+
+- the image source URL;
+- the post context.
+
+This helps OpenAI describe the specific image instead of writing generic ALT text about the whole post.
+
+## Webflow
+
+The Webflow script is now tuned to the exact Blog Posts collection schema.
+
+It fills these fields:
+
+| Webflow field | Value sent by the pipeline |
 | --- | --- |
-| `data/last_linkedin_post.json` | Latest raw post fetched from LinkedIn. |
-| `data/last_linkedin_post.enriched.json` | Post with generated headline, description, and image alt text. |
-| `data/webflow_items.json` | Webflow item IDs, payload signatures, publish state, and payload version. |
-| `data/tweet.json` | Generated X post draft and selected images. |
-| `data/posted_tweets.json` | Ledger used to avoid duplicate X posts. |
-| `data/pipeline_state.json` | Last run timestamp, hashes, source URL, and step statuses. |
+| `name` | Generated headline. |
+| `post-summary` | Generated description. |
+| `post-body` | LinkedIn post content as rich text HTML. |
+| `post-images` | One or more ordered image objects, each with `url` and `alt`. |
+| `published-date` | LinkedIn publish date. |
+| `linkedin-post-link` | Original LinkedIn post URL. |
+| `author` | The configured Webflow author item. |
+| `main-image` | First image. |
+| `thumbnail-image` | First image. |
+| `category` | Optional, if present in the post data. |
+| `tags` | Optional, if present in the post data. |
+| `month` | Optional, if present in the post data. |
+| `featured` | Optional, if present in the post data. |
 
-## Webflow Behavior
+The pipeline does not send `slug` at all. Webflow is left to handle that field.
 
-The Webflow sync checks existing state before writing. If the LinkedIn URL, payload signature, payload version, and publish state are already current, the Webflow API write is skipped.
+To avoid duplicates, Webflow matching is based on the LinkedIn URL and the saved Webflow item state in `data/webflow_items.json`.
 
-When a write is needed, the pipeline:
+If the saved Webflow item ID no longer exists, the script looks for the item by LinkedIn URL. It also handles the awkward case where Webflow still has a live-only version of an item after a manual deletion.
 
-- reads the collection schema,
-- maps known fields such as title, content, description, source URL, date, image, gallery, and alt text,
-- sets the Author field to `Giacomo Iotti`,
-- leaves the slug unset so Webflow can populate it automatically,
-- creates a new item or updates the known item,
-- publishes it when `WEBFLOW_PUBLISH=true`.
+## X Posting
 
-## X Posting Behavior
-
-X posting is optional. The pipeline can generate a tweet from the enriched LinkedIn post, select up to four images, upload media, add alt text metadata, publish the post, and record the result in `data/posted_tweets.json`.
-
-If `X_ACCESS_TOKEN` is missing or posting fails, the pipeline logs the failure and continues unless `REQUIRE_X_POSTING=true`.
-
-## GitHub Actions
-
-`.github/workflows/webflow_cms_pipeline.yml` runs the pipeline daily at 20:00 Europe/Zurich. Because GitHub schedules use UTC, the workflow has two cron slots and then checks the actual Zurich hour before running.
-
-The workflow can also be started manually with `workflow_dispatch`. After a successful run, it commits changes under `data/` and `images/` back to `main` when there are changes.
-
-## Tests
-
-The current tests focus on Webflow payload mapping and sync-state freshness:
+The X pipeline is disabled by default.
 
 ```bash
-python -m unittest tests/test_webflow_payload.py
+RUN_X_PIPELINE=false
+```
+
+When it is `false`, the script does not generate a tweet, does not upload images to X, and does not call the X API.
+
+If you set:
+
+```bash
+RUN_X_PIPELINE=true
+```
+
+then the script tries to:
+
+1. Generate a tweet from the enriched LinkedIn post.
+2. Select up to four images.
+3. Upload those images to X.
+4. Add ALT text metadata.
+5. Publish the post.
+6. Save the result in `data/posted_tweets.json`.
+
+If X fails, the Webflow pipeline still succeeds unless `REQUIRE_X_POSTING=true`.
+
+## GitHub Action Schedule
+
+The workflow runs at 04:00 Europe/Zurich time.
+
+The file is:
+
+```text
+.github/workflows/webflow_cms_pipeline.yml
+```
+
+GitHub schedules use UTC, so the workflow has two possible UTC slots and then checks the real Zurich time before doing any work. This keeps the schedule correct across daylight saving time.
+
+You can also start the workflow manually from GitHub Actions.
+
+After a successful run, the workflow commits updates under:
+
+```text
+data/
+images/
+```
+
+## Project Files
+
+| Path | Purpose |
+| --- | --- |
+| `pipeline/main.py` | The main pipeline flow. |
+| `pipeline/linkedin.py` | Fetches the latest LinkedIn post from the last 48 hours. |
+| `pipeline/enrichment.py` | Creates headline, summary, and ALT text. |
+| `pipeline/webflow.py` | Builds the exact Webflow payload and syncs the CMS item. |
+| `pipeline/x_posting.py` | Optional X/Twitter generation and posting. |
+| `pipeline/config.py` | Environment variables and defaults. |
+| `config/prompts.json` | OpenAI prompts. |
+| `images/` | Images matched to posts by date. |
+| `data/` | Saved pipeline state and latest generated JSON files. |
+| `tests/` | Tests for the pipeline behavior. |
+| `webflow_schema.json` | Reference copy of the Webflow collection schema. |
+| `webflow_schema_item_example.json` | Reference copy of a real Webflow item. |
+
+## Saved Data
+
+The script writes these files:
+
+| File | What it contains |
+| --- | --- |
+| `data/last_linkedin_post.json` | The latest raw LinkedIn post found. |
+| `data/last_linkedin_post.enriched.json` | The post after headline, summary, and ALT text are added. |
+| `data/webflow_items.json` | Webflow item IDs and sync state. |
+| `data/tweet.json` | The generated X draft, only when X is enabled. |
+| `data/posted_tweets.json` | A ledger used to avoid posting the same thing to X twice. |
+| `data/pipeline_state.json` | The latest run status. |
+
+## Useful Force Flags
+
+Use these only when you want to override the normal "skip if already done" behavior.
+
+| Flag | What it does |
+| --- | --- |
+| `FORCE_WEBFLOW_SYNC=true` | Writes to Webflow even if the saved state says it is already current. |
+| `FORCE_ENRICH=true` | Regenerates headline, summary, and ALT text. |
+| `FORCE_TWEETIFY=true` | Regenerates the X draft. |
+| `FORCE_X_POST=true` | Ignores the X posting ledger and posts again. |
+
+## Prompt Limits
+
+The headline and description limits are stored in:
+
+```text
+pipeline/enrichment.py
+```
+
+Current values:
+
+```text
+HEADLINE_MAX = 70
+DESCRIPTION_MAX = 160
+ALT_MAX = 180
 ```

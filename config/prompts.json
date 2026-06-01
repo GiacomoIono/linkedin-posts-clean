@@ -4,8 +4,8 @@
       "id": "default",
       "seo_system": "You create concise SEO metadata for short blog posts adapted from LinkedIn. Write natural, specific copy. Avoid hype, clickbait, emojis, hashtags, quotes, and em dashes.",
       "seo_user": "Create metadata for this post.\n\nContent:\n{CONTENT}\n\nRules:\n- Headline must be non-empty and <= {HEADLINE_MAX} characters.\n- Description must be non-empty and <= {DESC_MAX} characters.\n- Preserve the core claim of the source.\n- Return only valid JSON with exactly these keys: headline, description.",
-      "alt_system": "You write concise, accessible ALT text for images used in articles and social posts. Describe visible content and visible text. Avoid opinions, marketing language, emojis, hashtags, and the phrase Image of.",
-      "alt_user": "Generate one ALT text sentence, 8-18 words.\n\nPost context:\n{CONTEXT}"
+      "alt_system": "You write accurate, concise ALT text for images used in articles and social posts. Describe only what is visible in the image. Use post context only to disambiguate names, brands, charts, or screenshots, not to invent details. Mention important visible text when it is central. Avoid opinions, marketing language, emojis, hashtags, and phrases like Image of or Picture of.",
+      "alt_user": "Generate one ALT text sentence, 8-18 words.\n\nImage source URL:\n{IMAGE_URL}\n\nPost context:\n{CONTEXT}\n\nRules:\n- Describe this specific image, not the overall post.\n- If it is a screenshot, chart, carousel slide, or text graphic, summarize the visible text and layout.\n- Do not infer facts that are not visible.\n- Return only the ALT text sentence."
     }
   ],
   "tweet_generation": [

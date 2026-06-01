@@ -4,7 +4,6 @@ import hashlib
 import html
 import json
 import re
-import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -43,15 +42,6 @@ def soft_trim(value: str, limit: int) -> str:
     if " " in cut:
         cut = cut[: cut.rfind(" ")]
     return cut.rstrip(" ,.;:!?")
-
-
-def slugify(value: str, fallback: str = "linkedin-post", limit: int = 90) -> str:
-    normalized = unicodedata.normalize("NFKD", value or "").encode("ascii", "ignore").decode("ascii")
-    slug = re.sub(r"[^a-zA-Z0-9]+", "-", normalized.lower()).strip("-")
-    slug = re.sub(r"-{2,}", "-", slug)
-    if not slug:
-        slug = fallback
-    return slug[:limit].rstrip("-")
 
 
 def post_identity(post: dict[str, Any] | None) -> str:

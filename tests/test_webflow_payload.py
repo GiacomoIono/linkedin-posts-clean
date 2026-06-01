@@ -3,14 +3,17 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+from pipeline.linkedin import image_filename_sort_key
 from pipeline.main import already_synced_to_webflow
 from pipeline.utils import post_hash
 from pipeline.webflow import (
     AUTHOR_COLLECTION_ID,
     AUTHOR_ITEM_ID,
-    AUTHOR_NAME,
     WEBFLOW_PAYLOAD_VERSION,
+    WebflowError,
     build_field_data,
+    image_sequence,
+    sync_post_to_webflow,
 )
 
 
@@ -28,76 +31,113 @@ POST = {
     ],
 }
 
+MULTI_IMAGE_POST = {
+    **POST,
+    "images": [
+        {
+            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_10.jpg",
+            "alt": "Tenth image alt text",
+        },
+        {
+            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_2.jpg",
+            "alt": "Second image alt text",
+        },
+        {
+            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_1.jpg",
+            "alt": "First image alt text",
+        },
+    ],
+}
+
+SINGLE_DATE_IMAGE_POST = {
+    **POST,
+    "images": [
+        {
+            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01.jpg",
+            "alt": "Single image alt text",
+        },
+    ],
+}
+
 
 class WebflowPayloadTests(unittest.TestCase):
     def test_author_ids_match_webflow_author_collection(self) -> None:
         self.assertEqual(AUTHOR_COLLECTION_ID, "63250855178122e0e087d804")
         self.assertEqual(AUTHOR_ITEM_ID, "632508551781225a7587d893")
 
-    def test_build_field_data_passes_linkedin_url_and_image_alt_tag(self) -> None:
-        collection = {
-            "fields": [
-                {"slug": "slug", "displayName": "Slug", "type": "PlainText", "isRequired": True},
-                {"slug": "linkedin-url", "displayName": "LinkedIn URL", "type": "Link"},
-                {"slug": "image-alt-tag", "displayName": "Image Alt Tag", "type": "PlainText"},
-                {"slug": "featured-image", "displayName": "Featured Image", "type": "Image"},
-                {"slug": "images", "displayName": "Images", "type": "MultiImage"},
-            ]
-        }
-
-        field_data = build_field_data(POST, collection)
+    def test_build_field_data_fills_exact_blog_post_fields_without_slug(self) -> None:
+        field_data = build_field_data(POST)
 
         self.assertNotIn("slug", field_data)
-        self.assertEqual(field_data["linkedin-url"], POST["url"])
-        self.assertEqual(field_data["image-alt-tag"], POST["images"][0]["alt"])
-        self.assertEqual(field_data["featured-image"], POST["images"][0])
-        self.assertEqual(field_data["images"], POST["images"])
-
-    def test_build_field_data_fallback_includes_linkedin_url_and_alt_tag(self) -> None:
-        field_data = build_field_data(POST, {"fields": []})
-
-        self.assertNotIn("slug", field_data)
-        self.assertEqual(field_data["author"], AUTHOR_NAME)
-        self.assertEqual(field_data["linkedin-url"], POST["url"])
-        self.assertEqual(field_data["images-alt-tag"], POST["images"][0]["alt"])
-        self.assertEqual(field_data["image"], POST["images"][0])
-        self.assertEqual(field_data["images"], POST["images"])
-
-    def test_build_field_data_fills_expected_webflow_fields_without_slug(self) -> None:
-        collection = {
-            "fields": [
-                {"slug": "slug", "displayName": "Slug", "type": "PlainText", "isRequired": True},
-                {"slug": "headline", "displayName": "Headline", "type": "PlainText"},
-                {"slug": "post-summery", "displayName": "Post Summery", "type": "PlainText"},
-                {"slug": "post-body", "displayName": "Post Body", "type": "RichText"},
-                {"slug": "post-images", "displayName": "Post Images", "type": "MultiImage"},
-                {"slug": "published-date", "displayName": "Published Date", "type": "DateTime"},
-                {"slug": "linkedin-post-link", "displayName": "LinkedIn Post Link", "type": "Link"},
-                {"slug": "author", "displayName": "Author", "type": "Reference"},
-            ]
-        }
-
-        field_data = build_field_data(POST, collection)
-
-        self.assertNotIn("slug", field_data)
-        self.assertEqual(field_data["headline"], POST["headline"])
-        self.assertEqual(field_data["post-summery"], POST["description"])
+        self.assertNotIn("headline", field_data)
+        self.assertEqual(field_data["name"], POST["headline"])
+        self.assertEqual(field_data["post-summary"], POST["description"])
         self.assertEqual(field_data["post-body"], POST["content"])
         self.assertEqual(field_data["post-images"], POST["images"])
         self.assertEqual(field_data["published-date"], "2026-05-31T10:30:00Z")
         self.assertEqual(field_data["linkedin-post-link"], POST["url"])
         self.assertEqual(field_data["author"], AUTHOR_ITEM_ID)
 
-    def test_build_field_data_uses_author_name_for_plain_text_author_field(self) -> None:
-        collection = {
-            "fields": [
-                {"slug": "author", "displayName": "Author", "type": "PlainText"},
-            ]
+    def test_build_field_data_orders_post_images_and_reuses_first_image(self) -> None:
+        field_data = build_field_data(MULTI_IMAGE_POST)
+
+        expected_images = [
+            {
+                "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_1.jpg",
+                "alt": "First image alt text",
+            },
+            {
+                "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_2.jpg",
+                "alt": "Second image alt text",
+            },
+            {
+                "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_10.jpg",
+                "alt": "Tenth image alt text",
+            },
+        ]
+        self.assertNotIn("slug", field_data)
+        self.assertEqual(field_data["post-images"], expected_images)
+        self.assertEqual(field_data["main-image"], expected_images[0])
+        self.assertEqual(field_data["thumbnail-image"], expected_images[0])
+        self.assertTrue(all("alt" in image for image in field_data["post-images"]))
+
+    def test_build_field_data_handles_single_date_named_image(self) -> None:
+        field_data = build_field_data(SINGLE_DATE_IMAGE_POST)
+
+        expected_image = {
+            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01.jpg",
+            "alt": "Single image alt text",
+        }
+        self.assertEqual(field_data["post-images"], [expected_image])
+        self.assertEqual(field_data["main-image"], expected_image)
+        self.assertEqual(field_data["thumbnail-image"], expected_image)
+        self.assertIsNone(image_sequence(expected_image))
+
+    def test_build_field_data_includes_only_known_optional_schema_fields(self) -> None:
+        post = {
+            **POST,
+            "category": "category-id",
+            "tags": ["tag-1", "tag-2"],
+            "month": "month-id",
+            "featured": True,
+            "unknown-field": "ignored",
         }
 
-        field_data = build_field_data(POST, collection)
+        field_data = build_field_data(post)
 
-        self.assertEqual(field_data["author"], AUTHOR_NAME)
+        self.assertEqual(field_data["category"], "category-id")
+        self.assertEqual(field_data["tags"], ["tag-1", "tag-2"])
+        self.assertEqual(field_data["month"], "month-id")
+        self.assertTrue(field_data["featured"])
+        self.assertNotIn("unknown-field", field_data)
+
+    def test_linkedin_date_named_image_is_not_treated_as_sequence(self) -> None:
+        filenames = ["2026-06-01_2.jpg", "2026-06-01.jpg", "2026-06-01_1.jpg"]
+
+        self.assertEqual(
+            sorted(filenames, key=image_filename_sort_key),
+            ["2026-06-01_1.jpg", "2026-06-01_2.jpg", "2026-06-01.jpg"],
+        )
 
     def test_existing_webflow_item_is_current_only_after_payload_version_backfill(self) -> None:
         current_entry = {
@@ -114,6 +154,181 @@ class WebflowPayloadTests(unittest.TestCase):
 
         with patch("pipeline.main.load_webflow_state", return_value={"items": {POST["url"]: current_entry}}):
             self.assertEqual(already_synced_to_webflow(POST), current_entry)
+
+    def test_sync_updates_live_item_when_staged_item_was_deleted(self) -> None:
+        class FakeClient:
+            def __init__(self, _token, _collection_id):
+                self.updated_live = []
+                self.published = []
+
+            def update_item(self, _item_id, _field_data):
+                raise WebflowError("Webflow PATCH failed: 404 resource_not_found")
+
+            def list_items(self):
+                return []
+
+            def list_live_items(self):
+                return [{"id": "live-item", "fieldData": {"linkedin-post-link": POST["url"]}}]
+
+            def update_live_item(self, item_id, field_data):
+                self.updated_live.append((item_id, field_data))
+                return {"id": item_id}
+
+            def create_item(self, _field_data):
+                raise AssertionError("Should update the live item instead of creating a duplicate")
+
+            def publish_item(self, item_id):
+                self.published.append(item_id)
+
+        config = type(
+            "Config",
+            (),
+            {
+                "webflow_api_token": "token",
+                "webflow_collection_id": "collection",
+                "webflow_publish": True,
+                "force_webflow_sync": False,
+            },
+        )()
+        state = {
+            "items": {
+                POST["url"]: {
+                    "item_id": "deleted-staged-item",
+                    "signature": "stale-signature",
+                    "payload_version": WEBFLOW_PAYLOAD_VERSION - 1,
+                    "published": True,
+                }
+            }
+        }
+        saved_states = []
+        fake_client = FakeClient("token", "collection")
+
+        with (
+            patch("pipeline.webflow.WebflowClient", return_value=fake_client),
+            patch("pipeline.webflow.load_webflow_state", return_value=state),
+            patch("pipeline.webflow.save_webflow_state", side_effect=saved_states.append),
+        ):
+            result = sync_post_to_webflow(POST, config)
+
+        self.assertEqual(result, {"action": "updated_live", "item_id": "live-item", "published": True})
+        self.assertEqual(fake_client.updated_live[0][0], "live-item")
+        self.assertEqual(fake_client.updated_live[0][1]["linkedin-post-link"], POST["url"])
+        self.assertEqual(fake_client.published, [])
+        self.assertEqual(saved_states[0]["items"][POST["url"]]["item_id"], "live-item")
+
+    def test_sync_recreates_item_when_live_leftover_cannot_be_updated(self) -> None:
+        class FakeClient:
+            def __init__(self, _token, _collection_id):
+                self.unpublished = []
+                self.created = []
+                self.published = []
+
+            def update_item(self, _item_id, _field_data):
+                raise WebflowError("Webflow PATCH failed: 404 resource_not_found")
+
+            def list_items(self):
+                return []
+
+            def list_live_items(self):
+                return [{"id": "live-item", "fieldData": {"linkedin-post-link": POST["url"]}}]
+
+            def update_live_item(self, _item_id, _field_data):
+                raise WebflowError("Webflow PATCH live failed: 404 resource_not_found")
+
+            def unpublish_live_item(self, item_id):
+                self.unpublished.append(item_id)
+                return {}
+
+            def create_item(self, field_data):
+                self.created.append(field_data)
+                return {"id": "new-item"}
+
+            def publish_item(self, item_id):
+                self.published.append(item_id)
+
+        config = type(
+            "Config",
+            (),
+            {
+                "webflow_api_token": "token",
+                "webflow_collection_id": "collection",
+                "webflow_publish": True,
+                "force_webflow_sync": False,
+            },
+        )()
+        state = {
+            "items": {
+                POST["url"]: {
+                    "item_id": "deleted-staged-item",
+                    "signature": "stale-signature",
+                    "payload_version": WEBFLOW_PAYLOAD_VERSION - 1,
+                    "published": True,
+                }
+            }
+        }
+        saved_states = []
+        fake_client = FakeClient("token", "collection")
+
+        with (
+            patch("pipeline.webflow.WebflowClient", return_value=fake_client),
+            patch("pipeline.webflow.load_webflow_state", return_value=state),
+            patch("pipeline.webflow.save_webflow_state", side_effect=saved_states.append),
+        ):
+            result = sync_post_to_webflow(POST, config)
+
+        self.assertEqual(result, {"action": "created", "item_id": "new-item", "published": True})
+        self.assertEqual(fake_client.unpublished, ["live-item"])
+        self.assertEqual(fake_client.created[0]["linkedin-post-link"], POST["url"])
+        self.assertEqual(fake_client.published, ["new-item"])
+        self.assertEqual(saved_states[0]["items"][POST["url"]]["item_id"], "new-item")
+
+    def test_sync_explains_live_leftover_that_api_cannot_unpublish(self) -> None:
+        class FakeClient:
+            def __init__(self, _token, _collection_id):
+                pass
+
+            def update_item(self, _item_id, _field_data):
+                raise WebflowError("Webflow PATCH failed: 404 resource_not_found")
+
+            def list_items(self):
+                return []
+
+            def list_live_items(self):
+                return [{"id": "live-item", "fieldData": {"linkedin-post-link": POST["url"]}}]
+
+            def update_live_item(self, _item_id, _field_data):
+                raise WebflowError("Webflow PATCH live failed: 404 resource_not_found")
+
+            def unpublish_live_item(self, _item_id):
+                raise WebflowError("Webflow DELETE live failed: 404 resource_not_found")
+
+        config = type(
+            "Config",
+            (),
+            {
+                "webflow_api_token": "token",
+                "webflow_collection_id": "collection",
+                "webflow_publish": True,
+                "force_webflow_sync": False,
+            },
+        )()
+        state = {
+            "items": {
+                POST["url"]: {
+                    "item_id": "deleted-staged-item",
+                    "signature": "stale-signature",
+                    "payload_version": WEBFLOW_PAYLOAD_VERSION - 1,
+                    "published": True,
+                }
+            }
+        }
+
+        with (
+            patch("pipeline.webflow.WebflowClient", return_value=FakeClient("token", "collection")),
+            patch("pipeline.webflow.load_webflow_state", return_value=state),
+        ):
+            with self.assertRaisesRegex(WebflowError, "Publish the deletion in Webflow"):
+                sync_post_to_webflow(POST, config)
 
 
 if __name__ == "__main__":

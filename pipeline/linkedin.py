@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -12,6 +13,14 @@ LINKEDIN_CHANGE_LOG_URL = "https://api.linkedin.com/rest/memberChangeLogs"
 LINKEDIN_VERSION = "202312"
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 RAW_IMAGE_BASE_URL = "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/"
+IMAGE_SEQUENCE_RE = re.compile(r"_(\d+)(?=\.[^.]+$)")
+
+
+def image_filename_sort_key(filename: str) -> tuple[int, int, str]:
+    match = IMAGE_SEQUENCE_RE.search(filename.lower())
+    if not match:
+        return (1, 0, filename)
+    return (0, int(match.group(1)), filename)
 
 
 def find_images_for_date(post_date: str) -> list[dict[str, str]]:
@@ -23,7 +32,7 @@ def find_images_for_date(post_date: str) -> list[dict[str, str]]:
         for item in IMAGE_DIR.iterdir()
         if item.is_file() and item.name.startswith(post_date) and item.name.lower().endswith(IMAGE_EXTENSIONS)
     ]
-    filenames.sort()
+    filenames.sort(key=image_filename_sort_key)
 
     return [{"url": RAW_IMAGE_BASE_URL + filename, "alt": ""} for filename in filenames]
 
@@ -63,11 +72,11 @@ def extract_post(element: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def fetch_latest_linkedin_post(access_token: str, lookback_days: int = 5) -> dict[str, Any] | None:
+def fetch_latest_linkedin_post(access_token: str, lookback_hours: int = 48) -> dict[str, Any] | None:
     if not access_token:
         raise RuntimeError("LINKEDIN_ACCESS_TOKEN is missing.")
 
-    start_time = int((datetime.now(timezone.utc) - timedelta(days=lookback_days)).timestamp() * 1000)
+    start_time = int((datetime.now(timezone.utc) - timedelta(hours=lookback_hours)).timestamp() * 1000)
     headers = {
         "Authorization": f"Bearer {access_token}",
         "LinkedIn-Version": LINKEDIN_VERSION,

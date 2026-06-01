@@ -1,91 +1,19 @@
 from __future__ import annotations
+
+import re
 from typing import Any
 
 import requests
 
 from .config import PipelineConfig, WEBFLOW_STATE_PATH
-from .utils import iso_to_webflow, load_json, post_hash, slugify, strip_html_to_text, write_json
+from .utils import iso_to_webflow, load_json, post_hash, strip_html_to_text, write_json
 
 
 WEBFLOW_BASE_URL = "https://api.webflow.com/v2"
-WEBFLOW_PAYLOAD_VERSION = 4
-AUTHOR_NAME = "Giacomo Iotti"
+WEBFLOW_PAYLOAD_VERSION = 7
 AUTHOR_COLLECTION_ID = "63250855178122e0e087d804"
 AUTHOR_ITEM_ID = "632508551781225a7587d893"
-
-SOURCE_URL_SLUGS = {
-    "linkedin-url",
-    "linkedin_url",
-    "linkedin-link",
-    "linkedin_post_link",
-    "linkedin-post",
-    "linkedin-post-link",
-    "linkedin-post-url",
-    "source-url",
-    "source_url",
-    "source-link",
-    "original-url",
-    "original_url",
-    "original-post",
-    "original-post-url",
-    "external-url",
-    "external-link",
-    "canonical-url",
-    "permalink",
-    "url",
-    "post-url",
-    "post-link",
-}
-CONTENT_SLUGS = {
-    "content",
-    "post-content",
-    "post-body",
-    "body",
-    "body-copy",
-    "blog-content",
-    "article-body",
-    "rich-text",
-    "main-content",
-}
-HEADLINE_SLUGS = {"headline", "seo-headline", "title", "post-title"}
-DESCRIPTION_SLUGS = {
-    "description",
-    "seo-description",
-    "meta-description",
-    "summary",
-    "summery",
-    "excerpt",
-    "short-description",
-    "post-summary",
-    "post-summery",
-}
-DATE_SLUGS = {"date", "published-at", "published_at", "published-date", "publish-date"}
-IMAGE_SLUGS = {"image", "main-image", "cover-image", "featured-image", "thumbnail", "post-image"}
-GALLERY_SLUGS = {"images", "gallery", "image-gallery", "post-images"}
-AUTHOR_SLUGS = {"author", "post-author", "writer", "byline"}
-ALT_SLUGS = {
-    "alt",
-    "alt-tag",
-    "alt-tags",
-    "alt-text",
-    "image-alt",
-    "image-alt-tag",
-    "image-alt-tags",
-    "image-alt-text",
-    "image-description",
-    "images-alt",
-    "images-alt-tag",
-    "images-alt-tags",
-    "images-alt-text",
-    "main-image-alt",
-    "main-image-alt-tag",
-    "featured-image-alt",
-    "featured-image-alt-tag",
-    "cover-image-alt",
-    "cover-image-alt-tag",
-    "thumbnail-alt",
-    "thumbnail-alt-tag",
-}
+IMAGE_SEQUENCE_RE = re.compile(r"_(\d+)(?=\.[^.]+$)")
 
 
 class WebflowError(RuntimeError):
@@ -118,17 +46,14 @@ class WebflowClient:
             return {}
         return response.json()
 
-    def get_collection(self) -> dict[str, Any]:
-        return self.request("GET", f"/collections/{self.collection_id}")
-
-    def list_items(self) -> list[dict[str, Any]]:
+    def list_items_for_path(self, path: str) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
         offset = 0
         limit = 100
         while True:
             data = self.request(
                 "GET",
-                f"/collections/{self.collection_id}/items",
+                f"/collections/{self.collection_id}/{path}",
                 params={"offset": offset, "limit": limit},
             )
             batch = data.get("items", [])
@@ -141,6 +66,12 @@ class WebflowClient:
                 break
             offset += limit
         return items
+
+    def list_items(self) -> list[dict[str, Any]]:
+        return self.list_items_for_path("items")
+
+    def list_live_items(self) -> list[dict[str, Any]]:
+        return self.list_items_for_path("items/live")
 
     def create_item(self, field_data: dict[str, Any]) -> dict[str, Any]:
         return self.request(
@@ -158,6 +89,17 @@ class WebflowClient:
             json={"items": [{"id": item_id, "fieldData": field_data}]},
         )
 
+    def update_live_item(self, item_id: str, field_data: dict[str, Any]) -> dict[str, Any]:
+        return self.request(
+            "PATCH",
+            f"/collections/{self.collection_id}/items/{item_id}/live",
+            params={"skipInvalidFiles": "true"},
+            json={"isArchived": False, "isDraft": False, "fieldData": field_data},
+        )
+
+    def unpublish_live_item(self, item_id: str) -> dict[str, Any]:
+        return self.request("DELETE", f"/collections/{self.collection_id}/items/{item_id}/live")
+
     def publish_item(self, item_id: str) -> dict[str, Any]:
         return self.request(
             "POST",
@@ -166,243 +108,87 @@ class WebflowClient:
         )
 
 
-def field_slug(field: dict[str, Any]) -> str:
-    return str(field.get("slug") or field.get("apiName") or field.get("displayName") or "").strip()
+def image_filename(image: dict[str, Any]) -> str:
+    url = str(image.get("url") or "")
+    return url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1].lower()
 
 
-def field_type(field: dict[str, Any]) -> str:
-    return str(field.get("type") or "").lower()
-
-
-def is_required(field: dict[str, Any]) -> bool:
-    validations = field.get("validations") if isinstance(field.get("validations"), dict) else {}
-    return bool(field.get("isRequired") or validations.get("required"))
-
-
-def first_image(post: dict[str, Any]) -> dict[str, str] | None:
-    images = post.get("images", []) or []
-    if not images:
+def image_sequence(image: dict[str, Any]) -> int | None:
+    match = IMAGE_SEQUENCE_RE.search(image_filename(image))
+    if not match:
         return None
-    image = images[0]
-    if not isinstance(image, dict) or not image.get("url"):
-        return None
-    data = {"url": image["url"]}
-    if image.get("alt"):
-        data["alt"] = image["alt"]
-    return data
+    return int(match.group(1))
+
+
+def ordered_images(post: dict[str, Any]) -> list[dict[str, str]]:
+    images = []
+    for index, image in enumerate(post.get("images", []) or []):
+        if isinstance(image, dict) and image.get("url"):
+            images.append((index, image))
+
+    def sort_key(item: tuple[int, dict[str, Any]]) -> tuple[int, int, int]:
+        index, image = item
+        sequence = image_sequence(image)
+        if sequence is None:
+            return (1, index, index)
+        return (0, sequence, index)
+
+    return [
+        {
+            "url": str(image.get("url") or ""),
+            "alt": str(image.get("alt") or ""),
+        }
+        for _, image in sorted(images, key=sort_key)
+    ]
 
 
 def image_gallery(post: dict[str, Any]) -> list[dict[str, str]]:
-    gallery = []
-    for image in post.get("images", []) or []:
-        if isinstance(image, dict) and image.get("url"):
-            item = {"url": image["url"]}
-            if image.get("alt"):
-                item["alt"] = image["alt"]
-            gallery.append(item)
-    return gallery
+    return ordered_images(post)
 
 
-def image_alt_text(post: dict[str, Any]) -> str:
-    for key in ("alt", "image_alt", "image_alt_tag", "images_alt_tag"):
-        alt = str(post.get(key) or "").strip()
-        if alt:
-            return alt
-
-    for image in post.get("images", []) or []:
-        if isinstance(image, dict):
-            alt = str(image.get("alt") or "").strip()
-            if alt:
-                return alt
-    return ""
+def post_headline(post: dict[str, Any]) -> str:
+    return str(post.get("headline") or strip_html_to_text(post.get("content", ""))[:70] or "LinkedIn post")
 
 
-def base_field_values(post: dict[str, Any]) -> dict[str, Any]:
-    headline = post.get("headline") or strip_html_to_text(post.get("content", ""))[:70] or "LinkedIn post"
-    return {
-        "name": headline,
-        "headline": post.get("headline") or headline,
-        "description": post.get("description") or "",
-        "content": post.get("content") or "",
-        "plain_text": strip_html_to_text(post.get("content", "")),
-        "source_url": post.get("url") or "",
-        "published_at": iso_to_webflow(post.get("published_at", "")),
-        "image": first_image(post),
-        "images": image_gallery(post),
-        "alt": image_alt_text(post),
-        "author": AUTHOR_NAME,
-        "author_item_id": AUTHOR_ITEM_ID,
+def include_optional_field(field_data: dict[str, Any], slug: str, value: Any) -> None:
+    if value is None or value == "" or value == []:
+        return
+    field_data[slug] = value
+
+
+def build_field_data(post: dict[str, Any]) -> dict[str, Any]:
+    images = image_gallery(post)
+    first = images[0] if images else None
+
+    field_data: dict[str, Any] = {
+        "name": post_headline(post),
+        "post-summary": str(post.get("description") or ""),
+        "post-body": str(post.get("content") or ""),
+        "published-date": iso_to_webflow(post.get("published_at", "")),
+        "linkedin-post-link": str(post.get("url") or ""),
+        "author": AUTHOR_ITEM_ID,
     }
 
-
-def field_keys(slug: str, field: dict[str, Any]) -> set[str]:
-    keys = {slug.lower()}
-    for key in ("displayName", "name", "apiName"):
-        value = field.get(key)
-        if value:
-            keys.add(slugify(str(value), limit=120))
-            keys.add(str(value).strip().lower())
-    return keys
-
-
-def key_matches(keys: set[str], candidates: set[str]) -> bool:
-    return bool(keys & candidates)
-
-
-def is_link_field_type(ftype: str) -> bool:
-    return "link" in ftype or "url" in ftype
-
-
-def is_reference_field_type(ftype: str) -> bool:
-    return "reference" in ftype or "itemref" in ftype
-
-
-def looks_like_source_url_field(keys: set[str], ftype: str) -> bool:
-    if key_matches(keys, SOURCE_URL_SLUGS):
-        return True
-
-    if any("linkedin" in key and ("url" in key or "link" in key) for key in keys):
-        return True
-
-    if not is_link_field_type(ftype):
-        return False
-
-    return any(
-        "linkedin" in key
-        or "source" in key
-        or "original" in key
-        or "external" in key
-        or "canonical" in key
-        or "permalink" in key
-        or key in {"post", "post-link", "post-url"}
-        for key in keys
-    )
-
-
-def looks_like_alt_field(keys: set[str]) -> bool:
-    return key_matches(keys, ALT_SLUGS) or any("alt" in key for key in keys)
-
-
-def looks_like_gallery_field(keys: set[str], ftype: str) -> bool:
-    if key_matches(keys, GALLERY_SLUGS) or any("gallery" in key for key in keys):
-        return True
-    if "multi" in ftype and "image" in ftype:
-        return True
-    return any(key == "images" or key.endswith("-images") for key in keys)
-
-
-def looks_like_image_field(keys: set[str], ftype: str) -> bool:
-    if key_matches(keys, IMAGE_SLUGS):
-        return True
-    if "image" in ftype:
-        return True
-    return any("image" in key or "cover" in key or "thumbnail" in key for key in keys)
-
-
-def looks_like_author_field(keys: set[str]) -> bool:
-    return key_matches(keys, AUTHOR_SLUGS) or any("author" in key or "byline" in key for key in keys)
-
-
-def value_for_field(slug: str, field: dict[str, Any], values: dict[str, Any]) -> Any:
-    keys = field_keys(slug, field)
-    ftype = field_type(field)
-
-    if "name" in keys:
-        return values["name"]
-    if looks_like_source_url_field(keys, ftype):
-        return values["source_url"]
-    if key_matches(keys, CONTENT_SLUGS) or any(("body" in key or "content" in key) for key in keys):
-        return values["content"] if "rich" in ftype else values["plain_text"]
-    if key_matches(keys, HEADLINE_SLUGS) or any(("headline" in key or "title" in key) for key in keys):
-        return values["headline"]
-    if key_matches(keys, DESCRIPTION_SLUGS) or any(
-        ("description" in key or "summary" in key or "summery" in key or "excerpt" in key) for key in keys
-    ):
-        return values["description"]
-    if key_matches(keys, DATE_SLUGS) or any("date" in key or "published" in key for key in keys):
-        return values["published_at"]
-    if looks_like_author_field(keys):
-        if is_reference_field_type(ftype):
-            return values["author_item_id"]
-        return values["author"]
-    if looks_like_alt_field(keys):
-        return values["alt"]
-    if looks_like_gallery_field(keys, ftype):
-        return values["images"]
-    if looks_like_image_field(keys, ftype):
-        return values["image"]
-
-    if not is_required(field):
-        return None
-
-    if "rich" in ftype:
-        return values["content"]
-    if any(kind in ftype for kind in ("text", "plain", "email", "link")):
-        return values["plain_text"][:5000]
-    if "date" in ftype:
-        return values["published_at"]
-    if "image" in ftype:
-        return values["image"]
-    if "switch" in ftype or "boolean" in ftype:
-        return False
-    if "number" in ftype:
-        return 0
-    return None
-
-
-def build_field_data(post: dict[str, Any], collection: dict[str, Any]) -> dict[str, Any]:
-    values = base_field_values(post)
-    fields = collection.get("fields", [])
-    field_data = {"name": values["name"]}
-
-    if not isinstance(fields, list) or not fields:
-        field_data.update(
-            {
-                "content": values["content"],
-                "description": values["description"],
-                "linkedin-url": values["source_url"],
-                "published-at": values["published_at"],
-                "author": values["author"],
-            }
-        )
-        if values["alt"]:
-            field_data["images-alt-tag"] = values["alt"]
-        if values["image"]:
-            field_data["image"] = values["image"]
-        if values["images"]:
-            field_data["images"] = values["images"]
-        return field_data
-
-    missing_required = []
-    for field in fields:
-        slug = field_slug(field)
-        if not slug:
-            continue
-        if slug.lower() == "slug":
-            continue
-        value = value_for_field(slug, field, values)
-        if value is None or value == "" or value == []:
-            if is_required(field) and slug not in {"name", "slug"}:
-                missing_required.append(slug)
-            continue
-        field_data[slug] = value
-
-    if missing_required:
-        print(f"Webflow required fields without automatic values: {', '.join(missing_required)}")
+    include_optional_field(field_data, "post-images", images)
+    include_optional_field(field_data, "main-image", first)
+    include_optional_field(field_data, "thumbnail-image", first)
+    include_optional_field(field_data, "category", post.get("category"))
+    include_optional_field(field_data, "tags", post.get("tags"))
+    include_optional_field(field_data, "month", post.get("month"))
+    if "featured" in post:
+        field_data["featured"] = bool(post.get("featured"))
 
     return field_data
 
 
 def item_matches(item: dict[str, Any], source_url: str) -> bool:
     field_data = item.get("fieldData", {}) if isinstance(item.get("fieldData"), dict) else {}
-    for value in field_data.values():
-        if value == source_url:
-            return True
-    return False
+    return field_data.get("linkedin-post-link") == source_url
 
 
-def find_item_by_source_url(client: WebflowClient, source_url: str) -> dict[str, Any] | None:
-    for item in client.list_items():
+def find_item_by_source_url(client: WebflowClient, source_url: str, live: bool = False) -> dict[str, Any] | None:
+    items = client.list_live_items() if live else client.list_items()
+    for item in items:
         if item_matches(item, source_url):
             return item
     return None
@@ -411,6 +197,12 @@ def find_item_by_source_url(client: WebflowClient, source_url: str) -> dict[str,
 def item_slug(item: dict[str, Any]) -> str:
     field_data = item.get("fieldData", {}) if isinstance(item.get("fieldData"), dict) else {}
     return str(field_data.get("slug") or "")
+
+
+def item_id_from(item: dict[str, Any] | None) -> str:
+    if not isinstance(item, dict):
+        return ""
+    return str(item.get("id") or "")
 
 
 def response_item_id(response: dict[str, Any]) -> str:
@@ -434,78 +226,168 @@ def save_webflow_state(state: dict[str, Any]) -> None:
     write_json(WEBFLOW_STATE_PATH, state)
 
 
-def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
-    client = WebflowClient(config.webflow_api_token, config.webflow_collection_id)
-    source_url = post.get("url", "")
-    signature = post_hash(post)
+def state_entry_for(state: dict[str, Any], source_url: str) -> dict[str, Any]:
+    entry = state.get("items", {}).get(source_url, {})
+    return entry if isinstance(entry, dict) else {}
 
-    state = load_webflow_state()
-    state_entry = state.get("items", {}).get(source_url, {})
-    item_id = state_entry.get("item_id")
 
-    existing_item = None
-    if item_id:
-        existing_item = {"id": item_id}
-    else:
-        existing_item = find_item_by_source_url(client, source_url)
-        if existing_item:
-            item_id = existing_item.get("id")
-
-    payload_is_current = (
+def payload_is_current(state_entry: dict[str, Any], signature: str) -> bool:
+    return (
         state_entry.get("signature") == signature
         and state_entry.get("payload_version") == WEBFLOW_PAYLOAD_VERSION
     )
-    if existing_item and not config.force_webflow_sync and payload_is_current:
-        state["items"][source_url] = {
-            "item_id": str(item_id),
-            "slug": state_entry.get("slug") or item_slug(existing_item),
-            "signature": signature,
-            "payload_version": WEBFLOW_PAYLOAD_VERSION,
-            "published": state_entry.get("published", True),
-        }
-        save_webflow_state(state)
-        print(f"Webflow already has this LinkedIn URL: {item_id}. Skipping Webflow write.")
-        return {"action": "skipped_existing_url", "item_id": str(item_id)}
 
-    collection = client.get_collection()
-    field_data = build_field_data(post, collection)
 
-    if item_id:
-        try:
-            response = client.update_item(str(item_id), field_data)
-            action = "updated"
-        except WebflowError as exc:
-            if "404" not in str(exc) and "resource_not_found" not in str(exc):
-                raise
-            stale_item_id = str(item_id)
-            print(f"Stored Webflow item ID was not found: {stale_item_id}. Looking up by LinkedIn URL.")
-            existing_item = find_item_by_source_url(client, source_url)
-            item_id = existing_item.get("id") if existing_item else ""
-            if item_id:
-                response = client.update_item(str(item_id), field_data)
-                action = "updated"
-            else:
-                response = client.create_item(field_data)
-                item_id = response_item_id(response)
-                action = "created"
-    else:
-        response = client.create_item(field_data)
-        item_id = response_item_id(response)
-        action = "created"
+def find_existing_item(
+    client: WebflowClient,
+    source_url: str,
+    stored_item_id: str | None,
+) -> tuple[dict[str, Any] | None, str]:
+    if stored_item_id:
+        return {"id": stored_item_id}, "staged"
 
-    if config.webflow_publish:
-        client.publish_item(str(item_id))
-        published = True
-    else:
-        published = False
+    staged_item = find_item_by_source_url(client, source_url)
+    if staged_item:
+        return staged_item, "staged"
 
+    live_item = find_item_by_source_url(client, source_url, live=True)
+    if live_item:
+        return live_item, "live"
+
+    return None, "missing"
+
+
+def record_item_state(
+    state: dict[str, Any],
+    source_url: str,
+    item_id: str,
+    signature: str,
+    published: bool,
+    slug: str = "",
+) -> None:
     state["items"][source_url] = {
-        "item_id": str(item_id),
-        "slug": field_data.get("slug", ""),
+        "item_id": item_id,
+        "slug": slug,
         "signature": signature,
         "payload_version": WEBFLOW_PAYLOAD_VERSION,
         "published": published,
     }
     save_webflow_state(state)
+
+
+def is_not_found_error(exc: WebflowError) -> bool:
+    message = str(exc)
+    return "404" in message or "resource_not_found" in message
+
+
+def create_webflow_item(client: WebflowClient, field_data: dict[str, Any]) -> tuple[dict[str, Any], str, str]:
+    response = client.create_item(field_data)
+    return response, response_item_id(response), "created"
+
+
+def update_staged_item(
+    client: WebflowClient,
+    item_id: str,
+    field_data: dict[str, Any],
+) -> tuple[dict[str, Any], str, str]:
+    response = client.update_item(item_id, field_data)
+    return response, item_id, "updated"
+
+
+def replace_live_item(
+    client: WebflowClient,
+    live_item_id: str,
+    field_data: dict[str, Any],
+) -> tuple[dict[str, Any], str, str]:
+    try:
+        response = client.update_live_item(live_item_id, field_data)
+        return response, live_item_id, "updated_live"
+    except WebflowError as exc:
+        if not is_not_found_error(exc):
+            raise
+        print(f"Live Webflow item could not be updated: {live_item_id}. Unpublishing and recreating it.")
+        try:
+            client.unpublish_live_item(live_item_id)
+        except WebflowError as unpublish_exc:
+            raise WebflowError(
+                "Webflow still has a live-only item that blocks this post slug, but the API cannot update "
+                f"or unpublish it: {live_item_id}. Publish the deletion in Webflow, then rerun the pipeline."
+            ) from unpublish_exc
+        return create_webflow_item(client, field_data)
+
+
+def recover_missing_stored_item(
+    client: WebflowClient,
+    source_url: str,
+    stale_item_id: str,
+    field_data: dict[str, Any],
+) -> tuple[dict[str, Any], str, str]:
+    print(f"Stored Webflow item ID was not found: {stale_item_id}. Looking up by LinkedIn URL.")
+
+    staged_item = find_item_by_source_url(client, source_url)
+    staged_item_id = item_id_from(staged_item)
+    if staged_item_id:
+        return update_staged_item(client, staged_item_id, field_data)
+
+    live_item = find_item_by_source_url(client, source_url, live=True)
+    live_item_id = item_id_from(live_item)
+    if live_item_id:
+        return replace_live_item(client, live_item_id, field_data)
+
+    return create_webflow_item(client, field_data)
+
+
+def write_item_to_webflow(
+    client: WebflowClient,
+    source_url: str,
+    item_id: str,
+    item_location: str,
+    field_data: dict[str, Any],
+) -> tuple[dict[str, Any], str, str]:
+    if not item_id:
+        return create_webflow_item(client, field_data)
+
+    if item_location == "live":
+        return replace_live_item(client, item_id, field_data)
+
+    try:
+        return update_staged_item(client, item_id, field_data)
+    except WebflowError as exc:
+        if not is_not_found_error(exc):
+            raise
+        return recover_missing_stored_item(client, source_url, item_id, field_data)
+
+
+def publish_if_needed(client: WebflowClient, item_id: str, action: str, should_publish: bool) -> bool:
+    if action == "updated_live":
+        return True
+    if should_publish:
+        client.publish_item(item_id)
+        return True
+    return False
+
+
+def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
+    client = WebflowClient(config.webflow_api_token, config.webflow_collection_id)
+    source_url = str(post.get("url") or "")
+    signature = post_hash(post)
+
+    state = load_webflow_state()
+    state_entry = state_entry_for(state, source_url)
+    existing_item, item_location = find_existing_item(client, source_url, state_entry.get("item_id"))
+    item_id = item_id_from(existing_item)
+
+    if existing_item and not config.force_webflow_sync and payload_is_current(state_entry, signature):
+        slug = state_entry.get("slug") or item_slug(existing_item)
+        published = state_entry.get("published", True)
+        record_item_state(state, source_url, item_id, signature, published, slug)
+        print(f"Webflow already has this LinkedIn URL: {item_id}. Skipping Webflow write.")
+        return {"action": "skipped_existing_url", "item_id": item_id}
+
+    field_data = build_field_data(post)
+    _, item_id, action = write_item_to_webflow(client, source_url, item_id, item_location, field_data)
+    published = publish_if_needed(client, item_id, action, config.webflow_publish)
+
+    record_item_state(state, source_url, item_id, signature, published, field_data.get("slug", ""))
     print(f"Webflow item {action}: {item_id}. Published={published}.")
-    return {"action": action, "item_id": str(item_id), "published": published}
+    return {"action": action, "item_id": item_id, "published": published}

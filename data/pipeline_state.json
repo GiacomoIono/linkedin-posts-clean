@@ -1,15 +1,15 @@
 {
-  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7466795473731760129",
-  "last_raw_hash": "c8e90a8eb963b60e1614199b8b43768bd570d8bbcca4ca7f8d9623b30a8aa80f",
-  "last_enriched_hash": "2e7cbd6332e045c9570a424babe7473c6c19581af52bdfb4fb4edff6b081aa15",
-  "last_run_at": "2026-05-31T19:32:29.607942+00:00",
+  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7466911411428872192",
+  "last_raw_hash": "f094fc5684c87d38443b395f75b6bc6cac12ca621b6e62c2d1c85694b49d0e4d",
+  "last_enriched_hash": "5bd15949085fba3d8c0ff87d04cbbdb39f15041819479deeaa1397c16393a381",
+  "last_run_at": "2026-06-01T12:31:42.776625+00:00",
   "statuses": {
     "enrichment": "skipped_existing_post",
     "webflow": {
       "action": "skipped_already_synced",
-      "item_id": "6a1c81c87c77b9e96df2dbcb"
+      "item_id": "6a1d792a5c4648747bab649a"
     },
-    "tweetify": "skipped_existing_post_no_artifact",
-    "x": "skipped_no_tweet"
+    "tweetify": "skipped_x_pipeline_disabled",
+    "x": "skipped_x_pipeline_disabled"
   }
 }
