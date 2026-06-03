@@ -5,8 +5,8 @@ concurrency:
 
 on:
   schedule:
-    # GitHub schedules use UTC. These two slots cover 04:00 Europe/Zurich across DST.
-    - cron: '0 0 * * *'
+    # GitHub schedules use UTC. 00:17 UTC avoids the busiest top-of-hour slot.
+    - cron: '17 0 * * *'
   workflow_dispatch:
 
 env:
@@ -17,43 +17,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check Zurich schedule time
-        id: zurich_time
-        run: |
-          python - <<'PY' >> "$GITHUB_OUTPUT"
-          from datetime import datetime
-          from zoneinfo import ZoneInfo
-
-          now = datetime.now(ZoneInfo("Europe/Zurich"))
-          print(f"zurich_now={now.isoformat()}")
-          print(f"run_cms_pipeline={'true' if now.hour == 4 else 'false'}")
-          PY
-
-      - name: Skip scheduled non-4am run
-        if: github.event_name == 'schedule' && steps.zurich_time.outputs.run_cms_pipeline != 'true'
-        run: |
-          echo "Current Zurich time is ${{ steps.zurich_time.outputs.zurich_now }}."
-          echo "Skipping this scheduled slot because the CMS pipeline runs at 04:00 Europe/Zurich."
-
       - name: Check out repo
-        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         uses: actions/checkout@v6
         with:
           persist-credentials: true
           fetch-depth: 0
 
       - name: Set up Python
-        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         run: pip install -r requirements.txt
 
       - name: Run Webflow CMS pipeline
-        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -79,7 +57,6 @@ jobs:
           exit "$status"
 
       - name: Commit and push pipeline outputs
-        if: github.event_name == 'workflow_dispatch' || steps.zurich_time.outputs.run_cms_pipeline == 'true'
         run: |
           set -e
           git config user.name "github-actions[bot]"
