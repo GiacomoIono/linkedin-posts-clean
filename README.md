@@ -181,7 +181,7 @@ If X fails, the Webflow pipeline still succeeds unless `REQUIRE_X_POSTING=true`.
 
 ## GitHub Action Schedule
 
-The workflow runs at 04:00 Europe/Zurich time.
+The workflow runs once per day from a single GitHub cron schedule.
 
 The file is:
 
@@ -189,7 +189,7 @@ The file is:
 .github/workflows/webflow_cms_pipeline.yml
 ```
 
-GitHub schedules use UTC, so the workflow has two possible UTC slots and then checks the real Zurich time before doing any work. This keeps the schedule correct across daylight saving time.
+GitHub schedules use UTC. The current schedule is `17 0 * * *`, so it starts at 00:17 UTC. There is no extra timezone check or hidden schedule gate inside the workflow.
 
 You can also start the workflow manually from GitHub Actions.
 
