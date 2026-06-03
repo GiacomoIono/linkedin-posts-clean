@@ -146,9 +146,11 @@ It fills these fields:
 
 The pipeline does not send `slug` at all. Webflow is left to handle that field.
 
-To avoid duplicates, Webflow matching is based on the LinkedIn URL and the saved Webflow item state in `data/webflow_items.json`.
+To avoid duplicates, the pipeline checks live Webflow items by LinkedIn URL before enrichment starts.
 
-If the saved Webflow item ID no longer exists, the script looks for the item by LinkedIn URL. It also handles the awkward case where Webflow still has a live-only version of an item after a manual deletion.
+If Webflow already has a live item with the same LinkedIn URL, the pipeline stops before writing local output files, calling OpenAI, or updating Webflow. Local files in `data/` are not used to decide whether a post already exists.
+
+`FORCE_WEBFLOW_SYNC=true` is the intentional override for maintenance runs where you really do want to replace an existing live Webflow item.
 
 ## X Posting
 

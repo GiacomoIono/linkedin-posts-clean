@@ -68,6 +68,13 @@ def response_text(response, label: str) -> str:
     raise RuntimeError(f"OpenAI returned empty {label} output (finish_reason={finish_reason}, usage={usage}).")
 
 
+def responses_text(response, label: str) -> str:
+    text = str(getattr(response, "output_text", "") or "").strip()
+    if text:
+        return text
+    raise RuntimeError(f"OpenAI returned empty {label} output.")
+
+
 def parse_json_response(response, label: str) -> dict[str, Any]:
     raw = response_text(response, label)
     if raw.startswith("```"):
@@ -151,7 +158,40 @@ def generate_seo(client: OpenAI, config: PipelineConfig, plain_text: str, prompt
     return {"headline": headline, "description": description}
 
 
-def generate_alt(client: OpenAI, config: PipelineConfig, image_url: str, plain_text: str, prompts: dict[str, str]) -> str:
+def generate_alt_with_responses(
+    client: OpenAI,
+    config: PipelineConfig,
+    image_url: str,
+    plain_text: str,
+    prompts: dict[str, str],
+) -> str:
+    user_intro = fill_placeholders(prompts["alt_user"], {"CONTEXT": plain_text[:700], "IMAGE_URL": image_url})
+    response = client.responses.create(
+        model=config.openai_model,
+        instructions=prompts["alt_system"],
+        input=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": user_intro},
+                    {"type": "input_image", "image_url": image_url},
+                ],
+            }
+        ],
+    )
+    alt = clean_alt(responses_text(response, "ALT text"))
+    if not alt:
+        raise RuntimeError("OpenAI returned empty ALT text.")
+    return alt
+
+
+def generate_alt_with_chat(
+    client: OpenAI,
+    config: PipelineConfig,
+    image_url: str,
+    plain_text: str,
+    prompts: dict[str, str],
+) -> str:
     user_intro = fill_placeholders(prompts["alt_user"], {"CONTEXT": plain_text[:700], "IMAGE_URL": image_url})
     response = client.chat.completions.create(
         **completion_kwargs(
@@ -172,6 +212,16 @@ def generate_alt(client: OpenAI, config: PipelineConfig, image_url: str, plain_t
     if not alt:
         raise RuntimeError("OpenAI returned empty ALT text.")
     return alt
+
+
+def generate_alt(client: OpenAI, config: PipelineConfig, image_url: str, plain_text: str, prompts: dict[str, str]) -> str:
+    try:
+        return generate_alt_with_responses(client, config, image_url, plain_text, prompts)
+    except Exception as responses_exc:
+        try:
+            return generate_alt_with_chat(client, config, image_url, plain_text, prompts)
+        except Exception as chat_exc:
+            raise RuntimeError(f"Responses API failed: {responses_exc}; Chat Completions failed: {chat_exc}") from chat_exc
 
 
 def generate_context_alt(

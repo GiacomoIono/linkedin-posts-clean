@@ -58,10 +58,7 @@ class MainXPipelineTests(unittest.TestCase):
             patch("pipeline.main.ensure_directories"),
             patch("pipeline.main.load_config", return_value=config(run_x_pipeline)),
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
-            patch("pipeline.main.load_existing_raw_post", return_value=None),
-            patch("pipeline.main.load_existing_enriched_post", return_value=None),
-            patch("pipeline.main.webflow_state_entry", return_value=None),
-            patch("pipeline.main.already_synced_to_webflow", return_value=None),
+            patch("pipeline.main.find_live_webflow_item", return_value=None),
             patch("pipeline.main.enrich_post", return_value=ENRICHED_POST),
             patch("pipeline.main.sync_post_to_webflow", return_value={"action": "created", "item_id": "item-id"}),
             patch("pipeline.main.write_json"),
@@ -99,6 +96,28 @@ class MainXPipelineTests(unittest.TestCase):
         load_existing_tweet.assert_called_once()
         generate_tweet.assert_called_once_with(ENRICHED_POST, config(True))
         post_to_x.assert_called_once_with(TWEET, config(True))
+
+    def test_main_stops_before_enrichment_when_webflow_live_item_exists(self) -> None:
+        patches = [
+            patch("pipeline.main.ensure_directories"),
+            patch("pipeline.main.load_config", return_value=config(False)),
+            patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
+            patch("pipeline.main.find_live_webflow_item", return_value={"id": "live-item"}),
+            patch("pipeline.main.write_json"),
+            patch("pipeline.main.enrich_post"),
+            patch("pipeline.main.sync_post_to_webflow"),
+            patch("pipeline.main.save_pipeline_state"),
+        ]
+
+        with ExitStack() as stack:
+            mocks = [stack.enter_context(item) for item in patches]
+            exit_code = pipeline_main.main()
+
+        self.assertEqual(exit_code, 0)
+        mocks[4].assert_not_called()
+        mocks[5].assert_not_called()
+        mocks[6].assert_not_called()
+        mocks[7].assert_not_called()
 
 
 if __name__ == "__main__":

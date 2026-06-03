@@ -4,8 +4,6 @@ import unittest
 from unittest.mock import patch
 
 from pipeline.linkedin import image_filename_sort_key
-from pipeline.main import already_synced_to_webflow
-from pipeline.utils import post_hash
 from pipeline.webflow import (
     AUTHOR_COLLECTION_ID,
     AUTHOR_ITEM_ID,
@@ -139,30 +137,17 @@ class WebflowPayloadTests(unittest.TestCase):
             ["2026-06-01_1.jpg", "2026-06-01_2.jpg", "2026-06-01.jpg"],
         )
 
-    def test_existing_webflow_item_is_current_only_after_payload_version_backfill(self) -> None:
-        current_entry = {
-            "item_id": "item-123",
-            "signature": post_hash(POST),
-            "payload_version": WEBFLOW_PAYLOAD_VERSION,
-            "published": True,
-        }
-        stale_entry = dict(current_entry)
-        stale_entry.pop("payload_version")
-
-        with patch("pipeline.main.load_webflow_state", return_value={"items": {POST["url"]: stale_entry}}):
-            self.assertIsNone(already_synced_to_webflow(POST))
-
-        with patch("pipeline.main.load_webflow_state", return_value={"items": {POST["url"]: current_entry}}):
-            self.assertEqual(already_synced_to_webflow(POST), current_entry)
-
-    def test_sync_updates_live_item_when_staged_item_was_deleted(self) -> None:
+    def test_sync_skips_existing_live_item_without_using_local_state(self) -> None:
         class FakeClient:
             def __init__(self, _token, _collection_id):
+                self.created = []
+                self.updated = []
                 self.updated_live = []
                 self.published = []
 
-            def update_item(self, _item_id, _field_data):
-                raise WebflowError("Webflow PATCH failed: 404 resource_not_found")
+            def update_item(self, item_id, field_data):
+                self.updated.append((item_id, field_data))
+                return {"id": item_id}
 
             def list_items(self):
                 return []
@@ -174,8 +159,9 @@ class WebflowPayloadTests(unittest.TestCase):
                 self.updated_live.append((item_id, field_data))
                 return {"id": item_id}
 
-            def create_item(self, _field_data):
-                raise AssertionError("Should update the live item instead of creating a duplicate")
+            def create_item(self, field_data):
+                self.created.append(field_data)
+                return {"id": "new-item"}
 
             def publish_item(self, item_id):
                 self.published.append(item_id)
@@ -205,7 +191,51 @@ class WebflowPayloadTests(unittest.TestCase):
 
         with (
             patch("pipeline.webflow.WebflowClient", return_value=fake_client),
-            patch("pipeline.webflow.load_webflow_state", return_value=state),
+            patch("pipeline.webflow.load_webflow_state") as load_webflow_state,
+            patch("pipeline.webflow.save_webflow_state", side_effect=saved_states.append),
+        ):
+            result = sync_post_to_webflow(POST, config)
+
+        self.assertEqual(result, {"action": "skipped_existing_live_url", "item_id": "live-item", "published": True})
+        load_webflow_state.assert_not_called()
+        self.assertEqual(fake_client.updated, [])
+        self.assertEqual(fake_client.updated_live, [])
+        self.assertEqual(fake_client.created, [])
+        self.assertEqual(fake_client.published, [])
+        self.assertEqual(saved_states, [])
+
+    def test_force_sync_updates_existing_live_item(self) -> None:
+        class FakeClient:
+            def __init__(self, _token, _collection_id):
+                self.updated_live = []
+                self.published = []
+
+            def list_live_items(self):
+                return [{"id": "live-item", "fieldData": {"linkedin-post-link": POST["url"]}}]
+
+            def update_live_item(self, item_id, field_data):
+                self.updated_live.append((item_id, field_data))
+                return {"id": item_id}
+
+            def publish_item(self, item_id):
+                self.published.append(item_id)
+
+        config = type(
+            "Config",
+            (),
+            {
+                "webflow_api_token": "token",
+                "webflow_collection_id": "collection",
+                "webflow_publish": True,
+                "force_webflow_sync": True,
+            },
+        )()
+        saved_states = []
+        fake_client = FakeClient("token", "collection")
+
+        with (
+            patch("pipeline.webflow.WebflowClient", return_value=fake_client),
+            patch("pipeline.webflow.load_webflow_state", return_value={"items": {}}),
             patch("pipeline.webflow.save_webflow_state", side_effect=saved_states.append),
         ):
             result = sync_post_to_webflow(POST, config)
@@ -253,7 +283,7 @@ class WebflowPayloadTests(unittest.TestCase):
                 "webflow_api_token": "token",
                 "webflow_collection_id": "collection",
                 "webflow_publish": True,
-                "force_webflow_sync": False,
+                "force_webflow_sync": True,
             },
         )()
         state = {
@@ -309,7 +339,7 @@ class WebflowPayloadTests(unittest.TestCase):
                 "webflow_api_token": "token",
                 "webflow_collection_id": "collection",
                 "webflow_publish": True,
-                "force_webflow_sync": False,
+                "force_webflow_sync": True,
             },
         )()
         state = {

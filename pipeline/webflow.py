@@ -194,6 +194,13 @@ def find_item_by_source_url(client: WebflowClient, source_url: str, live: bool =
     return None
 
 
+def find_live_webflow_item(config: PipelineConfig, source_url: str) -> dict[str, Any] | None:
+    if not source_url:
+        return None
+    client = WebflowClient(config.webflow_api_token, config.webflow_collection_id)
+    return find_item_by_source_url(client, source_url, live=True)
+
+
 def item_slug(item: dict[str, Any]) -> str:
     field_data = item.get("fieldData", {}) if isinstance(item.get("fieldData"), dict) else {}
     return str(field_data.get("slug") or "")
@@ -372,9 +379,18 @@ def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[s
     source_url = str(post.get("url") or "")
     signature = post_hash(post)
 
+    live_item = find_item_by_source_url(client, source_url, live=True)
+    live_item_id = item_id_from(live_item)
+    if live_item_id and not config.force_webflow_sync:
+        print(f"Webflow live item already exists for this LinkedIn URL: {live_item_id}. Skipping Webflow write.")
+        return {"action": "skipped_existing_live_url", "item_id": live_item_id, "published": True}
+
     state = load_webflow_state()
     state_entry = state_entry_for(state, source_url)
-    existing_item, item_location = find_existing_item(client, source_url, state_entry.get("item_id"))
+    if live_item_id:
+        existing_item, item_location = live_item, "live"
+    else:
+        existing_item, item_location = find_existing_item(client, source_url, state_entry.get("item_id"))
     item_id = item_id_from(existing_item)
 
     if existing_item and not config.force_webflow_sync and payload_is_current(state_entry, signature):
