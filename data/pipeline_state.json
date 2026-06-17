@@ -1,13 +1,13 @@
 {
-  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7470130582073819137",
-  "last_raw_hash": "69b4d99a035fbb78fecb48d5d21b4c6b131a80d04d2d98883bd133ba97bbe5a0",
-  "last_enriched_hash": "838f677d30c7ec32c8310edf58bc79cacfbec540e3cd3655a53dec6b8d023426",
-  "last_run_at": "2026-06-10T04:52:37.723110+00:00",
+  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7472986738546864128",
+  "last_raw_hash": "422477b12556499c98c068b88a9f6a33886b5aeda0c8dcde241a1b073446f5a8",
+  "last_enriched_hash": "bb464bebe9d750f9d12ff3ce8a2fbc6332d06bc76305f3f82de901d1cae9514c",
+  "last_run_at": "2026-06-17T15:19:39.280510+00:00",
   "statuses": {
     "enrichment": "generated",
     "webflow": {
       "action": "created",
-      "item_id": "6a28ed95ebd45007f3b1cf6e",
+      "item_id": "6a32bb0a325c071455f44aa7",
       "published": true
     },
     "tweetify": "skipped_x_pipeline_disabled",
