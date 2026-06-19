@@ -59,6 +59,13 @@
       "signature": "bb464bebe9d750f9d12ff3ce8a2fbc6332d06bc76305f3f82de901d1cae9514c",
       "payload_version": 7,
       "published": true
+    },
+    "https://www.linkedin.com/feed/update/urn:li:share:7473391090528759808": {
+      "item_id": "6a34d38f5fa5bc2dd8f45ff0",
+      "slug": "",
+      "signature": "9b75799112d9177cf71062d75b8ce9111f43055b5ff1064ecb67a035a3b66a9c",
+      "payload_version": 7,
+      "published": true
     }
   }
 }
