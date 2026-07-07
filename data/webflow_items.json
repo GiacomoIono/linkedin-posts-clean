@@ -87,6 +87,13 @@
       "signature": "007b0f5c1b38fba2bdc6078158c78a8e0cdfb1d5bf48bf0904eb26149113f4be",
       "payload_version": 7,
       "published": true
+    },
+    "https://www.linkedin.com/feed/update/urn:li:share:7479928635601096704": {
+      "item_id": "6a4c7e4fef0cfb7fd9d1d44b",
+      "slug": "",
+      "signature": "d58aa407e2e00c3e9683a61f2b334b773a29aaed47d33656a9566acf332407eb",
+      "payload_version": 7,
+      "published": true
     }
   }
 }
