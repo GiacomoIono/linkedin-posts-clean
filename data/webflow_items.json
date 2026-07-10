@@ -101,6 +101,13 @@
       "signature": "073e34488f6975d53e9d7389ac355170bfcbe631bc921551f3118a8bdee8e2b0",
       "payload_version": 7,
       "published": true
+    },
+    "https://www.linkedin.com/feed/update/urn:li:share:7480623506196705280": {
+      "item_id": "6a5072c1d5bb03a1bb064c1c",
+      "slug": "",
+      "signature": "5fd715fd1d2529b8678d96c392f7ee5f0d8f33c3fecd4e84048d4004b95d7b8e",
+      "payload_version": 7,
+      "published": true
     }
   }
 }
