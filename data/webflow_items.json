@@ -108,6 +108,13 @@
       "signature": "5fd715fd1d2529b8678d96c392f7ee5f0d8f33c3fecd4e84048d4004b95d7b8e",
       "payload_version": 7,
       "published": true
+    },
+    "https://www.linkedin.com/feed/update/urn:li:share:7480625138351235072": {
+      "item_id": "6a51bc8afd57bc208338132d",
+      "slug": "",
+      "signature": "d7c07cbf22314ac56c9e6ed5bd08560753bdcabf45673dd369ab9d50bff99cbc",
+      "payload_version": 7,
+      "published": true
     }
   }
 }
