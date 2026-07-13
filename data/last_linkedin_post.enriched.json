@@ -1,13 +1,13 @@
 {
-  "content": "<p>OpenAI product ecosystem is becoming a joke.</p><p>&nbsp;</p><p>Today I opened ChatGPT and discovered the new “Work” toggle.</p><p>&nbsp;</p><p>I played around with it. It’s great.</p><p>&nbsp;</p><p>It can:<br>• create and use Skills<br>• connect to GitHub<br>• select projects directly from the chat<br>• enable/disable Plugins from the chat<br>• pursue a specific goal<br>• and more</p><p>&nbsp;</p><p>But wait.<br>Isn’t that exactly what Codex does??</p><p>&nbsp;</p><p>Then it gets even more confusing.</p><p>&nbsp;</p><p>Click “Open desktop app” inside a ChatGPT Work conversation and it opens Codex, not ChatGPT Desktop. Misleading at best.</p><p>&nbsp;</p><p>I’m a Pro subscriber, but the “Pro” model has disappeared. Now I get Sol and a selector for how much effort I want it to use.<br>I assume “Ultra” effort replaces the Pro model?<br>Clearly they haven't updated the billing plans yet.</p><p>&nbsp;</p><p>Codex doesn’t have Sol or GPT-5.6, yet at least.</p><p>&nbsp;</p><p>Meanwhile, the actual ChatGPT Desktop app doesn’t have the Work toggle and can’t select Sol or reasoning efforts. 😅</p><p>&nbsp;</p><p>Then there are Skills.<br>I can now create them in ChatGPT Web. But to me they look extremely similar, if not essentially identical, to Custom GPTs.<br>People tell me Skills are different because they can be invoked mid-conversation.<br>But Custom GPTs can too! Just type @ and select one.</p><p>&nbsp;</p><p>Finally, Projects.<br>They’re kind of like Custom GPTs, but not really.<br>Like folders in Codex, but on ChatGPT.<br>They can store files and documents, but not Skills.</p><p>&nbsp;</p><p>OpenAI, I love you and I've been a loyal paying customer since early 2023.<br>But please help me understand your products!</p><p>&nbsp;</p>",
-  "url": "https://www.linkedin.com/feed/update/urn:li:share:7482067127147933696",
-  "published_at": "2026-07-12T16:00:01.129000",
+  "content": "<p>This is why AI chatbots completely change the game in marketing.</p><p>&nbsp;</p><p>Even a conversation that started with zero commercial intent can turn into a buying occasion.</p><p>&nbsp;</p><p>And ChatGPT ads are right there to capture the buying intent when it surfaces.</p><p>&nbsp;</p><p>Or rather, shall we say they create the buying intent instead of just capturing it?</p><p>&nbsp;</p><p>Source: Similarweb \"Ads in AI\" report.</p><p>&nbsp;</p>",
+  "url": "https://www.linkedin.com/feed/update/urn:li:share:7480642503654821888",
+  "published_at": "2026-07-13T06:30:01.604000",
   "images": [
     {
-      "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-07-12.png",
-      "alt": "Dark UI showing Chat/Work toggle, 'What should we work on?' and 'Work on anything' field."
+      "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-07-13.png",
+      "alt": "Dark blue infographic showing 'Conversations generate intent' with orange 46%, blue 69%, and a footnote."
     }
   ],
-  "headline": "OpenAI product ecosystem feels confusing and inconsistent",
-  "description": "A user contrasts Work, Skills, Projects, and Codex in OpenAI's ecosystem, noting overlaps, unclear billing, and confusion around Pro, Sol, and desktop apps."
+  "headline": "AI chatbots turn conversations into buying moments in marketing",
+  "description": "Similarweb's Ads in AI report shows AI chatbots can turn conversations with no intent into buying moments, with ChatGPT ads capturing or creating buying intent."
 }

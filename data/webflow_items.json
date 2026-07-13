@@ -122,6 +122,13 @@
       "signature": "545883d1729eb5fecf71670d6a32632a7e49b16887bd628bdf7edf837c578786",
       "payload_version": 7,
       "published": true
+    },
+    "https://www.linkedin.com/feed/update/urn:li:share:7480642503654821888": {
+      "item_id": "6a54ea04cbdedb6ea81e0d1e",
+      "slug": "",
+      "signature": "d0f13cfba2515ff4ad3cf7f07088d45c0c8aa434b4cb743c9d6aa619af40b7a6",
+      "payload_version": 7,
+      "published": true
     }
   }
 }
