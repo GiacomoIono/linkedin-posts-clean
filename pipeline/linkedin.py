@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -11,6 +12,9 @@ from .config import IMAGE_DIR
 
 LINKEDIN_CHANGE_LOG_URL = "https://api.linkedin.com/rest/memberChangeLogs"
 LINKEDIN_VERSION = "202312"
+LINKEDIN_PAGE_SIZE = 50
+LINKEDIN_MAX_ATTEMPTS = 3
+LINKEDIN_RETRY_BACKOFF_SECONDS = 1
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 RAW_IMAGE_BASE_URL = "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/"
 IMAGE_SEQUENCE_RE = re.compile(r"_(\d+)(?=\.[^.]+$)")
@@ -72,6 +76,26 @@ def extract_post(element: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def request_linkedin_page(headers: dict[str, str], params: dict[str, Any]):
+    for attempt in range(1, LINKEDIN_MAX_ATTEMPTS + 1):
+        response = requests.get(LINKEDIN_CHANGE_LOG_URL, headers=headers, params=params, timeout=30)
+        print(
+            "LinkedIn API response status: "
+            f"{response.status_code} (start={params['start']}, attempt={attempt}/{LINKEDIN_MAX_ATTEMPTS})"
+        )
+        if response.status_code == 200:
+            return response
+
+        if response.status_code != 500 or attempt == LINKEDIN_MAX_ATTEMPTS:
+            raise RuntimeError(f"LinkedIn API failed: {response.status_code} {response.text}")
+
+        delay = LINKEDIN_RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+        print(f"LinkedIn API returned 500. Retrying in {delay} second(s).")
+        time.sleep(delay)
+
+    raise RuntimeError("LinkedIn API failed without returning a response.")
+
+
 def fetch_latest_linkedin_post(access_token: str, lookback_hours: int = 48) -> dict[str, Any] | None:
     if not access_token:
         raise RuntimeError("LINKEDIN_ACCESS_TOKEN is missing.")
@@ -81,24 +105,51 @@ def fetch_latest_linkedin_post(access_token: str, lookback_hours: int = 48) -> d
         "Authorization": f"Bearer {access_token}",
         "LinkedIn-Version": LINKEDIN_VERSION,
     }
-    params = {
-        "q": "memberAndApplication",
-        "count": 500,
-        "startTime": start_time,
-    }
-
-    response = requests.get(LINKEDIN_CHANGE_LOG_URL, headers=headers, params=params, timeout=30)
-    print(f"LinkedIn API response status: {response.status_code}")
-    if response.status_code != 200:
-        raise RuntimeError(f"LinkedIn API failed: {response.status_code} {response.text}")
 
     latest_post = None
     latest_timestamp = -1
-    for element in response.json().get("elements", []):
-        post = extract_post(element)
-        timestamp = int(element.get("capturedAt") or 0)
-        if post and timestamp > latest_timestamp:
-            latest_post = post
-            latest_timestamp = timestamp
+    page_start = 0
+
+    while True:
+        params = {
+            "q": "memberAndApplication",
+            "count": LINKEDIN_PAGE_SIZE,
+            "start": page_start,
+            "startTime": start_time,
+        }
+        response = request_linkedin_page(headers, params)
+        elements = response.json().get("elements", [])
+        if not isinstance(elements, list):
+            raise RuntimeError("LinkedIn API failed: response elements must be a list.")
+
+        page_processed_timestamps = []
+        for element in elements:
+            if not isinstance(element, dict):
+                continue
+
+            processed_timestamp = int(element.get("processedAt") or 0)
+            if processed_timestamp:
+                page_processed_timestamps.append(processed_timestamp)
+
+            timestamp = int(element.get("capturedAt") or 0)
+            post = extract_post(element)
+            if post and timestamp > latest_timestamp:
+                latest_post = post
+                latest_timestamp = timestamp
+
+        page_is_older_than_lookback = (
+            bool(page_processed_timestamps) and max(page_processed_timestamps) < start_time
+        )
+        if page_is_older_than_lookback:
+            print(
+                f"Reached LinkedIn records older than the {lookback_hours}-hour lookback window. "
+                "Stopping pagination."
+            )
+            break
+
+        if len(elements) < LINKEDIN_PAGE_SIZE:
+            break
+
+        page_start += LINKEDIN_PAGE_SIZE
 
     return latest_post
