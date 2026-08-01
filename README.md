@@ -71,6 +71,8 @@ The LinkedIn scraper looks back exactly 48 hours from the time the script runs.
 
 That means it is a rolling time window, not "today and yesterday" as calendar days. For example, if the script runs at 04:00 on June 3, it searches back to 04:00 on June 1.
 
+LinkedIn is queried in pages of 50 changelog records. The scraper follows every page until it reaches the end of the 48-hour window, and it stops if a page contains only older records. A temporary LinkedIn `500` response is retried twice with a short backoff before the run fails.
+
 If no LinkedIn post is found in that window, the script exits cleanly with code `2`. The GitHub Action treats that as "nothing to do", not as a failure.
 
 ## Images
