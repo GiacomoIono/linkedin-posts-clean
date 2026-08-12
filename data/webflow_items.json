@@ -234,6 +234,13 @@
       "signature": "1d1b60fec6271ff2c69c292ff13ade7ea8cef9f41d4827c2de8bf253af027ea3",
       "payload_version": 7,
       "published": true
+    },
+    "https://www.linkedin.com/feed/update/urn:li:share:7492691654085165056": {
+      "item_id": "6a7bded0bf22eb87c864c9ba",
+      "slug": "",
+      "signature": "d66cf3728cb74e889708d4ab09e94c62ba21cf40634792a1f0612b2b3dd4bd69",
+      "payload_version": 7,
+      "published": true
     }
   }
 }
