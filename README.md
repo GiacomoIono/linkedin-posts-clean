@@ -12,20 +12,412 @@ In plain English, the pipeline does this:
 6. Skips X/Twitter unless you explicitly turn that part on.
 7. Saves a record of what happened in the `data/` folder.
 
-## Quick Start
+## Set up this project on a new laptop
 
-Create the Python environment:
+This is the complete one-time setup and migration guide. Follow it from top to bottom. The main instructions cover both macOS and Windows; use only the commands for your operating system.
 
-```bash
-python3 -m venv .venv
+The project uses:
+
+- Git and GitHub for version control.
+- Python 3.11, matching the version used by GitHub Actions.
+- A local Python virtual environment named `.venv`.
+- The packages pinned in `requirements.txt`.
+- A local `.env` file for API credentials.
+- No Node.js, `npm`, Docker, database, or Webflow CLI.
+
+### What moves automatically and what does not
+
+| Item | Already stored remotely? | What to do on the new laptop |
+| --- | --- | --- |
+| Tracked code, tests, prompts, images, and `data/` files | Yes, in GitHub | Clone the repository. |
+| GitHub Actions workflows and their schedule | Yes, in GitHub | Nothing. They continue running even while the old laptop is off. |
+| GitHub Actions secrets and variables | Yes, in GitHub | Normally nothing. Their values cannot be viewed after saving, but they stay attached to the repository. |
+| Local `.env` file | No | Transfer it securely from the old laptop or create new credentials. |
+| Local `.venv` folder | No, and it should never be transferred | Recreate it and reinstall `requirements.txt`. |
+| GitHub login on the computer | No | Authenticate the new laptop with GitHub CLI. |
+| Git configuration and repository Git hook setting | No | Configure them again. |
+| Uncommitted or untracked files | No | Commit and push them, or transfer them separately before retiring the old laptop. |
+
+### Part 0: prepare the old laptop before replacing it
+
+Do this while the old laptop is still available.
+
+1. Open Terminal on macOS or PowerShell on Windows.
+2. Go to the existing repository folder. Replace the example path if the project is stored elsewhere:
+
+~~~bash
+cd ~/Documents/GitHub/linkedin-posts-clean
+~~~
+
+3. Confirm that this is the correct repository:
+
+~~~bash
+git remote -v
+git branch --show-current
+git status
+~~~
+
+The remote should contain:
+
+~~~text
+https://github.com/GiacomoIono/linkedin-posts-clean.git
+~~~
+
+4. Read the `git status` output carefully.
+
+   - `nothing to commit, working tree clean` means all tracked work is already committed.
+   - `modified` means a tracked file has local changes.
+   - `untracked` means a local file has never been added to Git.
+   - If you see changes you want to keep, commit and push them before continuing.
+   - Do not use `git reset --hard` or delete files merely to make the status clean.
+
+5. Once the working tree is clean, update and push `main`:
+
+~~~bash
+git switch main
+git pull --ff-only origin main
+git push origin main
+git status
+~~~
+
+6. Open the repository on GitHub and verify that the latest files and commit are visible:
+
+   [https://github.com/GiacomoIono/linkedin-posts-clean](https://github.com/GiacomoIono/linkedin-posts-clean)
+
+7. Save the local `.env` file securely.
+
+   - It is hidden by default because its name starts with a dot.
+   - On macOS Finder, press `Command + Shift + .` to show or hide hidden files.
+   - Use an encrypted password manager, an encrypted drive, or another secure transfer method.
+   - Do not email it to yourself, paste it into chat, store it in a public cloud note, or commit it to GitHub.
+
+8. Check whether any other local-only files need to be kept:
+
+~~~bash
+git status --short --untracked-files=all
+~~~
+
+Do not copy the old `.venv` folder, `__pycache__` folders, or the entire old `.git` folder. A fresh clone and a fresh virtual environment are safer and less likely to carry broken machine-specific files.
+
+### Part 1A: install the required software on macOS
+
+Skip this part if the new laptop uses Windows.
+
+1. Open `Terminal` from `Applications > Utilities`, or press `Command + Space`, type `Terminal`, and press Enter.
+
+2. Install Apple's command-line tools:
+
+~~~bash
+xcode-select --install
+~~~
+
+If macOS says they are already installed, continue. Otherwise, approve the installation and wait for it to finish.
+
+3. Install Homebrew, the package manager used by the commands below.
+
+   - Open [https://brew.sh/](https://brew.sh/).
+   - Confirm that its official installation command still matches the following command.
+   - Paste it into Terminal and press Enter:
+
+~~~bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+~~~
+
+4. At the end, Homebrew may print a `Next steps` section with one or two commands that add Homebrew to your shell path. Copy and run those exact commands. This is important, especially on Apple Silicon Macs.
+
+5. Close Terminal, reopen it, and check Homebrew:
+
+~~~bash
+brew --version
+~~~
+
+6. Install Git, Python 3.11, and GitHub CLI:
+
+~~~bash
+brew update
+brew install git python@3.11 gh
+~~~
+
+7. Install Visual Studio Code, the recommended editor:
+
+~~~bash
+brew install --cask visual-studio-code
+~~~
+
+8. Close and reopen Terminal again, then verify all installations:
+
+~~~bash
+git --version
+python3.11 --version
+gh --version
+~~~
+
+The Python result must begin with `Python 3.11`. A later Python version may be installed elsewhere on the computer, but use Python 3.11 for this project because it matches GitHub Actions.
+
+If `code` is not recognised later:
+
+1. Open Visual Studio Code.
+2. Press `Command + Shift + P`.
+3. Search for `Shell Command: Install 'code' command in PATH`.
+4. Select it.
+5. Close and reopen Terminal.
+
+Official installation references:
+
+- [Git for macOS](https://git-scm.com/install/mac)
+- [Python downloads](https://www.python.org/downloads/)
+- [GitHub CLI](https://cli.github.com/)
+- [Visual Studio Code](https://code.visualstudio.com/download)
+
+### Part 1B: install the required software on Windows
+
+Skip this part if the new laptop uses macOS.
+
+1. Open `PowerShell` from the Start menu. Use PowerShell, not the older Command Prompt, for the commands in this guide.
+
+2. Install Git, Python 3.11, GitHub CLI, and Visual Studio Code:
+
+~~~powershell
+winget install --id Git.Git -e --source winget
+winget install --id Python.Python.3.11 -e --source winget
+winget install --id GitHub.cli -e --source winget
+winget install --id Microsoft.VisualStudioCode -e --source winget
+~~~
+
+Approve any prompts and accept the source agreements if asked.
+
+3. Close PowerShell completely and reopen it so the new commands are added to the system path.
+
+4. Verify all installations:
+
+~~~powershell
+git --version
+py -3.11 --version
+gh --version
+code --version
+~~~
+
+The Python result must begin with `Python 3.11`.
+
+Official installation references:
+
+- [Git for Windows](https://git-scm.com/install/windows)
+- [Python downloads](https://www.python.org/downloads/)
+- [GitHub CLI](https://cli.github.com/)
+- [Visual Studio Code](https://code.visualstudio.com/download)
+
+### Part 2: authenticate the new laptop with GitHub
+
+Cloning this public repository does not require authentication, but pushing changes does. GitHub account passwords cannot be used as Git passwords. GitHub CLI will configure secure HTTPS authentication.
+
+1. Start the login:
+
+~~~bash
+gh auth login
+~~~
+
+2. Choose these options:
+
+   - `GitHub.com`
+   - `HTTPS`
+   - `Yes` when asked whether Git should use your GitHub credentials
+   - `Login with a web browser`
+
+3. Copy the one-time code shown in the terminal, press Enter, sign in through the browser, and approve GitHub CLI.
+
+4. Finish Git's credential configuration and verify the account:
+
+~~~bash
+gh auth setup-git
+gh auth status
+~~~
+
+The output should show that you are logged in to `github.com` as the account that owns or can write to `GiacomoIono/linkedin-posts-clean`.
+
+5. Configure the name and email attached to future commits. Replace the email placeholder with an email verified on your GitHub account, or your GitHub private `noreply` address from [GitHub email settings](https://github.com/settings/emails):
+
+~~~bash
+git config --global user.name "Giacomo Iotti"
+git config --global user.email "YOUR_VERIFIED_GITHUB_EMAIL"
+~~~
+
+6. Verify what Git saved:
+
+~~~bash
+git config --global --get user.name
+git config --global --get user.email
+~~~
+
+Never put an OpenAI, LinkedIn, Webflow, or X API token into Git's username, email, or remote URL.
+
+### Part 3: clone a fresh copy of the repository
+
+Do not use GitHub's `Download ZIP` button. A ZIP does not contain the Git history and cannot use `git pull` or `git push`.
+
+#### macOS
+
+~~~bash
+mkdir -p ~/Documents/GitHub
+cd ~/Documents/GitHub
+git clone https://github.com/GiacomoIono/linkedin-posts-clean.git
+cd linkedin-posts-clean
+~~~
+
+#### Windows PowerShell
+
+~~~powershell
+New-Item -ItemType Directory -Force -Path "$HOME\Documents\GitHub"
+Set-Location "$HOME\Documents\GitHub"
+git clone https://github.com/GiacomoIono/linkedin-posts-clean.git
+Set-Location linkedin-posts-clean
+~~~
+
+#### Check the clone on either operating system
+
+~~~bash
+git remote -v
+git branch --show-current
+git status
+git pull --ff-only origin main
+~~~
+
+Expected results:
+
+- `origin` points to `https://github.com/GiacomoIono/linkedin-posts-clean.git`.
+- The branch is `main`.
+- Git says the branch is up to date with `origin/main`.
+- Git says `nothing to commit, working tree clean`.
+
+A fresh `git clone` already downloads the latest committed version. The explicit `git pull --ff-only origin main` is included so you also know the command to use later.
+
+### Part 4: enable the repository's large-file protection
+
+The repository contains `.githooks/pre-commit`. It blocks files larger than 90 MB before they are committed.
+
+Run this once inside the repository:
+
+~~~bash
+git config core.hooksPath .githooks
+~~~
+
+On macOS, also make sure the hook is executable:
+
+~~~bash
+chmod +x .githooks/pre-commit
+~~~
+
+Verify the setting:
+
+~~~bash
+git config --get core.hooksPath
+~~~
+
+It should print:
+
+~~~text
+.githooks
+~~~
+
+### Part 5: create and activate the Python virtual environment
+
+A virtual environment is an isolated Python installation for this project. It prevents this project's package versions from interfering with packages used by other projects.
+
+The `.venv` folder is local and must not be committed. Before creating it, exclude it locally from Git.
+
+#### macOS
+
+~~~bash
+printf "\n# Local Python virtual environment\n.venv/\n" >> .git/info/exclude
+python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-```
+~~~
 
-Create a local `.env` file:
+#### Windows PowerShell
 
-```bash
+~~~powershell
+Add-Content .git/info/exclude "`n# Local Python virtual environment`n.venv/"
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+~~~
+
+If PowerShell says that script execution is disabled, allow it only for the current PowerShell window and activate again:
+
+~~~powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+~~~
+
+After activation, the terminal prompt normally starts with `(.venv)`.
+
+Verify that the active Python belongs to the virtual environment:
+
+#### macOS
+
+~~~bash
+python --version
+which python
+~~~
+
+#### Windows PowerShell
+
+~~~powershell
+python --version
+(Get-Command python).Source
+~~~
+
+The version must begin with `Python 3.11`, and the path should contain `linkedin-posts-clean/.venv` or `linkedin-posts-clean\.venv`.
+
+### Part 6: install the Python packages
+
+Keep the virtual environment active. Then run:
+
+~~~bash
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip --version
+~~~
+
+`requirements.txt` is the source of truth. It currently installs pinned versions of:
+
+- `openai`
+- `python-dotenv`
+- `requests`
+
+Do not use `sudo pip install`. Do not install these packages globally. Do not run `npm install`; this repository has no Node.js packages.
+
+Whenever `requirements.txt` changes after a future `git pull`, reactivate `.venv` and run:
+
+~~~bash
+python -m pip install -r requirements.txt
+~~~
+
+### Part 7: restore or create the local environment variables
+
+The local `.env` file contains secrets and is deliberately excluded from Git. It will not arrive with `git clone`.
+
+1. Create the file in the repository root, next to `README.md` and `requirements.txt`.
+
+#### macOS
+
+~~~bash
+touch .env
+code .env
+~~~
+
+If the `code` command is unavailable, open the repository in Visual Studio Code and create a file named exactly `.env`.
+
+#### Windows PowerShell
+
+~~~powershell
+New-Item -ItemType File -Force .env
+code .env
+~~~
+
+2. Paste this template:
+
+~~~dotenv
 LINKEDIN_ACCESS_TOKEN=
+
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5-nano
 
@@ -36,19 +428,423 @@ WEBFLOW_PUBLISH=true
 RUN_X_PIPELINE=false
 X_ACCESS_TOKEN=
 REQUIRE_X_POSTING=false
-```
+
+FORCE_WEBFLOW_SYNC=false
+FORCE_ENRICH=false
+FORCE_TWEETIFY=false
+FORCE_X_POST=false
+~~~
+
+3. Add the real values after each required equals sign:
+
+| Local variable | Required? | Where the value comes from |
+| --- | --- | --- |
+| `LINKEDIN_ACCESS_TOKEN` | Yes | Secure copy of the old `.env` value, or a newly authorised token from the LinkedIn developer application. |
+| `OPENAI_API_KEY` | Yes | Secure copy of the old value, or a new key from the same OpenAI API project. Existing key values usually cannot be revealed again after creation. |
+| `OPENAI_MODEL` | Yes | Keep `gpt-5-nano` unless the pipeline is intentionally changed. |
+| `WEBFLOW_API_TOKEN` | Yes | Secure copy of the old token, or a replacement Webflow token with access to read and write the Blog Posts collection. |
+| `WEBFLOW_COLLECTION_ID` | Yes | Keep the existing ID shown in the template. |
+| `WEBFLOW_PUBLISH` | Yes | Keep `true` for the normal production behaviour. Read the live-run warning below before running locally. |
+| `RUN_X_PIPELINE` | Yes | Keep `false` unless X posting is intentionally re-enabled. |
+| `X_ACCESS_TOKEN` | No while X is disabled | Leave blank while `RUN_X_PIPELINE=false`. |
+| `REQUIRE_X_POSTING` | Yes | Keep `false` while X is optional or disabled. |
+| `FORCE_*` variables | Yes | Keep all four `false` during normal use. |
+
+Do not add spaces around the equals sign. Do not wrap the tokens in quotation marks unless a value genuinely contains spaces.
+
+#### Local secrets and GitHub Actions secrets are separate
+
+The scheduled GitHub Action currently reads:
+
+- `LINKEDIN_ACCESS_TOKEN` from a GitHub Actions secret.
+- `OPENAI_API_KEY` from a GitHub Actions secret.
+- `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` from a GitHub Actions secret or repository variable.
+- `X_ACCESS_TOKEN` from an optional GitHub Actions secret.
+
+Those remote values remain in GitHub when you change laptop. You do not need to recreate them merely because you cloned the repository elsewhere. GitHub intentionally hides saved secret values; it will not let you copy them back out for the local `.env` file.
+
+If the old `.env` is unavailable, create or rotate the required credentials in the relevant services. Do not weaken security by trying to extract hidden GitHub Actions secrets.
+
+4. Save `.env` and verify that Git ignores both local-only items:
+
+~~~bash
+git check-ignore -v .env
+git check-ignore -v .venv/
+git status --short
+~~~
+
+The first two commands should show an ignore rule. The final command should not list `.env` or `.venv` and should normally print nothing.
+
+5. Confirm that the application can see the required settings without printing the secret values:
+
+~~~bash
+python -c "from pipeline.config import load_config; c=load_config(); print('LinkedIn configured:', bool(c.linkedin_access_token)); print('OpenAI configured:', bool(c.openai_api_key)); print('Webflow configured:', bool(c.webflow_api_token)); print('X pipeline enabled:', c.run_x_pipeline)"
+~~~
+
+Expected results for the normal configuration:
+
+~~~text
+LinkedIn configured: True
+OpenAI configured: True
+Webflow configured: True
+X pipeline enabled: False
+~~~
+
+### Part 8: run the safe local verification
+
+Run the repository's unit tests:
+
+~~~bash
+python -m unittest discover -s tests -v
+~~~
+
+The final line should be:
+
+~~~text
+OK
+~~~
+
+The exact number of tests may increase over time. `OK` is the important result.
+
+These tests are the correct first verification because they do not intentionally publish a Webflow post or an X post.
+
+For an optional read-only LinkedIn check:
+
+1. Open the repository's [Actions tab](https://github.com/GiacomoIono/linkedin-posts-clean/actions).
+2. Select `Validate LinkedIn Fetch`.
+3. Select `Run workflow`.
+4. Keep the branch set to `main` and start it.
+5. Open the run and confirm that all steps are green.
+
+That workflow runs the tests and calls the LinkedIn API read-only. It does not run the Webflow publishing pipeline.
+
+### Part 9: understand the live-run warning
+
+Do not run the following command merely to check whether installation worked:
+
+~~~bash
+python -m pipeline.main
+~~~
+
+It is a live end-to-end command. With valid credentials, it can:
+
+- read recent LinkedIn activity;
+- call the OpenAI API and incur API usage;
+- create or update a Webflow CMS item;
+- publish that item when `WEBFLOW_PUBLISH=true`;
+- write output files under `data/`;
+- post to X if `RUN_X_PIPELINE=true`.
+
+Important: `WEBFLOW_PUBLISH=false` is not a complete dry-run mode. It prevents the final publish step, but the pipeline can still create or update a Webflow draft item.
+
+The normal scheduled GitHub Action already runs the production pipeline. A local live run is optional and should be used only when you intentionally want to process a real LinkedIn post.
+
+### Part 10: perform the first intentional live run
+
+Only do this when all of the following are true:
+
+- There is a real LinkedIn post inside the rolling 48-hour window.
+- The local `.env` values are configured.
+- `RUN_X_PIPELINE=false` unless X posting is deliberately wanted.
+- All `FORCE_*` flags are `false` unless a maintenance override is deliberately required.
+- Any matching image has the correct date-based filename.
+- Any new image is already committed and available on GitHub's `main` branch.
+
+That last point is essential: image URLs are built from the repository's raw `main` branch. A brand-new image that exists only on the laptop or only on an unmerged branch cannot be fetched by Webflow or OpenAI.
+
+Activate the environment if needed:
+
+#### macOS
+
+~~~bash
+cd ~/Documents/GitHub/linkedin-posts-clean
+source .venv/bin/activate
+~~~
+
+#### Windows PowerShell
+
+~~~powershell
+Set-Location "$HOME\Documents\GitHub\linkedin-posts-clean"
+.\.venv\Scripts\Activate.ps1
+~~~
 
 Then run:
 
-```bash
+~~~bash
 python -m pipeline.main
-```
+~~~
 
-To run the tests:
+Normal outcomes:
 
-```bash
-python -m unittest discover -s tests
-```
+- If Webflow already contains the same live LinkedIn URL, the pipeline stops before enrichment or Webflow writes.
+- If no qualifying LinkedIn post exists within 48 hours, it prints `No recent LinkedIn posts found` and exits with code `2`. The scheduled GitHub Action deliberately treats that as “nothing to do.”
+- If a new post exists, the pipeline can enrich it and write it to Webflow according to the `.env` settings.
+
+After any intentional local run, inspect what changed:
+
+~~~bash
+git status
+git diff -- data
+~~~
+
+Do not commit or discard unexpected output until you understand it.
+
+### Part 11: use this start-of-work routine every time
+
+#### macOS
+
+~~~bash
+cd ~/Documents/GitHub/linkedin-posts-clean
+git switch main
+git status
+git pull --ff-only origin main
+source .venv/bin/activate
+git log -1 --oneline
+~~~
+
+#### Windows PowerShell
+
+~~~powershell
+Set-Location "$HOME\Documents\GitHub\linkedin-posts-clean"
+git switch main
+git status
+git pull --ff-only origin main
+.\.venv\Scripts\Activate.ps1
+git log -1 --oneline
+~~~
+
+Read `git status` before pulling:
+
+- If it says the working tree is clean, continue.
+- If it lists modified or untracked files, stop and decide whether those changes should be committed, moved, or kept for later.
+- Do not force a pull over local changes.
+
+After pulling, reinstall packages only if `requirements.txt` changed:
+
+~~~bash
+python -m pip install -r requirements.txt
+~~~
+
+### Part 12: make and publish a normal code or documentation change
+
+1. Start from an up-to-date `main` branch.
+2. Create a separate branch. Replace `short-description` with a few lowercase words describing the task:
+
+~~~bash
+git switch -c giacomo/short-description
+~~~
+
+3. Make the change in Visual Studio Code:
+
+~~~bash
+code .
+~~~
+
+4. Run the tests:
+
+~~~bash
+python -m unittest discover -s tests -v
+~~~
+
+5. Inspect the changed files:
+
+~~~bash
+git status
+git diff
+~~~
+
+6. Stage only the files that belong to the change. Examples:
+
+~~~bash
+git add README.md
+git add pipeline/linkedin.py tests/test_linkedin.py
+git add images/2026-08-17.jpg
+~~~
+
+Avoid `git add .` until you are comfortable reviewing every file it would stage.
+
+7. Commit and push. Replace the examples with the real description and branch name:
+
+~~~bash
+git commit -m "docs: describe the change"
+git push -u origin giacomo/short-description
+~~~
+
+8. Open a pull request:
+
+~~~bash
+gh pr create --fill --web
+~~~
+
+9. After the pull request is merged, return to `main` and download the merged result:
+
+~~~bash
+git switch main
+git pull --ff-only origin main
+~~~
+
+10. When finished working, leave the virtual environment:
+
+~~~bash
+deactivate
+~~~
+
+### Part 13: troubleshooting
+
+#### `brew: command not found`
+
+Reopen [https://brew.sh/](https://brew.sh/), then rerun the shell-path commands printed under Homebrew's `Next steps`. Close and reopen Terminal afterwards.
+
+#### `python3.11: command not found` on macOS
+
+Run:
+
+~~~bash
+brew install python@3.11
+brew info python@3.11
+~~~
+
+Then close and reopen Terminal.
+
+#### `py -3.11` cannot find Python on Windows
+
+Close and reopen PowerShell. If the problem remains, reinstall Python 3.11 and ensure the installer or package manager adds Python to the system path.
+
+#### The terminal does not show `(.venv)`
+
+The environment is not active. Run the activation command again:
+
+~~~bash
+source .venv/bin/activate
+~~~
+
+Or on Windows PowerShell:
+
+~~~powershell
+.\.venv\Scripts\Activate.ps1
+~~~
+
+#### `ModuleNotFoundError`
+
+Confirm that `.venv` is active, then run:
+
+~~~bash
+python -m pip install -r requirements.txt
+~~~
+
+#### `fatal: not a git repository`
+
+The terminal is in the wrong folder. On macOS run `pwd`; on PowerShell run `Get-Location`. Then change into the `linkedin-posts-clean` folder.
+
+#### GitHub authentication fails during `git push`
+
+Run:
+
+~~~bash
+gh auth status
+gh auth login
+gh auth setup-git
+~~~
+
+Use the `GiacomoIono` GitHub account or another account with write permission to the repository.
+
+#### `git pull --ff-only` refuses to continue
+
+Run:
+
+~~~bash
+git status
+~~~
+
+Do not use a force command or `git reset --hard`. Local work, a branch mismatch, or diverging commits need to be understood first. Preserve the output and ask for help.
+
+#### `.env` is missing after cloning
+
+This is expected. It is intentionally excluded from Git. Restore it securely from the old laptop or generate new credentials.
+
+#### A required token reports `missing`, `401`, or `403`
+
+Check that:
+
+- the correct value is in the local `.env` file;
+- there are no spaces around the equals sign;
+- the token has not expired or been revoked;
+- the token belongs to the correct LinkedIn, OpenAI, or Webflow account;
+- the Webflow token can read and write the configured Blog Posts collection.
+
+Do not print the full token in Terminal screenshots or support messages.
+
+#### A commit is blocked because a file exceeds 90 MB
+
+The repository hook is protecting GitHub from a large binary. Do not bypass it casually. Remove the large file from the staged change or use an appropriate external storage strategy.
+
+#### An image exists locally but is missing from Webflow
+
+Check all three conditions:
+
+1. Its filename begins with the LinkedIn publication date in `YYYY-MM-DD` format.
+2. Its extension is `.jpg`, `.jpeg`, `.png`, or `.webp`.
+3. The file is committed and visible in the `images/` folder on GitHub's `main` branch before the pipeline runs.
+
+#### The pipeline says no recent LinkedIn post exists
+
+The lookup window is a rolling 48 hours, not two calendar days. If the post is older, this is expected.
+
+### Final new-laptop checklist
+
+- [ ] Git is installed.
+- [ ] Python 3.11 is installed.
+- [ ] GitHub CLI is installed and authenticated.
+- [ ] Git commit name and email are configured.
+- [ ] A fresh repository clone exists.
+- [ ] `main` is up to date with `origin/main`.
+- [ ] The repository's `.githooks` path is enabled.
+- [ ] The local `.venv` exists and is active.
+- [ ] `requirements.txt` is installed.
+- [ ] The local `.env` exists and contains the required credentials.
+- [ ] `.env` and `.venv` are ignored by Git.
+- [ ] The configuration check reports the three required services as configured.
+- [ ] The unit tests finish with `OK`.
+- [ ] The scheduled GitHub Action is still enabled.
+- [ ] You understand that `python -m pipeline.main` is a live command, not a harmless setup test.
+
+## Quick Start (after the one-time setup)
+
+This shorter routine assumes the repository has already been cloned, the `.venv` environment and `.env` file already exist, and the full new-laptop guide above has been completed.
+
+On macOS:
+
+~~~bash
+cd ~/Documents/GitHub/linkedin-posts-clean
+git switch main
+git status
+git pull --ff-only origin main
+source .venv/bin/activate
+~~~
+
+On Windows PowerShell:
+
+~~~powershell
+Set-Location "$HOME\Documents\GitHub\linkedin-posts-clean"
+git switch main
+git status
+git pull --ff-only origin main
+.\.venv\Scripts\Activate.ps1
+~~~
+
+Run the safe tests:
+
+~~~bash
+python -m unittest discover -s tests -v
+~~~
+
+Only when you intentionally want to run the live LinkedIn-to-Webflow pipeline:
+
+~~~bash
+python -m pipeline.main
+~~~
+
+Remember that this final command can call paid APIs and write or publish a Webflow CMS item.
 
 ## The Important Settings
 
