@@ -19,10 +19,11 @@ This is the complete one-time setup and migration guide for a MacBook Pro. Follo
 The project uses:
 
 - Git and GitHub for version control.
-- Python 3.11, matching the version used by GitHub Actions.
+- Python 3.11 installed through Homebrew, matching the version used by GitHub Actions.
 - A local Python virtual environment named `.venv`.
 - The packages pinned in `requirements.txt`.
 - A local `.env` file for API credentials.
+- Visual Studio Code is assumed to be installed already; this guide only checks its optional `code` terminal command.
 - No Node.js, `npm`, Docker, database, or Webflow CLI.
 
 ### What moves automatically and what does not
@@ -172,35 +173,43 @@ Expected results:
 
 If the architecture and Homebrew prefix do not match the same column, stop before continuing. This can indicate an old Intel Homebrew installation being used through Rosetta on the M4.
 
-7. Install Git, Python 3.11, and GitHub CLI:
+7. Install Git, GitHub CLI, and Python 3.11 through Homebrew:
 
 ~~~bash
 brew update
-brew install git python@3.11 gh
+brew install git gh python@3.11
 ~~~
+
+This guide deliberately uses Homebrew as the only Python installation method. Do not also install Python 3.11 from `python.org`, Anaconda, or another package manager for this project.
 
 The command is identical on both Macs. Homebrew automatically installs the correct build for the active processor.
 
-8. Install Visual Studio Code:
-
-~~~bash
-brew install --cask visual-studio-code
-~~~
-
-This command is also identical on M4 and Intel.
-
-9. Close and reopen Terminal again, then verify all installations:
+8. Close and reopen Terminal again, then verify the installations:
 
 ~~~bash
 git --version
-python3.11 --version
 gh --version
-code --version
+python3.11 --version
+brew list --versions python@3.11
+command -v python3.11
 ~~~
 
-The Python result must begin with `Python 3.11`. A later Python version may be installed elsewhere on the Mac, but use Python 3.11 for this project because it matches GitHub Actions.
+Expected results:
+
+- The Python version begins with `Python 3.11`.
+- `brew list --versions python@3.11` prints the installed Homebrew formula and version.
+- On the M4, `command -v python3.11` normally starts with `/opt/homebrew/`.
+- On the Intel Mac, `command -v python3.11` normally starts with `/usr/local/`.
+
+A later Python version may be installed elsewhere on the Mac, but always use the Homebrew Python 3.11 installation for this project because it matches GitHub Actions.
 
 The virtual environment created later is machine-specific. Create a separate `.venv` on each MacBook Pro; never copy the M4 `.venv` to the Intel Mac or the Intel `.venv` to the M4 Mac.
+
+Visual Studio Code is assumed to be installed already. Check whether its optional terminal command is available:
+
+~~~bash
+code --version
+~~~
 
 If `code` is not recognised:
 
@@ -214,10 +223,9 @@ Official references:
 
 - [Identify whether a Mac uses Apple Silicon or Intel](https://support.apple.com/en-us/116943)
 - [Homebrew installation and processor-specific prefixes](https://docs.brew.sh/Installation)
+- [Homebrew Python 3.11 formula](https://formulae.brew.sh/formula/python@3.11)
 - [Git for macOS](https://git-scm.com/install/mac)
-- [Python 3.11 on macOS](https://docs.python.org/3.11/using/mac.html)
 - [GitHub CLI](https://cli.github.com/)
-- [Visual Studio Code](https://code.visualstudio.com/download)
 
 ### Part 2: authenticate the new MacBook Pro with GitHub
 
@@ -745,7 +753,7 @@ The lookup window is a rolling 48 hours, not two calendar days. If the post is o
 - [ ] `uname -m` reports `arm64` on the M4 or `x86_64` on the Intel Mac.
 - [ ] `brew --prefix` reports `/opt/homebrew` on the M4 or `/usr/local` on the Intel Mac.
 - [ ] Git is installed.
-- [ ] Python 3.11 is installed.
+- [ ] Python 3.11 is installed through Homebrew.
 - [ ] GitHub CLI is installed and authenticated.
 - [ ] Git commit name and email are configured.
 - [ ] A fresh repository clone exists.
