@@ -12,9 +12,9 @@ In plain English, the pipeline does this:
 6. Skips X/Twitter unless you explicitly turn that part on.
 7. Saves a record of what happened in the `data/` folder.
 
-## Set up this project on a new laptop
+## Set up this project on a MacBook Pro
 
-This is the complete one-time setup and migration guide. Follow it from top to bottom. The main instructions cover both macOS and Windows; use only the commands for your operating system.
+This is the complete one-time setup and migration guide for a MacBook Pro. Follow it from top to bottom. Shared instructions apply to both your M4 and Intel models; the few hardware-specific differences are clearly labelled.
 
 The project uses:
 
@@ -27,22 +27,22 @@ The project uses:
 
 ### What moves automatically and what does not
 
-| Item | Already stored remotely? | What to do on the new laptop |
+| Item | Already stored remotely? | What to do on the new MacBook Pro |
 | --- | --- | --- |
 | Tracked code, tests, prompts, images, and `data/` files | Yes, in GitHub | Clone the repository. |
-| GitHub Actions workflows and their schedule | Yes, in GitHub | Nothing. They continue running even while the old laptop is off. |
+| GitHub Actions workflows and their schedule | Yes, in GitHub | Nothing. They continue running even while the old Mac is off. |
 | GitHub Actions secrets and variables | Yes, in GitHub | Normally nothing. Their values cannot be viewed after saving, but they stay attached to the repository. |
-| Local `.env` file | No | Transfer it securely from the old laptop or create new credentials. |
+| Local `.env` file | No | Transfer it securely from the old Mac or create new credentials. |
 | Local `.venv` folder | No, and it should never be transferred | Recreate it and reinstall `requirements.txt`. |
-| GitHub login on the computer | No | Authenticate the new laptop with GitHub CLI. |
+| GitHub login on the computer | No | Authenticate the new MacBook Pro with GitHub CLI. |
 | Git configuration and repository Git hook setting | No | Configure them again. |
-| Uncommitted or untracked files | No | Commit and push them, or transfer them separately before retiring the old laptop. |
+| Uncommitted or untracked files | No | Commit and push them, or transfer them separately before retiring the old Mac. |
 
-### Part 0: prepare the old laptop before replacing it
+### Part 0: prepare the old Mac before replacing it
 
-Do this while the old laptop is still available.
+Do this while the old Mac is still available.
 
-1. Open Terminal on macOS or PowerShell on Windows.
+1. Open Terminal on the Mac.
 2. Go to the existing repository folder. Replace the example path if the project is stored elsewhere:
 
 ~~~bash
@@ -99,21 +99,45 @@ git status --short --untracked-files=all
 
 Do not copy the old `.venv` folder, `__pycache__` folders, or the entire old `.git` folder. A fresh clone and a fresh virtual environment are safer and less likely to carry broken machine-specific files.
 
-### Part 1A: install the required software on macOS
+### Part 1: install the required software on the MacBook Pro
 
-Skip this part if the new laptop uses Windows.
+These instructions work on both of your MacBook Pros. The M4 model uses Apple Silicon; the older model uses an Intel processor. Most commands are identical. The main difference is the processor architecture and the folder where Homebrew is installed.
+
+Before installing anything, open `Apple menu  > System Settings > General > Software Update` on each Mac and install the newest macOS version Apple offers for that model. This can differ: the M4 supports newer macOS versions, while the maximum version available to the Intel Mac depends on its year. If Homebrew later warns that the Intel Mac's macOS version is unsupported, stop and review the warning instead of forcing the installation.
 
 1. Open `Terminal` from `Applications > Utilities`, or press `Command + Space`, type `Terminal`, and press Enter.
 
-2. Install Apple's command-line tools:
+2. Identify which Mac you are using.
+
+Open the Apple menu ` > About This Mac`:
+
+- On the M4 MacBook Pro, the window shows `Chip: Apple M4`.
+- On the Intel MacBook Pro, the window shows `Processor` followed by an Intel processor name.
+
+Then run:
+
+~~~bash
+uname -m
+~~~
+
+Expected result:
+
+| MacBook Pro | Result from `uname -m` | Homebrew's normal location |
+| --- | --- | --- |
+| M4 | `arm64` | `/opt/homebrew` |
+| Intel | `x86_64` | `/usr/local` |
+
+Important for the M4: if `uname -m` unexpectedly prints `x86_64`, that Terminal session is running through Rosetta. Close it and open a normal native Terminal before installing Homebrew or Python. This project does not require Rosetta.
+
+3. Install Apple's command-line tools:
 
 ~~~bash
 xcode-select --install
 ~~~
 
-If macOS says they are already installed, continue. Otherwise, approve the installation and wait for it to finish.
+If macOS says they are already installed, continue. Otherwise, approve the installation and wait for it to finish. This command is the same on M4 and Intel.
 
-3. Install Homebrew, the package manager used by the commands below.
+4. Install Homebrew, the package manager used by the commands below.
 
    - Open [https://brew.sh/](https://brew.sh/).
    - Confirm that its official installation command still matches the following command.
@@ -123,38 +147,62 @@ If macOS says they are already installed, continue. Otherwise, approve the insta
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ~~~
 
-4. At the end, Homebrew may print a `Next steps` section with one or two commands that add Homebrew to your shell path. Copy and run those exact commands. This is important, especially on Apple Silicon Macs.
+5. At the end, Homebrew prints a `Next steps` section with commands that add Homebrew to the shell path. Copy and run the exact commands shown on that Mac.
 
-5. Close Terminal, reopen it, and check Homebrew:
+   - On the M4 MacBook Pro, those commands normally reference `/opt/homebrew/bin/brew`.
+   - On the Intel MacBook Pro, Homebrew normally uses `/usr/local/bin/brew`.
+   - Do not copy the M4 path onto the Intel Mac or the Intel path onto the M4 Mac.
+
+6. Close Terminal, reopen it, and verify the architecture and Homebrew installation:
 
 ~~~bash
+uname -m
+command -v brew
+brew --prefix
 brew --version
 ~~~
 
-6. Install Git, Python 3.11, and GitHub CLI:
+Expected results:
+
+| Check | M4 MacBook Pro | Intel MacBook Pro |
+| --- | --- | --- |
+| `uname -m` | `arm64` | `x86_64` |
+| `command -v brew` | `/opt/homebrew/bin/brew` | Usually `/usr/local/bin/brew` |
+| `brew --prefix` | `/opt/homebrew` | `/usr/local` |
+
+If the architecture and Homebrew prefix do not match the same column, stop before continuing. This can indicate an old Intel Homebrew installation being used through Rosetta on the M4.
+
+7. Install Git, Python 3.11, and GitHub CLI:
 
 ~~~bash
 brew update
 brew install git python@3.11 gh
 ~~~
 
-7. Install Visual Studio Code, the recommended editor:
+The command is identical on both Macs. Homebrew automatically installs the correct build for the active processor.
+
+8. Install Visual Studio Code:
 
 ~~~bash
 brew install --cask visual-studio-code
 ~~~
 
-8. Close and reopen Terminal again, then verify all installations:
+This command is also identical on M4 and Intel.
+
+9. Close and reopen Terminal again, then verify all installations:
 
 ~~~bash
 git --version
 python3.11 --version
 gh --version
+code --version
 ~~~
 
-The Python result must begin with `Python 3.11`. A later Python version may be installed elsewhere on the computer, but use Python 3.11 for this project because it matches GitHub Actions.
+The Python result must begin with `Python 3.11`. A later Python version may be installed elsewhere on the Mac, but use Python 3.11 for this project because it matches GitHub Actions.
 
-If `code` is not recognised later:
+The virtual environment created later is machine-specific. Create a separate `.venv` on each MacBook Pro; never copy the M4 `.venv` to the Intel Mac or the Intel `.venv` to the M4 Mac.
+
+If `code` is not recognised:
 
 1. Open Visual Studio Code.
 2. Press `Command + Shift + P`.
@@ -162,51 +210,16 @@ If `code` is not recognised later:
 4. Select it.
 5. Close and reopen Terminal.
 
-Official installation references:
+Official references:
 
+- [Identify whether a Mac uses Apple Silicon or Intel](https://support.apple.com/en-us/116943)
+- [Homebrew installation and processor-specific prefixes](https://docs.brew.sh/Installation)
 - [Git for macOS](https://git-scm.com/install/mac)
-- [Python downloads](https://www.python.org/downloads/)
+- [Python 3.11 on macOS](https://docs.python.org/3.11/using/mac.html)
 - [GitHub CLI](https://cli.github.com/)
 - [Visual Studio Code](https://code.visualstudio.com/download)
 
-### Part 1B: install the required software on Windows
-
-Skip this part if the new laptop uses macOS.
-
-1. Open `PowerShell` from the Start menu. Use PowerShell, not the older Command Prompt, for the commands in this guide.
-
-2. Install Git, Python 3.11, GitHub CLI, and Visual Studio Code:
-
-~~~powershell
-winget install --id Git.Git -e --source winget
-winget install --id Python.Python.3.11 -e --source winget
-winget install --id GitHub.cli -e --source winget
-winget install --id Microsoft.VisualStudioCode -e --source winget
-~~~
-
-Approve any prompts and accept the source agreements if asked.
-
-3. Close PowerShell completely and reopen it so the new commands are added to the system path.
-
-4. Verify all installations:
-
-~~~powershell
-git --version
-py -3.11 --version
-gh --version
-code --version
-~~~
-
-The Python result must begin with `Python 3.11`.
-
-Official installation references:
-
-- [Git for Windows](https://git-scm.com/install/windows)
-- [Python downloads](https://www.python.org/downloads/)
-- [GitHub CLI](https://cli.github.com/)
-- [Visual Studio Code](https://code.visualstudio.com/download)
-
-### Part 2: authenticate the new laptop with GitHub
+### Part 2: authenticate the new MacBook Pro with GitHub
 
 Cloning this public repository does not require authentication, but pushing changes does. GitHub account passwords cannot be used as Git passwords. GitHub CLI will configure secure HTTPS authentication.
 
@@ -254,8 +267,6 @@ Never put an OpenAI, LinkedIn, Webflow, or X API token into Git's username, emai
 
 Do not use GitHub's `Download ZIP` button. A ZIP does not contain the Git history and cannot use `git pull` or `git push`.
 
-#### macOS
-
 ~~~bash
 mkdir -p ~/Documents/GitHub
 cd ~/Documents/GitHub
@@ -263,16 +274,7 @@ git clone https://github.com/GiacomoIono/linkedin-posts-clean.git
 cd linkedin-posts-clean
 ~~~
 
-#### Windows PowerShell
-
-~~~powershell
-New-Item -ItemType Directory -Force -Path "$HOME\Documents\GitHub"
-Set-Location "$HOME\Documents\GitHub"
-git clone https://github.com/GiacomoIono/linkedin-posts-clean.git
-Set-Location linkedin-posts-clean
-~~~
-
-#### Check the clone on either operating system
+#### Check the clone
 
 ~~~bash
 git remote -v
@@ -324,48 +326,22 @@ A virtual environment is an isolated Python installation for this project. It pr
 
 The `.venv` folder is local and must not be committed. Before creating it, exclude it locally from Git.
 
-#### macOS
-
 ~~~bash
 printf "\n# Local Python virtual environment\n.venv/\n" >> .git/info/exclude
 python3.11 -m venv .venv
 source .venv/bin/activate
 ~~~
 
-#### Windows PowerShell
-
-~~~powershell
-Add-Content .git/info/exclude "`n# Local Python virtual environment`n.venv/"
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-~~~
-
-If PowerShell says that script execution is disabled, allow it only for the current PowerShell window and activate again:
-
-~~~powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
-~~~
-
 After activation, the terminal prompt normally starts with `(.venv)`.
 
 Verify that the active Python belongs to the virtual environment:
-
-#### macOS
 
 ~~~bash
 python --version
 which python
 ~~~
 
-#### Windows PowerShell
-
-~~~powershell
-python --version
-(Get-Command python).Source
-~~~
-
-The version must begin with `Python 3.11`, and the path should contain `linkedin-posts-clean/.venv` or `linkedin-posts-clean\.venv`.
+The version must begin with `Python 3.11`, and the path should contain `linkedin-posts-clean/.venv`.
 
 ### Part 6: install the Python packages
 
@@ -397,21 +373,12 @@ The local `.env` file contains secrets and is deliberately excluded from Git. It
 
 1. Create the file in the repository root, next to `README.md` and `requirements.txt`.
 
-#### macOS
-
 ~~~bash
 touch .env
 code .env
 ~~~
 
 If the `code` command is unavailable, open the repository in Visual Studio Code and create a file named exactly `.env`.
-
-#### Windows PowerShell
-
-~~~powershell
-New-Item -ItemType File -Force .env
-code .env
-~~~
 
 2. Paste this template:
 
@@ -461,7 +428,7 @@ The scheduled GitHub Action currently reads:
 - `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` from a GitHub Actions secret or repository variable.
 - `X_ACCESS_TOKEN` from an optional GitHub Actions secret.
 
-Those remote values remain in GitHub when you change laptop. You do not need to recreate them merely because you cloned the repository elsewhere. GitHub intentionally hides saved secret values; it will not let you copy them back out for the local `.env` file.
+Those remote values remain in GitHub when you change MacBook. You do not need to recreate them merely because you cloned the repository elsewhere. GitHub intentionally hides saved secret values; it will not let you copy them back out for the local `.env` file.
 
 If the old `.env` is unavailable, create or rotate the required credentials in the relevant services. Do not weaken security by trying to extract hidden GitHub Actions secrets.
 
@@ -554,18 +521,9 @@ That last point is essential: image URLs are built from the repository's raw `ma
 
 Activate the environment if needed:
 
-#### macOS
-
 ~~~bash
 cd ~/Documents/GitHub/linkedin-posts-clean
 source .venv/bin/activate
-~~~
-
-#### Windows PowerShell
-
-~~~powershell
-Set-Location "$HOME\Documents\GitHub\linkedin-posts-clean"
-.\.venv\Scripts\Activate.ps1
 ~~~
 
 Then run:
@@ -591,25 +549,12 @@ Do not commit or discard unexpected output until you understand it.
 
 ### Part 11: use this start-of-work routine every time
 
-#### macOS
-
 ~~~bash
 cd ~/Documents/GitHub/linkedin-posts-clean
 git switch main
 git status
 git pull --ff-only origin main
 source .venv/bin/activate
-git log -1 --oneline
-~~~
-
-#### Windows PowerShell
-
-~~~powershell
-Set-Location "$HOME\Documents\GitHub\linkedin-posts-clean"
-git switch main
-git status
-git pull --ff-only origin main
-.\.venv\Scripts\Activate.ps1
 git log -1 --oneline
 ~~~
 
@@ -691,6 +636,20 @@ deactivate
 
 ### Part 13: troubleshooting
 
+#### The M4 reports `x86_64` or Homebrew uses `/usr/local`
+
+That normally means the M4 Terminal session or Homebrew installation is using Intel emulation through Rosetta. Do not continue installing project packages in that environment.
+
+Close Terminal, open a normal native Terminal, and run:
+
+~~~bash
+uname -m
+command -v brew
+brew --prefix
+~~~
+
+On the M4, the expected results are `arm64`, `/opt/homebrew/bin/brew`, and `/opt/homebrew`. Do not delete an existing `/usr/local` installation until you understand whether another application still uses it.
+
 #### `brew: command not found`
 
 Reopen [https://brew.sh/](https://brew.sh/), then rerun the shell-path commands printed under Homebrew's `Next steps`. Close and reopen Terminal afterwards.
@@ -706,10 +665,6 @@ brew info python@3.11
 
 Then close and reopen Terminal.
 
-#### `py -3.11` cannot find Python on Windows
-
-Close and reopen PowerShell. If the problem remains, reinstall Python 3.11 and ensure the installer or package manager adds Python to the system path.
-
 #### The terminal does not show `(.venv)`
 
 The environment is not active. Run the activation command again:
@@ -718,11 +673,6 @@ The environment is not active. Run the activation command again:
 source .venv/bin/activate
 ~~~
 
-Or on Windows PowerShell:
-
-~~~powershell
-.\.venv\Scripts\Activate.ps1
-~~~
 
 #### `ModuleNotFoundError`
 
@@ -734,7 +684,7 @@ python -m pip install -r requirements.txt
 
 #### `fatal: not a git repository`
 
-The terminal is in the wrong folder. On macOS run `pwd`; on PowerShell run `Get-Location`. Then change into the `linkedin-posts-clean` folder.
+The terminal is in the wrong folder. Run `pwd`, then change into the `linkedin-posts-clean` folder.
 
 #### GitHub authentication fails during `git push`
 
@@ -760,7 +710,7 @@ Do not use a force command or `git reset --hard`. Local work, a branch mismatch,
 
 #### `.env` is missing after cloning
 
-This is expected. It is intentionally excluded from Git. Restore it securely from the old laptop or generate new credentials.
+This is expected. It is intentionally excluded from Git. Restore it securely from the old Mac or generate new credentials.
 
 #### A required token reports `missing`, `401`, or `403`
 
@@ -790,8 +740,10 @@ Check all three conditions:
 
 The lookup window is a rolling 48 hours, not two calendar days. If the post is older, this is expected.
 
-### Final new-laptop checklist
+### Final MacBook Pro setup checklist
 
+- [ ] `uname -m` reports `arm64` on the M4 or `x86_64` on the Intel Mac.
+- [ ] `brew --prefix` reports `/opt/homebrew` on the M4 or `/usr/local` on the Intel Mac.
 - [ ] Git is installed.
 - [ ] Python 3.11 is installed.
 - [ ] GitHub CLI is installed and authenticated.
@@ -810,9 +762,9 @@ The lookup window is a rolling 48 hours, not two calendar days. If the post is o
 
 ## Quick Start (after the one-time setup)
 
-This shorter routine assumes the repository has already been cloned, the `.venv` environment and `.env` file already exist, and the full new-laptop guide above has been completed.
+This shorter routine assumes the repository has already been cloned, the `.venv` environment and `.env` file already exist, and the full MacBook Pro setup guide above has been completed.
 
-On macOS:
+Run:
 
 ~~~bash
 cd ~/Documents/GitHub/linkedin-posts-clean
@@ -820,16 +772,6 @@ git switch main
 git status
 git pull --ff-only origin main
 source .venv/bin/activate
-~~~
-
-On Windows PowerShell:
-
-~~~powershell
-Set-Location "$HOME\Documents\GitHub\linkedin-posts-clean"
-git switch main
-git status
-git pull --ff-only origin main
-.\.venv\Scripts\Activate.ps1
 ~~~
 
 Run the safe tests:
