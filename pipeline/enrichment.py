@@ -11,7 +11,7 @@ from .config import PROMPTS_PATH, PipelineConfig
 from .utils import sanitize_text, soft_trim, strip_html_to_text
 
 
-HEADLINE_MAX = 70
+HEADLINE_MAX = 60
 DESCRIPTION_MAX = 160
 ALT_MAX = 180
 EMOJI_RE = re.compile(r"[\U00010000-\U0010ffff]")
