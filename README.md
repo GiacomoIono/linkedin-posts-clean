@@ -1000,7 +1000,7 @@ pipeline/enrichment.py
 Current values:
 
 ```text
-HEADLINE_MAX = 70
+HEADLINE_MAX = 60
 DESCRIPTION_MAX = 160
 ALT_MAX = 180
 ```
