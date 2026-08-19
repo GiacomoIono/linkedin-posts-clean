@@ -255,6 +255,13 @@
       "signature": "e2cd22bde5c79cb08edf2bf0f01e6608465b755d2ce47dfde070e903087458a3",
       "payload_version": 7,
       "published": true
+    },
+    "https://www.linkedin.com/feed/update/urn:li:share:7495511820632346624": {
+      "item_id": "6a850d13b3051ff8b6a638c9",
+      "slug": "",
+      "signature": "933dadd09684f3a6c20e3cc0e68dae04f8623454c418185aef1b5bf464bc10a6",
+      "payload_version": 7,
+      "published": true
     }
   }
 }
