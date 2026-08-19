@@ -57,6 +57,11 @@ class EnrichmentSeoTests(unittest.TestCase):
         self.assertNotIn("{DESC_MAX}", rendered)
         self.assertIn('"headline": "title"', rendered)
         self.assertIn('"description": "description"', rendered)
+        self.assertIn(
+            "Confirm that the title uses sentence case, capitalising the first word of each sentence and any "
+            "proper nouns, brands, products, acronyms and official initialisms.",
+            self.prompts["seo_system"],
+        )
 
     def test_generate_seo_uses_expected_keys_and_hard_limits(self) -> None:
         client, create = self.fake_client(
