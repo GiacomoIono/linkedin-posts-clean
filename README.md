@@ -796,6 +796,44 @@ python -m pipeline.main
 
 Remember that this final command can call paid APIs and write or publish a Webflow CMS item.
 
+## Safe SEO-only live preview
+
+Use the SEO-only preview when you want to test the current SEO prompt with the real OpenAI API without running the full publishing pipeline.
+
+The command reads the saved post in `data/last_linkedin_post.json` by default. It calls OpenAI to generate only the title and meta description. It does not:
+
+- call LinkedIn;
+- call Webflow;
+- call X;
+- generate image ALT text;
+- change or create any local file.
+
+The OpenAI request is live and may incur a small API charge.
+
+With the virtual environment active, run one preview:
+
+~~~bash
+python -m pipeline.seo_preview
+~~~
+
+The output shows the source post, model, generated metadata and exact character counts.
+
+To check consistency across several independent generations of the same saved post, use `--runs`. For example:
+
+~~~bash
+python -m pipeline.seo_preview --runs 10
+~~~
+
+The safety limit is 20 runs per command. Every run makes a separate OpenAI API request.
+
+To test another saved post JSON file without changing the default data file, pass its path:
+
+~~~bash
+python -m pipeline.seo_preview --post /path/to/post.json
+~~~
+
+The JSON file must contain a non-empty `content` field. A saved `url` field is optional and is displayed only for reference.
+
 ## The Important Settings
 
 Most days, these are the only settings you need to care about:
@@ -955,6 +993,7 @@ images/
 | `pipeline/main.py` | The main pipeline flow. |
 | `pipeline/linkedin.py` | Fetches the latest LinkedIn post from the last 48 hours. |
 | `pipeline/enrichment.py` | Creates headline, summary, and ALT text. |
+| `pipeline/seo_preview.py` | Safely previews SEO metadata using a saved post and OpenAI only. |
 | `pipeline/webflow.py` | Builds the exact Webflow payload and syncs the CMS item. |
 | `pipeline/x_posting.py` | Optional X/Twitter generation and posting. |
 | `pipeline/config.py` | Environment variables and defaults. |
