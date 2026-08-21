@@ -5,7 +5,11 @@ on:
     branches:
       - main
     paths:
+      - 'config/prompts.json'
+      - 'pipeline/enrichment.py'
       - 'pipeline/linkedin.py'
+      - 'pipeline/webflow.py'
+      - 'tests/test_enrichment_seo.py'
       - 'tests/test_linkedin.py'
       - '.github/workflows/validate_linkedin_fetch.yml'
   workflow_dispatch:

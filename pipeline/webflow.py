@@ -147,7 +147,7 @@ def image_gallery(post: dict[str, Any]) -> list[dict[str, str]]:
 
 
 def post_headline(post: dict[str, Any]) -> str:
-    return str(post.get("headline") or strip_html_to_text(post.get("content", ""))[:70] or "LinkedIn post")
+    return str(post.get("headline") or strip_html_to_text(post.get("content", ""))[:60] or "LinkedIn post")
 
 
 def include_optional_field(field_data: dict[str, Any], slug: str, value: Any) -> None:
