@@ -21,3 +21,4 @@ __pycache__/
 /images/*.zip
 /images/*.gz
 /images/*.7z
+/images/generated/*.tmp

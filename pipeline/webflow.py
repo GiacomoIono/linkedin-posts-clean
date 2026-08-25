@@ -5,12 +5,11 @@ from typing import Any
 
 import requests
 
-from .config import PipelineConfig, WEBFLOW_STATE_PATH
+from .config import WEBFLOW_STATE_PATH, PipelineConfig
 from .utils import iso_to_webflow, load_json, post_hash, strip_html_to_text, write_json
 
-
 WEBFLOW_BASE_URL = "https://api.webflow.com/v2"
-WEBFLOW_PAYLOAD_VERSION = 7
+WEBFLOW_PAYLOAD_VERSION = 8
 AUTHOR_COLLECTION_ID = "63250855178122e0e087d804"
 AUTHOR_ITEM_ID = "632508551781225a7587d893"
 IMAGE_SEQUENCE_RE = re.compile(r"_(\d+)(?=\.[^.]+$)")
@@ -20,10 +19,21 @@ class WebflowError(RuntimeError):
     pass
 
 
+def skip_invalid_files_value(field_data: dict[str, Any]) -> str:
+    generated_main_only = (
+        bool(field_data.get("main-image"))
+        and not field_data.get("post-images")
+        and not field_data.get("thumbnail-image")
+    )
+    return "false" if generated_main_only else "true"
+
+
 class WebflowClient:
     def __init__(self, token: str, collection_id: str):
         if not token:
-            raise WebflowError("WEBFLOW_API_TOKEN or WEBFLOW_READ_AND_WRITE_BLOG_POSTS is missing.")
+            raise WebflowError(
+                "WEBFLOW_API_TOKEN or WEBFLOW_READ_AND_WRITE_BLOG_POSTS is missing."
+            )
         if not collection_id:
             raise WebflowError("WEBFLOW_COLLECTION_ID is missing.")
         self.token = token
@@ -38,10 +48,14 @@ class WebflowClient:
 
     def request(self, method: str, path: str, **kwargs) -> dict[str, Any]:
         url = f"{WEBFLOW_BASE_URL}{path}"
-        response = requests.request(method, url, headers=self.headers, timeout=30, **kwargs)
+        response = requests.request(
+            method, url, headers=self.headers, timeout=30, **kwargs
+        )
         if response.status_code >= 400:
             body = response.text[:1000] if response.text else ""
-            raise WebflowError(f"Webflow {method} {path} failed: {response.status_code} {body}")
+            raise WebflowError(
+                f"Webflow {method} {path} failed: {response.status_code} {body}"
+            )
         if not response.text:
             return {}
         return response.json()
@@ -77,7 +91,7 @@ class WebflowClient:
         return self.request(
             "POST",
             f"/collections/{self.collection_id}/items",
-            params={"skipInvalidFiles": "true"},
+            params={"skipInvalidFiles": skip_invalid_files_value(field_data)},
             json={"isArchived": False, "isDraft": False, "fieldData": field_data},
         )
 
@@ -85,20 +99,24 @@ class WebflowClient:
         return self.request(
             "PATCH",
             f"/collections/{self.collection_id}/items",
-            params={"skipInvalidFiles": "true"},
+            params={"skipInvalidFiles": skip_invalid_files_value(field_data)},
             json={"items": [{"id": item_id, "fieldData": field_data}]},
         )
 
-    def update_live_item(self, item_id: str, field_data: dict[str, Any]) -> dict[str, Any]:
+    def update_live_item(
+        self, item_id: str, field_data: dict[str, Any]
+    ) -> dict[str, Any]:
         return self.request(
             "PATCH",
             f"/collections/{self.collection_id}/items/{item_id}/live",
-            params={"skipInvalidFiles": "true"},
+            params={"skipInvalidFiles": skip_invalid_files_value(field_data)},
             json={"isArchived": False, "isDraft": False, "fieldData": field_data},
         )
 
     def unpublish_live_item(self, item_id: str) -> dict[str, Any]:
-        return self.request("DELETE", f"/collections/{self.collection_id}/items/{item_id}/live")
+        return self.request(
+            "DELETE", f"/collections/{self.collection_id}/items/{item_id}/live"
+        )
 
     def publish_item(self, item_id: str) -> dict[str, Any]:
         return self.request(
@@ -146,8 +164,22 @@ def image_gallery(post: dict[str, Any]) -> list[dict[str, str]]:
     return ordered_images(post)
 
 
+def generated_main_image(post: dict[str, Any]) -> dict[str, str] | None:
+    image = post.get("generated_main_image")
+    if not isinstance(image, dict) or not image.get("url"):
+        return None
+    return {
+        "url": str(image.get("url") or ""),
+        "alt": str(image.get("alt") or ""),
+    }
+
+
 def post_headline(post: dict[str, Any]) -> str:
-    return str(post.get("headline") or strip_html_to_text(post.get("content", ""))[:70] or "LinkedIn post")
+    return str(
+        post.get("headline")
+        or strip_html_to_text(post.get("content", ""))[:70]
+        or "LinkedIn post"
+    )
 
 
 def include_optional_field(field_data: dict[str, Any], slug: str, value: Any) -> None:
@@ -159,6 +191,7 @@ def include_optional_field(field_data: dict[str, Any], slug: str, value: Any) ->
 def build_field_data(post: dict[str, Any]) -> dict[str, Any]:
     images = image_gallery(post)
     first = images[0] if images else None
+    fallback_main_image = generated_main_image(post) if not images else None
 
     field_data: dict[str, Any] = {
         "name": post_headline(post),
@@ -172,6 +205,7 @@ def build_field_data(post: dict[str, Any]) -> dict[str, Any]:
     include_optional_field(field_data, "post-images", images)
     include_optional_field(field_data, "main-image", first)
     include_optional_field(field_data, "thumbnail-image", first)
+    include_optional_field(field_data, "main-image", fallback_main_image)
     include_optional_field(field_data, "category", post.get("category"))
     include_optional_field(field_data, "tags", post.get("tags"))
     include_optional_field(field_data, "month", post.get("month"))
@@ -182,11 +216,15 @@ def build_field_data(post: dict[str, Any]) -> dict[str, Any]:
 
 
 def item_matches(item: dict[str, Any], source_url: str) -> bool:
-    field_data = item.get("fieldData", {}) if isinstance(item.get("fieldData"), dict) else {}
+    field_data = (
+        item.get("fieldData", {}) if isinstance(item.get("fieldData"), dict) else {}
+    )
     return field_data.get("linkedin-post-link") == source_url
 
 
-def find_item_by_source_url(client: WebflowClient, source_url: str, live: bool = False) -> dict[str, Any] | None:
+def find_item_by_source_url(
+    client: WebflowClient, source_url: str, live: bool = False
+) -> dict[str, Any] | None:
     items = client.list_live_items() if live else client.list_items()
     for item in items:
         if item_matches(item, source_url):
@@ -194,7 +232,9 @@ def find_item_by_source_url(client: WebflowClient, source_url: str, live: bool =
     return None
 
 
-def find_live_webflow_item(config: PipelineConfig, source_url: str) -> dict[str, Any] | None:
+def find_live_webflow_item(
+    config: PipelineConfig, source_url: str
+) -> dict[str, Any] | None:
     if not source_url:
         return None
     client = WebflowClient(config.webflow_api_token, config.webflow_collection_id)
@@ -202,7 +242,9 @@ def find_live_webflow_item(config: PipelineConfig, source_url: str) -> dict[str,
 
 
 def item_slug(item: dict[str, Any]) -> str:
-    field_data = item.get("fieldData", {}) if isinstance(item.get("fieldData"), dict) else {}
+    field_data = (
+        item.get("fieldData", {}) if isinstance(item.get("fieldData"), dict) else {}
+    )
     return str(field_data.get("slug") or "")
 
 
@@ -216,7 +258,12 @@ def response_item_id(response: dict[str, Any]) -> str:
     if response.get("id"):
         return str(response["id"])
     items = response.get("items")
-    if isinstance(items, list) and items and isinstance(items[0], dict) and items[0].get("id"):
+    if (
+        isinstance(items, list)
+        and items
+        and isinstance(items[0], dict)
+        and items[0].get("id")
+    ):
         return str(items[0]["id"])
     raise WebflowError(f"Could not find item id in Webflow response: {response}")
 
@@ -287,7 +334,9 @@ def is_not_found_error(exc: WebflowError) -> bool:
     return "404" in message or "resource_not_found" in message
 
 
-def create_webflow_item(client: WebflowClient, field_data: dict[str, Any]) -> tuple[dict[str, Any], str, str]:
+def create_webflow_item(
+    client: WebflowClient, field_data: dict[str, Any]
+) -> tuple[dict[str, Any], str, str]:
     response = client.create_item(field_data)
     return response, response_item_id(response), "created"
 
@@ -312,7 +361,9 @@ def replace_live_item(
     except WebflowError as exc:
         if not is_not_found_error(exc):
             raise
-        print(f"Live Webflow item could not be updated: {live_item_id}. Unpublishing and recreating it.")
+        print(
+            f"Live Webflow item could not be updated: {live_item_id}. Unpublishing and recreating it."
+        )
         try:
             client.unpublish_live_item(live_item_id)
         except WebflowError as unpublish_exc:
@@ -329,7 +380,9 @@ def recover_missing_stored_item(
     stale_item_id: str,
     field_data: dict[str, Any],
 ) -> tuple[dict[str, Any], str, str]:
-    print(f"Stored Webflow item ID was not found: {stale_item_id}. Looking up by LinkedIn URL.")
+    print(
+        f"Stored Webflow item ID was not found: {stale_item_id}. Looking up by LinkedIn URL."
+    )
 
     staged_item = find_item_by_source_url(client, source_url)
     staged_item_id = item_id_from(staged_item)
@@ -365,7 +418,9 @@ def write_item_to_webflow(
         return recover_missing_stored_item(client, source_url, item_id, field_data)
 
 
-def publish_if_needed(client: WebflowClient, item_id: str, action: str, should_publish: bool) -> bool:
+def publish_if_needed(
+    client: WebflowClient, item_id: str, action: str, should_publish: bool
+) -> bool:
     if action == "updated_live":
         return True
     if should_publish:
@@ -374,7 +429,9 @@ def publish_if_needed(client: WebflowClient, item_id: str, action: str, should_p
     return False
 
 
-def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
+def sync_post_to_webflow(
+    post: dict[str, Any], config: PipelineConfig
+) -> dict[str, Any]:
     client = WebflowClient(config.webflow_api_token, config.webflow_collection_id)
     source_url = str(post.get("url") or "")
     signature = post_hash(post)
@@ -382,28 +439,46 @@ def sync_post_to_webflow(post: dict[str, Any], config: PipelineConfig) -> dict[s
     live_item = find_item_by_source_url(client, source_url, live=True)
     live_item_id = item_id_from(live_item)
     if live_item_id and not config.force_webflow_sync:
-        print(f"Webflow live item already exists for this LinkedIn URL: {live_item_id}. Skipping Webflow write.")
-        return {"action": "skipped_existing_live_url", "item_id": live_item_id, "published": True}
+        print(
+            f"Webflow live item already exists for this LinkedIn URL: {live_item_id}. Skipping Webflow write."
+        )
+        return {
+            "action": "skipped_existing_live_url",
+            "item_id": live_item_id,
+            "published": True,
+        }
 
     state = load_webflow_state()
     state_entry = state_entry_for(state, source_url)
     if live_item_id:
         existing_item, item_location = live_item, "live"
     else:
-        existing_item, item_location = find_existing_item(client, source_url, state_entry.get("item_id"))
+        existing_item, item_location = find_existing_item(
+            client, source_url, state_entry.get("item_id")
+        )
     item_id = item_id_from(existing_item)
 
-    if existing_item and not config.force_webflow_sync and payload_is_current(state_entry, signature):
+    if (
+        existing_item
+        and not config.force_webflow_sync
+        and payload_is_current(state_entry, signature)
+    ):
         slug = state_entry.get("slug") or item_slug(existing_item)
         published = state_entry.get("published", True)
         record_item_state(state, source_url, item_id, signature, published, slug)
-        print(f"Webflow already has this LinkedIn URL: {item_id}. Skipping Webflow write.")
+        print(
+            f"Webflow already has this LinkedIn URL: {item_id}. Skipping Webflow write."
+        )
         return {"action": "skipped_existing_url", "item_id": item_id}
 
     field_data = build_field_data(post)
-    _, item_id, action = write_item_to_webflow(client, source_url, item_id, item_location, field_data)
+    _, item_id, action = write_item_to_webflow(
+        client, source_url, item_id, item_location, field_data
+    )
     published = publish_if_needed(client, item_id, action, config.webflow_publish)
 
-    record_item_state(state, source_url, item_id, signature, published, field_data.get("slug", ""))
+    record_item_state(
+        state, source_url, item_id, signature, published, field_data.get("slug", "")
+    )
     print(f"Webflow item {action}: {item_id}. Published={published}.")
     return {"action": action, "item_id": item_id, "published": published}

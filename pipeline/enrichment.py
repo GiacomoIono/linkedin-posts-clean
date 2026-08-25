@@ -10,7 +10,6 @@ from openai import OpenAI
 from .config import PROMPTS_PATH, PipelineConfig
 from .utils import sanitize_text, soft_trim, strip_html_to_text
 
-
 HEADLINE_MAX = 70
 DESCRIPTION_MAX = 160
 ALT_MAX = 180
@@ -37,7 +36,7 @@ def load_prompts() -> dict[str, str]:
     if chosen is None:
         chosen = prompt_sets[0]
 
-    required = ["seo_system", "seo_user", "alt_system", "alt_user"]
+    required = ["seo_system", "seo_user", "alt_system", "alt_user", "image_system", "image_user"]
     for key in required:
         if not isinstance(chosen.get(key), str):
             raise RuntimeError(f"Selected enrichment prompt is missing {key}.")

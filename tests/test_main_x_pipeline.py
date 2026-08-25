@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from contextlib import ExitStack
 import unittest
+from contextlib import ExitStack
 from unittest.mock import patch
 
 from pipeline import main as pipeline_main
 from pipeline.config import PipelineConfig
-
 
 POST = {
     "content": "<p>Hello from LinkedIn.</p>",
@@ -60,6 +59,7 @@ class MainXPipelineTests(unittest.TestCase):
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
             patch("pipeline.main.find_live_webflow_item", return_value=None),
             patch("pipeline.main.enrich_post", return_value=ENRICHED_POST),
+            patch("pipeline.main.attach_generated_main_image", return_value=ENRICHED_POST),
             patch("pipeline.main.sync_post_to_webflow", return_value={"action": "created", "item_id": "item-id"}),
             patch("pipeline.main.write_json"),
             patch("pipeline.main.save_pipeline_state", side_effect=save_pipeline_state),
@@ -105,6 +105,7 @@ class MainXPipelineTests(unittest.TestCase):
             patch("pipeline.main.find_live_webflow_item", return_value={"id": "live-item"}),
             patch("pipeline.main.write_json"),
             patch("pipeline.main.enrich_post"),
+            patch("pipeline.main.attach_generated_main_image"),
             patch("pipeline.main.sync_post_to_webflow"),
             patch("pipeline.main.save_pipeline_state"),
         ]
@@ -118,6 +119,31 @@ class MainXPipelineTests(unittest.TestCase):
         mocks[5].assert_not_called()
         mocks[6].assert_not_called()
         mocks[7].assert_not_called()
+        mocks[8].assert_not_called()
+
+    def test_main_stops_before_webflow_when_generated_image_is_not_prepared(self) -> None:
+        patches = [
+            patch("pipeline.main.ensure_directories"),
+            patch("pipeline.main.load_config", return_value=config(False)),
+            patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
+            patch("pipeline.main.find_live_webflow_item", return_value=None),
+            patch("pipeline.main.write_json"),
+            patch("pipeline.main.enrich_post", return_value=ENRICHED_POST),
+            patch(
+                "pipeline.main.attach_generated_main_image",
+                side_effect=RuntimeError("image-preparation stage"),
+            ),
+            patch("pipeline.main.sync_post_to_webflow"),
+            patch("pipeline.main.save_pipeline_state"),
+        ]
+
+        with ExitStack() as stack:
+            mocks = [stack.enter_context(item) for item in patches]
+            with self.assertRaisesRegex(RuntimeError, "image-preparation stage"):
+                pipeline_main.main()
+
+        mocks[7].assert_not_called()
+        mocks[8].assert_not_called()
 
 
 if __name__ == "__main__":

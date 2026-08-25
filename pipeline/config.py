@@ -6,10 +6,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "data"
 IMAGE_DIR = REPO_ROOT / "images"
+GENERATED_IMAGE_DIR = IMAGE_DIR / "generated"
 CONFIG_DIR = REPO_ROOT / "config"
 
 RAW_POST_PATH = DATA_DIR / "last_linkedin_post.json"
@@ -22,6 +22,8 @@ WEBFLOW_STATE_PATH = DATA_DIR / "webflow_items.json"
 PROMPTS_PATH = CONFIG_DIR / "prompts.json"
 
 DEFAULT_OPENAI_MODEL = "gpt-5-nano"
+DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-2"
+DEFAULT_IMAGE_PUBLIC_REF = "main"
 DEFAULT_WEBFLOW_COLLECTION_ID = "63250855178122098387d7ef"
 DEFAULT_RUN_X_PIPELINE = False
 NO_POSTS_FOUND_EXIT_CODE = 2
@@ -57,6 +59,8 @@ class PipelineConfig:
     force_enrich: bool
     force_tweetify: bool
     force_x_post: bool
+    openai_image_model: str = DEFAULT_OPENAI_IMAGE_MODEL
+    image_public_ref: str = DEFAULT_IMAGE_PUBLIC_REF
 
 
 def load_config() -> PipelineConfig:
@@ -75,8 +79,11 @@ def load_config() -> PipelineConfig:
         force_enrich=env_bool("FORCE_ENRICH", False),
         force_tweetify=env_bool("FORCE_TWEETIFY", False),
         force_x_post=env_bool("FORCE_X_POST", False),
+        openai_image_model=first_env("OPENAI_IMAGE_MODEL") or DEFAULT_OPENAI_IMAGE_MODEL,
+        image_public_ref=first_env("IMAGE_PUBLIC_REF") or DEFAULT_IMAGE_PUBLIC_REF,
     )
 
 
 def ensure_directories() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    GENERATED_IMAGE_DIR.mkdir(parents=True, exist_ok=True)

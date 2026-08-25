@@ -7,10 +7,11 @@ In plain English, the pipeline does this:
 1. Looks for your newest LinkedIn post from the last 48 hours.
 2. Turns the post text into simple blog-post HTML.
 3. Finds matching images in the `images/` folder.
-4. Uses OpenAI to create the headline, summary, and missing image ALT text.
-5. Sends the post to the Webflow Blog Posts collection.
-6. Skips X/Twitter unless you explicitly turn that part on.
-7. Saves a record of what happened in the `data/` folder.
+4. If LinkedIn reports no image and no matching source file exists, uses OpenAI to create one 16:9 JPEG fallback.
+5. Uses OpenAI to create the headline, summary, and missing image ALT text.
+6. Sends the post to the Webflow Blog Posts collection.
+7. Skips X/Twitter unless you explicitly turn that part on.
+8. Saves a record of what happened in the `data/` folder.
 
 ## Set up this project on a MacBook Pro
 
@@ -395,6 +396,7 @@ LINKEDIN_ACCESS_TOKEN=
 
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5-nano
+OPENAI_IMAGE_MODEL=gpt-image-2
 
 WEBFLOW_API_TOKEN=
 WEBFLOW_COLLECTION_ID=63250855178122098387d7ef
@@ -417,6 +419,7 @@ FORCE_X_POST=false
 | `LINKEDIN_ACCESS_TOKEN` | Yes | Secure copy of the old `.env` value, or a newly authorised token from the LinkedIn developer application. |
 | `OPENAI_API_KEY` | Yes | Secure copy of the old value, or a new key from the same OpenAI API project. Existing key values usually cannot be revealed again after creation. |
 | `OPENAI_MODEL` | Yes | Keep `gpt-5-nano` unless the pipeline is intentionally changed. |
+| `OPENAI_IMAGE_MODEL` | Yes | Keep `gpt-image-2`. It is used only for a missing-image fallback. |
 | `WEBFLOW_API_TOKEN` | Yes | Secure copy of the old token, or a replacement Webflow token with access to read and write the Blog Posts collection. |
 | `WEBFLOW_COLLECTION_ID` | Yes | Keep the existing ID shown in the template. |
 | `WEBFLOW_PUBLISH` | Yes | Keep `true` for the normal production behaviour. Read the live-run warning below before running locally. |
@@ -481,7 +484,7 @@ OK
 
 The exact number of tests may increase over time. `OK` is the important result.
 
-These tests are the correct first verification because they do not intentionally publish a Webflow post or an X post.
+These tests are the correct first verification because every OpenAI, LinkedIn, and Webflow call is mocked. They make no paid API calls and do not write to Webflow or X.
 
 For an optional read-only LinkedIn check:
 
@@ -492,6 +495,8 @@ For an optional read-only LinkedIn check:
 5. Open the run and confirm that all steps are green.
 
 That workflow runs the tests and calls the LinkedIn API read-only. It does not run the Webflow publishing pipeline.
+
+The same manual form has a `live_image_smoke` option. Leave it off for normal validation. If you deliberately enable it, the workflow uses the existing `OPENAI_API_KEY` secret to create one paid JPEG preview, saves it as a one-day GitHub Actions artifact, and never commits it or sends it to Webflow.
 
 ### Part 9: understand the live-run warning
 
@@ -505,6 +510,7 @@ It is a live end-to-end command. With valid credentials, it can:
 
 - read recent LinkedIn activity;
 - call the OpenAI API and incur API usage;
+- require a generated fallback JPEG to be committed before Webflow can fetch it when the post has no source image;
 - create or update a Webflow CMS item;
 - publish that item when `WEBFLOW_PUBLISH=true`;
 - write output files under `data/`;
@@ -803,7 +809,8 @@ Most days, these are the only settings you need to care about:
 | Setting | What it does |
 | --- | --- |
 | `LINKEDIN_ACCESS_TOKEN` | Lets the script read your recent LinkedIn activity. |
-| `OPENAI_API_KEY` | Lets the script write the headline, summary, and image ALT text. |
+| `OPENAI_API_KEY` | Lets the script write metadata, ALT text, and a missing-image fallback. |
+| `OPENAI_IMAGE_MODEL` | Selects the image model; the default is `gpt-image-2`. |
 | `WEBFLOW_API_TOKEN` | Lets the script create, update, and publish Webflow posts. |
 | `WEBFLOW_PUBLISH` | When `true`, Webflow items are published after they are written. |
 | `RUN_X_PIPELINE` | When `false`, the X pipeline is skipped completely. This is the default. |
@@ -841,6 +848,8 @@ images/2026-06-01_3.jpg
 
 Supported formats are `.jpg`, `.jpeg`, `.png`, and `.webp`.
 
+Important: the current pipeline does not download media directly from LinkedIn. In this project, a "source image" means a date-matched file already present at the top level of `images/`. The pipeline also records LinkedIn's own image signal. If LinkedIn reports an image but the matching local source file is missing, the workflow stops instead of replacing that image with an AI fallback.
+
 When there are multiple images, the number decides the order. `_1` is first, `_2` is second, and so on. When there is only one image, the filename can just be the date.
 
 The pipeline sends:
@@ -851,6 +860,28 @@ The pipeline sends:
 - an `alt` value for every image.
 
 Important: image URLs are built from the GitHub `main` branch. So if you run the pipeline locally with brand-new local images, Webflow can only fetch them after those images exist on GitHub.
+
+### OpenAI fallback for a post without a source image
+
+When LinkedIn reports that the post has no image and there is no matching source file, the production workflow:
+
+1. Checks again that Webflow does not already have the LinkedIn URL, avoiding an unnecessary paid image request.
+2. Asks `gpt-image-2` for exactly one high-quality `1536 x 864` JPEG.
+3. Uses the post text and the noir, graphic-novel editorial prompt in `config/prompts.json`.
+4. Validates that the result is JPEG, exactly 16:9, and no larger than Webflow's 4 MB image limit.
+5. Saves it under `images/generated/` with a deterministic date-and-post-ID filename.
+6. Reuses that file after a retry instead of paying to generate it again.
+7. Commits and pushes the JPEG before the CMS step, then gives Webflow a URL pinned to that exact Git commit.
+
+Generated fallback images are deliberately kept in the nested `images/generated/` folder. They are not added to the post's normal `images` list and cannot be mistaken for original LinkedIn media on a later run.
+
+For a generated fallback, Webflow receives:
+
+- the JPEG in `main-image` only;
+- no value in `post-images`;
+- no value in `thumbnail-image`.
+
+If a LinkedIn image is missing locally, or if image generation, validation, public-URL verification, or the pre-Webflow Git push fails, the workflow stops. It does not publish an image-less replacement post.
 
 ## ALT Text
 
@@ -881,12 +912,12 @@ It fills these fields:
 | `name` | Generated headline. |
 | `post-summary` | Generated description. |
 | `post-body` | LinkedIn post content as rich text HTML. |
-| `post-images` | One or more ordered image objects, each with `url` and `alt`. |
+| `post-images` | Ordered source-image objects only. Omitted for a generated fallback. |
 | `published-date` | LinkedIn publish date. |
 | `linkedin-post-link` | Original LinkedIn post URL. |
 | `author` | The configured Webflow author item. |
-| `main-image` | First image. |
-| `thumbnail-image` | First image. |
+| `main-image` | First source image, or the generated fallback when no source image exists. |
+| `thumbnail-image` | First source image only. Omitted for a generated fallback. |
 | `category` | Optional, if present in the post data. |
 | `tags` | Optional, if present in the post data. |
 | `month` | Optional, if present in the post data. |
@@ -941,6 +972,10 @@ GitHub schedules use UTC. The current schedule is `17 0 * * *`, so it starts at 
 
 You can also start the workflow manually from GitHub Actions.
 
+The mutating production job is guarded to `main`. Selecting a feature branch manually cannot publish Webflow or push that feature branch into `main`.
+
+For an image-less post, the workflow first runs `pipeline.prepare_image`, commits the generated JPEG, and only then runs `pipeline.main`. This order is required because Webflow must be able to fetch the public image URL during the CMS write.
+
 After a successful run, the workflow commits updates under:
 
 ```text
@@ -955,11 +990,14 @@ images/
 | `pipeline/main.py` | The main pipeline flow. |
 | `pipeline/linkedin.py` | Fetches the latest LinkedIn post from the last 48 hours. |
 | `pipeline/enrichment.py` | Creates headline, summary, and ALT text. |
+| `pipeline/image_generation.py` | Creates, validates, reuses, and attaches a generated fallback JPEG. |
+| `pipeline/prepare_image.py` | Runs the pre-Webflow missing-image preparation stage. |
 | `pipeline/webflow.py` | Builds the exact Webflow payload and syncs the CMS item. |
 | `pipeline/x_posting.py` | Optional X/Twitter generation and posting. |
 | `pipeline/config.py` | Environment variables and defaults. |
 | `config/prompts.json` | OpenAI prompts. |
 | `images/` | Images matched to posts by date. |
+| `images/generated/` | Deterministic OpenAI JPEG fallbacks for posts without source images. |
 | `data/` | Saved pipeline state and latest generated JSON files. |
 | `tests/` | Tests for the pipeline behavior. |
 | `webflow_schema.json` | Reference copy of the Webflow collection schema. |
