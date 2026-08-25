@@ -62,7 +62,7 @@ GENERATED_MAIN_IMAGE_POST = {
     "images": [],
     "generated_main_image": {
         "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/abc123/"
-        "images/generated/2026-05-31-1234567890.jpeg",
+        "images/2026-05-31.jpeg",
         "alt": "Editorial illustration representing Hello from LinkedIn",
     },
 }

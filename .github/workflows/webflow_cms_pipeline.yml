@@ -64,7 +64,9 @@ jobs:
           git config pull.rebase true
           git config rebase.autoStash true
 
-          changed_files=$(git status --porcelain -- images/generated)
+          changed_files=$(git status --porcelain -- \
+            images \
+            data/generated_main_images.json)
 
           if [ -z "$changed_files" ]; then
             echo "No generated fallback image changes to commit."
@@ -74,7 +76,9 @@ jobs:
           echo "Generated fallback image changes:"
           echo "$changed_files"
 
-          git add -- images/generated
+          git add -- \
+            images \
+            data/generated_main_images.json
           git commit -m "chore(bot): add generated fallback image for $(date -u +'%Y-%m-%d')"
 
           git fetch origin main

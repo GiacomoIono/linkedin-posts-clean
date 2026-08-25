@@ -869,11 +869,13 @@ When LinkedIn reports that the post has no image and there is no matching source
 2. Asks `gpt-image-2` for exactly one high-quality `1536 x 864` JPEG.
 3. Uses the post text and the noir, graphic-novel editorial prompt in `config/prompts.json`.
 4. Validates that the result is JPEG, exactly 16:9, and no larger than Webflow's 4 MB image limit.
-5. Saves it under `images/generated/` with a deterministic date-and-post-ID filename.
+5. Saves it in the usual top-level `images/` folder as `<post-date>.jpeg`, matching the existing image convention.
 6. Reuses that file after a retry instead of paying to generate it again.
 7. Commits and pushes the JPEG before the CMS step, then gives Webflow a URL pinned to that exact Git commit.
 
-Generated fallback images are deliberately kept in the nested `images/generated/` folder. They are not added to the post's normal `images` list and cannot be mistaken for original LinkedIn media on a later run.
+Generated fallback images use the same folder and date naming convention as the other image files, for example `images/2026-08-25.jpeg`. The pipeline records their LinkedIn URL and checksum in `data/generated_main_images.json`. That registry keeps a generated JPEG out of the normal source-image list after the workflow refetches the post.
+
+Because the filename is date-only, two image-less LinkedIn posts published on the same UTC date cannot safely have different generated images. The pipeline detects that collision and stops before making another paid image request or overwriting the first file.
 
 For a generated fallback, Webflow receives:
 
@@ -996,8 +998,8 @@ images/
 | `pipeline/x_posting.py` | Optional X/Twitter generation and posting. |
 | `pipeline/config.py` | Environment variables and defaults. |
 | `config/prompts.json` | OpenAI prompts. |
-| `images/` | Images matched to posts by date. |
-| `images/generated/` | Deterministic OpenAI JPEG fallbacks for posts without source images. |
+| `images/` | Date-named source images and OpenAI JPEG fallbacks. |
+| `data/generated_main_images.json` | Registry that keeps generated JPEGs separate from source-image fields. |
 | `data/` | Saved pipeline state and latest generated JSON files. |
 | `tests/` | Tests for the pipeline behavior. |
 | `webflow_schema.json` | Reference copy of the Webflow collection schema. |

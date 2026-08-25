@@ -95,6 +95,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: generated-main-image-smoke-test
-          path: images/generated/2099-01-01-9999999999999999999.jpeg
+          path: images/2099-01-01.jpeg
           if-no-files-found: error
           retention-days: 1

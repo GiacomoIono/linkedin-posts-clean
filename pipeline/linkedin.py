@@ -8,6 +8,10 @@ from typing import Any
 import requests
 
 from .config import IMAGE_DIR
+from .generated_images import (
+    registered_generated_filenames,
+    validate_registered_generated_image,
+)
 
 LINKEDIN_CHANGE_LOG_URL = "https://api.linkedin.com/rest/memberChangeLogs"
 LINKEDIN_VERSION = "202312"
@@ -32,13 +36,19 @@ def find_images_for_date(post_date: str) -> list[dict[str, str]]:
     if not IMAGE_DIR.is_dir():
         return []
 
-    filenames = [
-        item.name
-        for item in IMAGE_DIR.iterdir()
-        if item.is_file()
-        and item.name.startswith(post_date)
-        and item.name.lower().endswith(IMAGE_EXTENSIONS)
-    ]
+    generated_filenames = registered_generated_filenames()
+    filenames = []
+    for item in IMAGE_DIR.iterdir():
+        if not (
+            item.is_file()
+            and item.name.startswith(post_date)
+            and item.name.lower().endswith(IMAGE_EXTENSIONS)
+        ):
+            continue
+        if item.name in generated_filenames:
+            validate_registered_generated_image(item)
+            continue
+        filenames.append(item.name)
     filenames.sort(key=image_filename_sort_key)
 
     return [{"url": RAW_IMAGE_BASE_URL + filename, "alt": ""} for filename in filenames]
@@ -88,10 +98,11 @@ def extract_post(element: dict[str, Any]) -> dict[str, Any] | None:
 
     published_at = datetime.fromtimestamp(timestamp / 1000, timezone.utc)
     post_date = published_at.strftime("%Y-%m-%d")
+    post_url = f"https://www.linkedin.com/feed/update/{resource_id}"
 
     return {
         "content": paragraph_html(raw_text),
-        "url": f"https://www.linkedin.com/feed/update/{resource_id}",
+        "url": post_url,
         "published_at": published_at.isoformat().replace("+00:00", ""),
         "images": find_images_for_date(post_date),
         "linkedin_has_image": linkedin_share_has_image(content),

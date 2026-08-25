@@ -4,7 +4,6 @@ import base64
 import binascii
 import re
 import time
-from hashlib import sha256
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -12,9 +11,15 @@ from urllib.parse import quote
 import requests
 from openai import OpenAI
 
-from .config import GENERATED_IMAGE_DIR, PipelineConfig
+from .config import IMAGE_DIR, PipelineConfig
 from .enrichment import fill_placeholders, load_prompts
-from .utils import sanitize_text, soft_trim, strip_html_to_text
+from .generated_images import (
+    ensure_generated_filename_available,
+    image_sha256,
+    record_generated_image,
+    validate_registered_generated_image,
+)
+from .utils import post_identity, sanitize_text, soft_trim, strip_html_to_text
 
 GENERATED_IMAGE_SIZE = "1536x864"
 GENERATED_IMAGE_QUALITY = "high"
@@ -29,7 +34,6 @@ PUBLIC_IMAGE_RETRY_SECONDS = 5
 RAW_REPOSITORY_URL = (
     "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean"
 )
-POST_ID_RE = re.compile(r"(\d{6,})(?:[/?#].*)?$")
 POST_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -62,34 +66,18 @@ def post_date(post: dict[str, Any]) -> str:
     return value
 
 
-def post_identifier(post: dict[str, Any]) -> str:
-    source_url = str(post.get("url") or "")
-    match = POST_ID_RE.search(source_url)
-    if match:
-        return match.group(1)
-
-    stable_source = "\n".join(
-        [
-            source_url,
-            str(post.get("published_at") or ""),
-            strip_html_to_text(post.get("content", "")),
-        ]
-    )
-    return sha256(stable_source.encode("utf-8")).hexdigest()[:12]
-
-
 def generated_image_filename(post: dict[str, Any]) -> str:
-    return f"{post_date(post)}-{post_identifier(post)}.jpeg"
+    return f"{post_date(post)}.jpeg"
 
 
 def generated_image_path(post: dict[str, Any]) -> Path:
-    return GENERATED_IMAGE_DIR / generated_image_filename(post)
+    return IMAGE_DIR / generated_image_filename(post)
 
 
 def generated_image_url(post: dict[str, Any], public_ref: str) -> str:
     safe_ref = quote((public_ref or "main").strip() or "main", safe="/")
     filename = quote(generated_image_filename(post), safe="")
-    return f"{RAW_REPOSITORY_URL}/{safe_ref}/images/generated/{filename}"
+    return f"{RAW_REPOSITORY_URL}/{safe_ref}/images/{filename}"
 
 
 def jpeg_dimensions(image_bytes: bytes) -> tuple[int, int] | None:
@@ -201,11 +189,17 @@ def response_image_bytes(response: Any) -> bytes:
     return image_bytes
 
 
-def write_jpeg_atomically(path: Path, image_bytes: bytes) -> None:
+def write_generated_jpeg_atomically(
+    path: Path,
+    image_bytes: bytes,
+    post: dict[str, Any],
+    model: str,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = path.with_suffix(path.suffix + ".tmp")
     try:
         temporary_path.write_bytes(image_bytes)
+        record_generated_image(post, path.name, image_bytes, model)
         temporary_path.replace(path)
     finally:
         if temporary_path.exists():
@@ -223,7 +217,8 @@ def generate_missing_main_image(
         raise missing_linkedin_source_image_error()
 
     target = generated_image_path(post)
-    if is_valid_jpeg_file(target):
+    registration = ensure_generated_filename_available(target, post)
+    if registration is not None and is_valid_jpeg_file(target):
         return {
             "action": "reused",
             "path": str(target),
@@ -250,10 +245,15 @@ def generate_missing_main_image(
         background="opaque",
     )
     image_bytes = response_image_bytes(response)
-    write_jpeg_atomically(target, image_bytes)
+    write_generated_jpeg_atomically(
+        target,
+        image_bytes,
+        post,
+        config.openai_image_model,
+    )
     print(
         "Generated one fallback main image with "
-        f"{config.openai_image_model}: {target.relative_to(GENERATED_IMAGE_DIR.parent.parent)}"
+        f"{config.openai_image_model}: {target.relative_to(IMAGE_DIR.parent)}"
     )
     return {
         "action": "generated",
@@ -281,10 +281,16 @@ def attach_generated_main_image(
         raise missing_linkedin_source_image_error()
 
     target = generated_image_path(post)
-    if not is_valid_jpeg_file(target):
+    if not target.is_file():
         raise RuntimeError(
             "This LinkedIn post has no source image and no generated fallback JPEG. "
             "Run the image-preparation stage before the Webflow pipeline."
+        )
+    validate_registered_generated_image(target, post_identity(post))
+    if not is_valid_jpeg_file(target):
+        raise RuntimeError(
+            "The registered generated fallback is not a valid 1536 x 864 JPEG. "
+            "Stopping before Webflow."
         )
 
     enriched["generated_main_image"] = {
@@ -305,6 +311,9 @@ def wait_for_generated_image_public(
     if linkedin_reports_image(post):
         raise missing_linkedin_source_image_error()
 
+    target = generated_image_path(post)
+    registration = validate_registered_generated_image(target, post_identity(post))
+    expected_hash = str(registration.get("sha256") or "")
     request_get = request_get or requests.get
     sleep_fn = sleep_fn or time.sleep
     url = generated_image_url(post, config.image_public_ref)
@@ -312,7 +321,11 @@ def wait_for_generated_image_public(
     for attempt in range(1, PUBLIC_IMAGE_MAX_ATTEMPTS + 1):
         try:
             response = request_get(url, timeout=30)
-            if response.status_code == 200 and is_valid_jpeg_bytes(response.content):
+            if (
+                response.status_code == 200
+                and is_valid_jpeg_bytes(response.content)
+                and image_sha256(response.content) == expected_hash
+            ):
                 print(f"Generated fallback image is publicly available: {url}")
                 return url
             last_problem = f"HTTP {response.status_code} or invalid JPEG response"

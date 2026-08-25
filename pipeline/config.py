@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "data"
 IMAGE_DIR = REPO_ROOT / "images"
-GENERATED_IMAGE_DIR = IMAGE_DIR / "generated"
 CONFIG_DIR = REPO_ROOT / "config"
 
 RAW_POST_PATH = DATA_DIR / "last_linkedin_post.json"
@@ -18,6 +17,7 @@ TWEET_PATH = DATA_DIR / "tweet.json"
 POSTED_TWEETS_PATH = DATA_DIR / "posted_tweets.json"
 PIPELINE_STATE_PATH = DATA_DIR / "pipeline_state.json"
 WEBFLOW_STATE_PATH = DATA_DIR / "webflow_items.json"
+GENERATED_IMAGE_MANIFEST_PATH = DATA_DIR / "generated_main_images.json"
 
 PROMPTS_PATH = CONFIG_DIR / "prompts.json"
 
@@ -69,8 +69,11 @@ def load_config() -> PipelineConfig:
         linkedin_access_token=first_env("LINKEDIN_ACCESS_TOKEN"),
         openai_api_key=first_env("OPENAI_API_KEY"),
         openai_model=first_env("OPENAI_MODEL") or DEFAULT_OPENAI_MODEL,
-        webflow_api_token=first_env("WEBFLOW_API_TOKEN", "WEBFLOW_READ_AND_WRITE_BLOG_POSTS"),
-        webflow_collection_id=first_env("WEBFLOW_COLLECTION_ID") or DEFAULT_WEBFLOW_COLLECTION_ID,
+        webflow_api_token=first_env(
+            "WEBFLOW_API_TOKEN", "WEBFLOW_READ_AND_WRITE_BLOG_POSTS"
+        ),
+        webflow_collection_id=first_env("WEBFLOW_COLLECTION_ID")
+        or DEFAULT_WEBFLOW_COLLECTION_ID,
         webflow_publish=env_bool("WEBFLOW_PUBLISH", True),
         run_x_pipeline=env_bool("RUN_X_PIPELINE", DEFAULT_RUN_X_PIPELINE),
         x_access_token=first_env("X_ACCESS_TOKEN"),
@@ -79,11 +82,12 @@ def load_config() -> PipelineConfig:
         force_enrich=env_bool("FORCE_ENRICH", False),
         force_tweetify=env_bool("FORCE_TWEETIFY", False),
         force_x_post=env_bool("FORCE_X_POST", False),
-        openai_image_model=first_env("OPENAI_IMAGE_MODEL") or DEFAULT_OPENAI_IMAGE_MODEL,
+        openai_image_model=first_env("OPENAI_IMAGE_MODEL")
+        or DEFAULT_OPENAI_IMAGE_MODEL,
         image_public_ref=first_env("IMAGE_PUBLIC_REF") or DEFAULT_IMAGE_PUBLIC_REF,
     )
 
 
 def ensure_directories() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    GENERATED_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
