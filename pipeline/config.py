@@ -14,8 +14,6 @@ CONFIG_DIR = REPO_ROOT / "config"
 
 RAW_POST_PATH = DATA_DIR / "last_linkedin_post.json"
 ENRICHED_POST_PATH = DATA_DIR / "last_linkedin_post.enriched.json"
-TWEET_PATH = DATA_DIR / "tweet.json"
-POSTED_TWEETS_PATH = DATA_DIR / "posted_tweets.json"
 PIPELINE_STATE_PATH = DATA_DIR / "pipeline_state.json"
 WEBFLOW_STATE_PATH = DATA_DIR / "webflow_items.json"
 
@@ -23,7 +21,6 @@ PROMPTS_PATH = CONFIG_DIR / "prompts.json"
 
 DEFAULT_OPENAI_MODEL = "gpt-5-nano"
 DEFAULT_WEBFLOW_COLLECTION_ID = "63250855178122098387d7ef"
-DEFAULT_RUN_X_PIPELINE = False
 NO_POSTS_FOUND_EXIT_CODE = 2
 
 
@@ -50,13 +47,7 @@ class PipelineConfig:
     webflow_api_token: str
     webflow_collection_id: str
     webflow_publish: bool
-    run_x_pipeline: bool
-    x_access_token: str
-    require_x_posting: bool
     force_webflow_sync: bool
-    force_enrich: bool
-    force_tweetify: bool
-    force_x_post: bool
 
 
 def load_config() -> PipelineConfig:
@@ -68,13 +59,7 @@ def load_config() -> PipelineConfig:
         webflow_api_token=first_env("WEBFLOW_API_TOKEN", "WEBFLOW_READ_AND_WRITE_BLOG_POSTS"),
         webflow_collection_id=first_env("WEBFLOW_COLLECTION_ID") or DEFAULT_WEBFLOW_COLLECTION_ID,
         webflow_publish=env_bool("WEBFLOW_PUBLISH", True),
-        run_x_pipeline=env_bool("RUN_X_PIPELINE", DEFAULT_RUN_X_PIPELINE),
-        x_access_token=first_env("X_ACCESS_TOKEN"),
-        require_x_posting=env_bool("REQUIRE_X_POSTING", False),
         force_webflow_sync=env_bool("FORCE_WEBFLOW_SYNC", False),
-        force_enrich=env_bool("FORCE_ENRICH", False),
-        force_tweetify=env_bool("FORCE_TWEETIFY", False),
-        force_x_post=env_bool("FORCE_X_POST", False),
     )
 
 
