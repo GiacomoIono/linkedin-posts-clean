@@ -1,1 +1,1 @@
-"""LinkedIn to Webflow/X publishing pipeline."""
+"""LinkedIn to Webflow publishing pipeline."""
