@@ -114,9 +114,6 @@ jobs:
           WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'
           WEBFLOW_PUBLISH: 'true'
           FORCE_WEBFLOW_SYNC: 'false'
-          RUN_X_PIPELINE: 'false'
-          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
-          REQUIRE_X_POSTING: 'false'
         run: |
           set +e
           python -m pipeline.main

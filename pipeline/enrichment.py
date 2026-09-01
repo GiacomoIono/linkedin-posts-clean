@@ -312,17 +312,6 @@ def log_alt_sources(alt_sources: dict[str, int]) -> None:
     print(f"ALT text updated for {updated_alt} image(s): {alt_sources}.")
 
 
-def backfill_missing_alt(post: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
-    if not config.openai_api_key:
-        raise RuntimeError("OPENAI_API_KEY is missing.")
-
-    prompts = load_prompts()
-    client = OpenAI(api_key=config.openai_api_key)
-    enriched, alt_sources = populate_missing_alts_for_post(post, client, config, prompts)
-    log_alt_sources(alt_sources)
-    return enriched
-
-
 def enrich_post(post: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
     if not config.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is missing.")

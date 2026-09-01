@@ -10,8 +10,7 @@ In plain English, the pipeline does this:
 4. If LinkedIn reports no image and no matching source file exists, uses OpenAI to create one 16:9 JPEG fallback.
 5. Uses OpenAI to create the headline, summary, and missing image ALT text.
 6. Sends the post to the Webflow Blog Posts collection.
-7. Skips X/Twitter unless you explicitly turn that part on.
-8. Saves a record of what happened in the `data/` folder.
+7. Saves a record of what happened in the `data/` folder.
 
 ## Set up this project on a MacBook Pro
 
@@ -270,7 +269,7 @@ git config --global --get user.name
 git config --global --get user.email
 ~~~
 
-Never put an OpenAI, LinkedIn, Webflow, or X API token into Git's username, email, or remote URL.
+Never put an OpenAI, LinkedIn, or Webflow API token into Git's username, email, or remote URL.
 
 ### Part 3: clone a fresh copy of the repository
 
@@ -380,53 +379,30 @@ python -m pip install -r requirements.txt
 
 The local `.env` file contains secrets and is deliberately excluded from Git. It will not arrive with `git clone`.
 
-1. Create the file in the repository root, next to `README.md` and `requirements.txt`.
+1. Copy the tracked example to `.env`, next to `README.md` and `requirements.txt`, then open it.
 
 ~~~bash
-touch .env
+cp .env.example .env
 code .env
 ~~~
 
-If the `code` command is unavailable, open the repository in Visual Studio Code and create a file named exactly `.env`.
+If the `code` command is unavailable, open `.env` from Visual Studio Code. Keep `.env.example` unchanged; it is the public template and must never contain real credentials.
 
-2. Paste this template:
-
-~~~dotenv
-LINKEDIN_ACCESS_TOKEN=
-
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5-nano
-OPENAI_IMAGE_MODEL=gpt-image-2
-
-WEBFLOW_API_TOKEN=
-WEBFLOW_COLLECTION_ID=63250855178122098387d7ef
-WEBFLOW_PUBLISH=true
-
-RUN_X_PIPELINE=false
-X_ACCESS_TOKEN=
-REQUIRE_X_POSTING=false
-
-FORCE_WEBFLOW_SYNC=false
-FORCE_ENRICH=false
-FORCE_TWEETIFY=false
-FORCE_X_POST=false
-~~~
-
-3. Add the real values after each required equals sign:
+2. Add the real values after each required equals sign:
 
 | Local variable | Required? | Where the value comes from |
 | --- | --- | --- |
 | `LINKEDIN_ACCESS_TOKEN` | Yes | Secure copy of the old `.env` value, or a newly authorised token from the LinkedIn developer application. |
 | `OPENAI_API_KEY` | Yes | Secure copy of the old value, or a new key from the same OpenAI API project. Existing key values usually cannot be revealed again after creation. |
-| `OPENAI_MODEL` | Yes | Keep `gpt-5-nano` unless the pipeline is intentionally changed. |
-| `OPENAI_IMAGE_MODEL` | Yes | Keep `gpt-image-2`. It is used only for a missing-image fallback. |
-| `WEBFLOW_API_TOKEN` | Yes | Secure copy of the old token, or a replacement Webflow token with access to read and write the Blog Posts collection. |
-| `WEBFLOW_COLLECTION_ID` | Yes | Keep the existing ID shown in the template. |
-| `WEBFLOW_PUBLISH` | Yes | Keep `true` for the normal production behaviour. Read the live-run warning below before running locally. |
-| `RUN_X_PIPELINE` | Yes | Keep `false` unless X posting is intentionally re-enabled. |
-| `X_ACCESS_TOKEN` | No while X is disabled | Leave blank while `RUN_X_PIPELINE=false`. |
-| `REQUIRE_X_POSTING` | Yes | Keep `false` while X is optional or disabled. |
-| `FORCE_*` variables | Yes | Keep all four `false` during normal use. |
+| `OPENAI_MODEL` | No | Defaults to `gpt-5-nano`; change it only when the pipeline is intentionally updated. |
+| `OPENAI_IMAGE_MODEL` | No | Defaults to `gpt-image-2`; change it only when the fallback-image pipeline is intentionally updated. |
+| `IMAGE_PUBLIC_REF` | No | Defaults to `main`; GitHub Actions pins generated-image URLs to the exact committed revision automatically. |
+| `WEBFLOW_API_TOKEN` | Yes, unless the alternative is set | Secure copy of the old token, or a replacement token with access to read and write the Blog Posts collection. |
+| `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` | Alternative | Supported in place of `WEBFLOW_API_TOKEN`; leave it blank when the primary variable is set. |
+| `WEBFLOW_COLLECTION_ID` | No | Defaults to the Blog Posts collection ID shown in `.env.example`. |
+| `WEBFLOW_PUBLISH` | No | Defaults to `true`. Read the live-run warning below before changing or running it. |
+| `LINKEDIN_PROMPT_PROFILE` | No | Leave blank to use the first enrichment profile in `config/prompts.json`. |
+| `FORCE_WEBFLOW_SYNC` | No | Defaults to `false`; keep it false during normal use. |
 
 Do not add spaces around the equals sign. Do not wrap the tokens in quotation marks unless a value genuinely contains spaces.
 
@@ -437,13 +413,12 @@ The scheduled GitHub Action currently reads:
 - `LINKEDIN_ACCESS_TOKEN` from a GitHub Actions secret.
 - `OPENAI_API_KEY` from a GitHub Actions secret.
 - `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` from a GitHub Actions secret or repository variable.
-- `X_ACCESS_TOKEN` from an optional GitHub Actions secret.
 
 Those remote values remain in GitHub when you change MacBook. You do not need to recreate them merely because you cloned the repository elsewhere. GitHub intentionally hides saved secret values; it will not let you copy them back out for the local `.env` file.
 
 If the old `.env` is unavailable, create or rotate the required credentials in the relevant services. Do not weaken security by trying to extract hidden GitHub Actions secrets.
 
-4. Save `.env` and verify that Git ignores both local-only items:
+3. Save `.env` and verify that Git ignores both local-only items:
 
 ~~~bash
 git check-ignore -v .env
@@ -453,10 +428,10 @@ git status --short
 
 The first two commands should show an ignore rule. The final command should not list `.env` or `.venv` and should normally print nothing.
 
-5. Confirm that the application can see the required settings without printing the secret values:
+4. Confirm that the application can see the required settings without printing the secret values:
 
 ~~~bash
-python -c "from pipeline.config import load_config; c=load_config(); print('LinkedIn configured:', bool(c.linkedin_access_token)); print('OpenAI configured:', bool(c.openai_api_key)); print('Webflow configured:', bool(c.webflow_api_token)); print('X pipeline enabled:', c.run_x_pipeline)"
+python -c "from pipeline.config import load_config; c=load_config(); print('LinkedIn configured:', bool(c.linkedin_access_token)); print('OpenAI configured:', bool(c.openai_api_key)); print('Webflow configured:', bool(c.webflow_api_token))"
 ~~~
 
 Expected results for the normal configuration:
@@ -465,7 +440,6 @@ Expected results for the normal configuration:
 LinkedIn configured: True
 OpenAI configured: True
 Webflow configured: True
-X pipeline enabled: False
 ~~~
 
 ### Part 8: run the safe local verification
@@ -484,7 +458,7 @@ OK
 
 The exact number of tests may increase over time. `OK` is the important result.
 
-These tests are the correct first verification because every OpenAI, LinkedIn, and Webflow call is mocked. They make no paid API calls and do not write to Webflow or X.
+These tests are the correct first verification because external service calls are mocked. They make no paid API calls and do not write to Webflow.
 
 For an optional read-only LinkedIn check:
 
@@ -513,8 +487,7 @@ It is a live end-to-end command. With valid credentials, it can:
 - require a generated fallback JPEG to be committed before Webflow can fetch it when the post has no source image;
 - create or update a Webflow CMS item;
 - publish that item when `WEBFLOW_PUBLISH=true`;
-- write output files under `data/`;
-- post to X if `RUN_X_PIPELINE=true`.
+- write output files under `data/`.
 
 Important: `WEBFLOW_PUBLISH=false` is not a complete dry-run mode. It prevents the final publish step, but the pipeline can still create or update a Webflow draft item.
 
@@ -526,8 +499,7 @@ Only do this when all of the following are true:
 
 - There is a real LinkedIn post inside the rolling 48-hour window.
 - The local `.env` values are configured.
-- `RUN_X_PIPELINE=false` unless X posting is deliberately wanted.
-- All `FORCE_*` flags are `false` unless a maintenance override is deliberately required.
+- `FORCE_WEBFLOW_SYNC=false` unless a maintenance override is deliberately required.
 - Any matching image has the correct date-based filename.
 - Any new image is already committed and available on GitHub's `main` branch.
 
@@ -813,8 +785,6 @@ Most days, these are the only settings you need to care about:
 | `OPENAI_IMAGE_MODEL` | Selects the image model; the default is `gpt-image-2`. |
 | `WEBFLOW_API_TOKEN` | Lets the script create, update, and publish Webflow posts. |
 | `WEBFLOW_PUBLISH` | When `true`, Webflow items are published after they are written. |
-| `RUN_X_PIPELINE` | When `false`, the X pipeline is skipped completely. This is the default. |
-| `X_ACCESS_TOKEN` | Needed only if `RUN_X_PIPELINE=true`. |
 
 `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` can also be used instead of `WEBFLOW_API_TOKEN`.
 
@@ -931,34 +901,7 @@ To avoid duplicates, the pipeline checks live Webflow items by LinkedIn URL befo
 
 If Webflow already has a live item with the same LinkedIn URL, the pipeline stops before writing local output files, calling OpenAI, or updating Webflow. Local files in `data/` are not used to decide whether a post already exists.
 
-`FORCE_WEBFLOW_SYNC=true` is the intentional override for maintenance runs where you really do want to replace an existing live Webflow item.
-
-## X Posting
-
-The X pipeline is disabled by default.
-
-```bash
-RUN_X_PIPELINE=false
-```
-
-When it is `false`, the script does not generate a tweet, does not upload images to X, and does not call the X API.
-
-If you set:
-
-```bash
-RUN_X_PIPELINE=true
-```
-
-then the script tries to:
-
-1. Generate a tweet from the enriched LinkedIn post.
-2. Select up to four images.
-3. Upload those images to X.
-4. Add ALT text metadata.
-5. Publish the post.
-6. Save the result in `data/posted_tweets.json`.
-
-If X fails, the Webflow pipeline still succeeds unless `REQUIRE_X_POSTING=true`.
+`FORCE_WEBFLOW_SYNC=true` is the intentional override for maintenance runs where you really do want to enrich and sync a matching live Webflow item again.
 
 ## GitHub Action Schedule
 
@@ -995,15 +938,14 @@ images/
 | `pipeline/image_generation.py` | Creates, validates, reuses, and attaches a generated fallback JPEG. |
 | `pipeline/prepare_image.py` | Runs the pre-Webflow missing-image preparation stage. |
 | `pipeline/webflow.py` | Builds the exact Webflow payload and syncs the CMS item. |
-| `pipeline/x_posting.py` | Optional X/Twitter generation and posting. |
 | `pipeline/config.py` | Environment variables and defaults. |
 | `config/prompts.json` | OpenAI prompts. |
 | `images/` | Date-named source images and OpenAI JPEG fallbacks. |
 | `data/generated_main_images.json` | Registry that keeps generated JPEGs separate from source-image fields. |
 | `data/` | Saved pipeline state and latest generated JSON files. |
 | `tests/` | Tests for the pipeline behavior. |
-| `webflow_schema.json` | Reference copy of the Webflow collection schema. |
-| `webflow_schema_item_example.json` | Reference copy of a real Webflow item. |
+| `webflow_schema.json` | Reference snapshot of the Webflow Blog Posts collection schema. |
+| `webflow_schema_item_example.json` | Reference snapshot of a Webflow Blog Posts item. |
 
 ## Saved Data
 
@@ -1014,20 +956,15 @@ The script writes these files:
 | `data/last_linkedin_post.json` | The latest raw LinkedIn post found. |
 | `data/last_linkedin_post.enriched.json` | The post after headline, summary, and ALT text are added. |
 | `data/webflow_items.json` | Webflow item IDs and sync state. |
-| `data/tweet.json` | The generated X draft, only when X is enabled. |
-| `data/posted_tweets.json` | A ledger used to avoid posting the same thing to X twice. |
 | `data/pipeline_state.json` | The latest run status. |
 
-## Useful Force Flags
+## Webflow Maintenance Override
 
-Use these only when you want to override the normal "skip if already done" behavior.
+Use this only when you intentionally want to bypass the normal live-item check.
 
 | Flag | What it does |
 | --- | --- |
-| `FORCE_WEBFLOW_SYNC=true` | Writes to Webflow even if the saved state says it is already current. |
-| `FORCE_ENRICH=true` | Regenerates headline, summary, and ALT text. |
-| `FORCE_TWEETIFY=true` | Regenerates the X draft. |
-| `FORCE_X_POST=true` | Ignores the X posting ledger and posts again. |
+| `FORCE_WEBFLOW_SYNC=true` | Enriches and syncs the post even when Webflow already has a live item with the same LinkedIn URL. |
 
 ## Prompt Limits
 
