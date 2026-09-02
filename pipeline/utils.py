@@ -20,7 +20,9 @@ def load_json(path: Path, default: Any = None) -> Any:
 
 def write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def strip_html_to_text(value: str) -> str:
@@ -56,6 +58,8 @@ def post_hash(post: dict[str, Any]) -> str:
         "published_at": post.get("published_at", ""),
         "content": post.get("content", ""),
         "images": post.get("images", []),
+        "linkedin_has_image": post.get("linkedin_has_image"),
+        "generated_main_image": post.get("generated_main_image"),
         "headline": post.get("headline", ""),
         "description": post.get("description", ""),
     }

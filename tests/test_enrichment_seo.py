@@ -70,7 +70,7 @@ BENCHMARKS = [
 class EnrichmentSeoTests(unittest.TestCase):
     def setUp(self) -> None:
         self.prompts = load_prompts()
-        self.config = SimpleNamespace(openai_model="gpt-5.6")
+        self.config = SimpleNamespace(openai_model="gpt-5.6-sol")
 
     @staticmethod
     def fake_client(*payloads: object) -> tuple[SimpleNamespace, Mock]:
@@ -456,7 +456,7 @@ class EnrichmentSeoTests(unittest.TestCase):
 
     def test_offline_wiring_maps_validated_metadata_to_webflow(self) -> None:
         client, _ = self.fake_client(BENCHMARKS[2])
-        config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5.6")
+        config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5.6-sol")
         post = {
             "content": (
                 "<p>Bending Spoons buys fading apps, cuts staff and folds them into a lean AI operating model "

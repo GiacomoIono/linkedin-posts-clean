@@ -10,7 +10,6 @@ from openai import OpenAI
 from .config import PROMPTS_PATH, PipelineConfig
 from .utils import sanitize_text, soft_trim, strip_html_to_text
 
-
 HEADLINE_MIN = 45
 HEADLINE_TARGET_MIN = 48
 HEADLINE_TARGET_MAX = 58
@@ -151,7 +150,16 @@ def load_prompts() -> dict[str, str]:
         chosen = prompt_sets[0]
 
     selected = dict(chosen)
-    required = ["seo_system", "seo_user", "alt_system", "alt_user"]
+    required = [
+        "seo_system",
+        "seo_user",
+        "alt_system",
+        "alt_user",
+        "image_system",
+        "image_user",
+        "image_qa_system",
+        "image_qa_user",
+    ]
     for key in required:
         selected[key] = prompt_text(chosen.get(key), key)
     return selected

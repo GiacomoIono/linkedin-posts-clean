@@ -6,20 +6,23 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "data"
 IMAGE_DIR = REPO_ROOT / "images"
+GENERATED_IMAGE_DIR = IMAGE_DIR / "generated"
 CONFIG_DIR = REPO_ROOT / "config"
 
 RAW_POST_PATH = DATA_DIR / "last_linkedin_post.json"
 ENRICHED_POST_PATH = DATA_DIR / "last_linkedin_post.enriched.json"
 PIPELINE_STATE_PATH = DATA_DIR / "pipeline_state.json"
 WEBFLOW_STATE_PATH = DATA_DIR / "webflow_items.json"
+GENERATED_IMAGE_MANIFEST_PATH = DATA_DIR / "generated_main_images.json"
 
 PROMPTS_PATH = CONFIG_DIR / "prompts.json"
 
-DEFAULT_OPENAI_MODEL = "gpt-5.6"
+DEFAULT_OPENAI_MODEL = "gpt-5.6-sol"
+DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-2"
+DEFAULT_IMAGE_PUBLIC_REF = "main"
 DEFAULT_WEBFLOW_COLLECTION_ID = "63250855178122098387d7ef"
 NO_POSTS_FOUND_EXIT_CODE = 2
 
@@ -48,6 +51,8 @@ class PipelineConfig:
     webflow_collection_id: str
     webflow_publish: bool
     force_webflow_sync: bool
+    openai_image_model: str = DEFAULT_OPENAI_IMAGE_MODEL
+    image_public_ref: str = DEFAULT_IMAGE_PUBLIC_REF
 
 
 def load_config() -> PipelineConfig:
@@ -56,12 +61,20 @@ def load_config() -> PipelineConfig:
         linkedin_access_token=first_env("LINKEDIN_ACCESS_TOKEN"),
         openai_api_key=first_env("OPENAI_API_KEY"),
         openai_model=first_env("OPENAI_MODEL") or DEFAULT_OPENAI_MODEL,
-        webflow_api_token=first_env("WEBFLOW_API_TOKEN", "WEBFLOW_READ_AND_WRITE_BLOG_POSTS"),
-        webflow_collection_id=first_env("WEBFLOW_COLLECTION_ID") or DEFAULT_WEBFLOW_COLLECTION_ID,
+        webflow_api_token=first_env(
+            "WEBFLOW_API_TOKEN", "WEBFLOW_READ_AND_WRITE_BLOG_POSTS"
+        ),
+        webflow_collection_id=first_env("WEBFLOW_COLLECTION_ID")
+        or DEFAULT_WEBFLOW_COLLECTION_ID,
         webflow_publish=env_bool("WEBFLOW_PUBLISH", True),
         force_webflow_sync=env_bool("FORCE_WEBFLOW_SYNC", False),
+        openai_image_model=first_env("OPENAI_IMAGE_MODEL")
+        or DEFAULT_OPENAI_IMAGE_MODEL,
+        image_public_ref=first_env("IMAGE_PUBLIC_REF") or DEFAULT_IMAGE_PUBLIC_REF,
     )
 
 
 def ensure_directories() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    GENERATED_IMAGE_DIR.mkdir(parents=True, exist_ok=True)

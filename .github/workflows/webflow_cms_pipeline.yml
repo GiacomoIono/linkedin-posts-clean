@@ -1,7 +1,7 @@
 name: Webflow CMS Pipeline
 concurrency:
   group: webflow-cms-pipeline
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 on:
   schedule:
@@ -12,8 +12,12 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: write
+
 jobs:
   publish-cms:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -31,11 +35,82 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Prepare fallback image when the post has no source image
+        env:
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-5.6-sol
+          OPENAI_IMAGE_MODEL: gpt-image-2
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS || vars.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
+          WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'
+          FORCE_WEBFLOW_SYNC: 'false'
+        run: |
+          set +e
+          python -m pipeline.prepare_image
+          status=$?
+          set -e
+
+          if [ "$status" -eq 2 ]; then
+            echo "No recent LinkedIn posts found. No fallback image is needed."
+            exit 0
+          fi
+
+          exit "$status"
+
+      - name: Commit generated fallback image before Webflow sync
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config pull.rebase true
+          git config rebase.autoStash true
+
+          changed_files=$(git status --porcelain -- \
+            images/generated \
+            data/generated_main_images.json)
+
+          if [ -z "$changed_files" ]; then
+            echo "No generated fallback image changes to commit."
+            exit 0
+          fi
+
+          echo "Generated fallback image changes:"
+          echo "$changed_files"
+
+          git add -- \
+            images/generated \
+            data/generated_main_images.json
+          git commit -m "chore(bot): add generated fallback image for $(date -u +'%Y-%m-%d')"
+
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+
+      - name: Pin generated image URL to the committed revision
+        run: echo "IMAGE_PUBLIC_REF=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Verify generated fallback image before Webflow sync
+        env:
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+        run: |
+          set +e
+          python -m pipeline.prepare_image --verify-public
+          status=$?
+          set -e
+
+          if [ "$status" -eq 2 ]; then
+            echo "No recent LinkedIn posts found. No fallback image URL needs verification."
+            exit 0
+          fi
+
+          exit "$status"
+
       - name: Run Webflow CMS pipeline
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: gpt-5.6
+          OPENAI_MODEL: gpt-5.6-sol
+          OPENAI_IMAGE_MODEL: gpt-image-2
           WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS || vars.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
           WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'
           WEBFLOW_PUBLISH: 'true'
@@ -73,7 +148,7 @@ jobs:
           echo "Changed files:"
           echo "$changed_files"
 
-          git add \
+          git add -- \
             data \
             images
 

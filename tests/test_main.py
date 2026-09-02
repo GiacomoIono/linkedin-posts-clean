@@ -21,6 +21,14 @@ ENRICHED_POST = {
     "description": "A short description",
 }
 
+ATTACHED_POST = {
+    **ENRICHED_POST,
+    "generated_main_image": {
+        "url": "https://example.com/generated-main.jpeg",
+        "alt": "Generated fallback image",
+    },
+}
+
 WEBFLOW_STATUS = {
     "action": "created",
     "item_id": "item-id",
@@ -49,6 +57,8 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
             patch("pipeline.main.find_live_webflow_item", return_value=None),
             patch("pipeline.main.enrich_post", return_value=ENRICHED_POST),
+            patch("pipeline.main.attach_generated_main_image", return_value=ATTACHED_POST),
+            patch("pipeline.main.source_images", return_value=[]),
             patch("pipeline.main.sync_post_to_webflow", return_value=WEBFLOW_STATUS),
             patch("pipeline.main.write_json"),
             patch("pipeline.main.save_pipeline_state"),
@@ -65,14 +75,20 @@ class MainPipelineTests(unittest.TestCase):
         mocks[3].assert_called_once_with(pipeline_config, POST["url"])
         mocks[4].assert_called_once_with(POST, pipeline_config)
         mocks[5].assert_called_once_with(ENRICHED_POST, pipeline_config)
+        mocks[6].assert_called_once_with(POST)
+        mocks[7].assert_called_once_with(ATTACHED_POST, pipeline_config)
         self.assertEqual(
-            mocks[6].call_args_list,
-            [call(RAW_POST_PATH, POST), call(ENRICHED_POST_PATH, ENRICHED_POST)],
+            mocks[8].call_args_list,
+            [call(RAW_POST_PATH, POST), call(ENRICHED_POST_PATH, ATTACHED_POST)],
         )
-        mocks[7].assert_called_once_with(
+        mocks[9].assert_called_once_with(
             POST,
-            ENRICHED_POST,
-            {"enrichment": "generated", "webflow": WEBFLOW_STATUS},
+            ATTACHED_POST,
+            {
+                "enrichment": "generated",
+                "image": "generated_main_image",
+                "webflow": WEBFLOW_STATUS,
+            },
         )
 
     def test_main_returns_no_posts_code_without_writing(self) -> None:
@@ -83,6 +99,8 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=None),
             patch("pipeline.main.find_live_webflow_item"),
             patch("pipeline.main.enrich_post"),
+            patch("pipeline.main.attach_generated_main_image"),
+            patch("pipeline.main.source_images"),
             patch("pipeline.main.sync_post_to_webflow"),
             patch("pipeline.main.write_json"),
             patch("pipeline.main.save_pipeline_state"),
@@ -105,6 +123,8 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
             patch("pipeline.main.find_live_webflow_item", return_value={"id": "live-item"}),
             patch("pipeline.main.enrich_post"),
+            patch("pipeline.main.attach_generated_main_image"),
+            patch("pipeline.main.source_images"),
             patch("pipeline.main.sync_post_to_webflow"),
             patch("pipeline.main.write_json"),
             patch("pipeline.main.save_pipeline_state"),
@@ -128,6 +148,8 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
             patch("pipeline.main.find_live_webflow_item", return_value={"id": "live-item"}),
             patch("pipeline.main.enrich_post", return_value=ENRICHED_POST) as enrich_post,
+            patch("pipeline.main.attach_generated_main_image", return_value=ATTACHED_POST) as attach_image,
+            patch("pipeline.main.source_images", return_value=[]),
             patch("pipeline.main.sync_post_to_webflow", return_value=WEBFLOW_STATUS) as sync_post,
             patch("pipeline.main.write_json"),
             patch("pipeline.main.save_pipeline_state"),
@@ -136,7 +158,34 @@ class MainPipelineTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         enrich_post.assert_called_once_with(POST, pipeline_config)
-        sync_post.assert_called_once_with(ENRICHED_POST, pipeline_config)
+        attach_image.assert_called_once_with(ENRICHED_POST, pipeline_config)
+        sync_post.assert_called_once_with(ATTACHED_POST, pipeline_config)
+
+    def test_main_stops_before_webflow_when_generated_image_is_not_prepared(self) -> None:
+        pipeline_config = config()
+
+        with (
+            patch("pipeline.main.ensure_directories"),
+            patch("pipeline.main.load_config", return_value=pipeline_config),
+            patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
+            patch("pipeline.main.find_live_webflow_item", return_value=None),
+            patch("pipeline.main.write_json") as write_json,
+            patch("pipeline.main.enrich_post", return_value=ENRICHED_POST),
+            patch(
+                "pipeline.main.attach_generated_main_image",
+                side_effect=RuntimeError("image-preparation stage"),
+            ),
+            patch("pipeline.main.source_images") as source_images,
+            patch("pipeline.main.sync_post_to_webflow") as sync_post,
+            patch("pipeline.main.save_pipeline_state") as save_state,
+            self.assertRaisesRegex(RuntimeError, "image-preparation stage"),
+        ):
+            pipeline_main.main()
+
+        write_json.assert_called_once_with(RAW_POST_PATH, POST)
+        source_images.assert_not_called()
+        sync_post.assert_not_called()
+        save_state.assert_not_called()
 
 
 if __name__ == "__main__":

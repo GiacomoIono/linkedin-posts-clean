@@ -5,16 +5,25 @@ on:
     branches:
       - main
     paths:
-      - 'config/prompts.json'
-      - 'pipeline/enrichment.py'
-      - 'pipeline/linkedin.py'
-      - 'pipeline/seo_preview.py'
-      - 'pipeline/webflow.py'
-      - 'tests/test_enrichment_seo.py'
-      - 'tests/test_linkedin.py'
-      - 'tests/test_seo_preview.py'
+      - 'pipeline/**'
+      - 'tests/**'
+      - 'config/**'
+      - 'assets/blog-main-image-style/**'
+      - 'requirements.txt'
       - '.github/workflows/validate_linkedin_fetch.yml'
+      - '.github/workflows/webflow_cms_pipeline.yml'
   workflow_dispatch:
+    inputs:
+      live_linkedin_check:
+        description: Call LinkedIn read-only after the unit tests
+        required: true
+        default: true
+        type: boolean
+      live_image_smoke:
+        description: Generate one paid PNG preview without Webflow or Git writes
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -24,8 +33,9 @@ env:
 
 jobs:
   validate:
-    name: Test code and call LinkedIn read-only
+    name: Test code and optionally call LinkedIn read-only
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out PR code
@@ -43,7 +53,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Validate LinkedIn fetch
-        if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.live_linkedin_check }}
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
         run: |
@@ -58,3 +68,35 @@ jobs:
           else:
               print("LinkedIn validation succeeded. No post found in the 48-hour window.")
           PY
+
+      - name: Generate isolated PNG smoke-test preview
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.live_image_smoke }}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-5.6-sol
+          OPENAI_IMAGE_MODEL: gpt-image-2
+        run: |
+          python - <<'PY'
+          from pipeline.config import ensure_directories, load_config
+          from pipeline.image_generation import generate_missing_main_image
+
+          ensure_directories()
+          post = {
+              "content": "<p>AI is changing how marketers discover, evaluate, and act on information.</p>",
+              "headline": "AI changes the marketing decision journey",
+              "url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:9999999999999999999",
+              "published_at": "2099-01-01T10:00:00",
+              "images": [],
+          }
+          result = generate_missing_main_image(post, load_config())
+          print(f"Image smoke test completed: {result['action']} at {result['path']}")
+          PY
+
+      - name: Upload isolated PNG preview
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.live_image_smoke }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-main-image-smoke-test
+          path: images/generated/2099-01-01-*.png
+          if-no-files-found: error
+          retention-days: 1

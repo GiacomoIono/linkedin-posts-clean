@@ -1,0 +1,78 @@
+{
+  "version": 2,
+  "files": {
+    "2026-09-02-marketing-has-tolerated-bluffing-for-too-long-now-e67822fd18.png": {
+      "post_url": "https://www.linkedin.com/feed/update/urn:li:share:7500912618014941184",
+      "published_at": "2026-09-02T13:48:48.769000",
+      "sha256": "ae273b918c99cc8ce40e01049fff69a5da6d458b2706ffe857024823ec19d69a",
+      "renderer_model": "gpt-image-2",
+      "planner": {
+        "model": "gpt-5.6-sol",
+        "concept": {
+          "use_case": "illustration-story",
+          "central_claim": "Marketing’s long tolerance of bluffing has eroded executive trust, leaving genuinely skilled marketers to bear the consequences as technical demands rise and senior opportunities remain blocked.",
+          "tension": "Demonstrable, hands-on expertise confronts a barrier created by hollow authority, institutional mistrust, and occupied senior positions.",
+          "audience": "Marketing practitioners, senior leaders, CMOs, and executives responsible for hiring or evaluating marketing talent.",
+          "emotional_register": "Sober frustration, professional dignity, and restrained urgency.",
+          "motifs": [
+            "A hands-on digital marketing console with cables, analytical diagrams, and tactile planning sheets",
+            "A wall of polished but hollow business masks",
+            "An amber-lit executive doorway with occupied chairs visible beyond"
+          ],
+          "scene": "A single experienced marketer with rolled-up sleeves kneels in a dim corporate corridor, actively reconnecting a complex digital marketing console while a wall of polished hollow masks blocks the amber-lit executive doorway ahead; through narrow gaps, occupied senior chairs can be seen beyond, making clear that real competence is working outside while bluff and inertia hold the seats.",
+          "backdrop": "A smoky charcoal office environment with soft architectural geometry, frosted glass, muted slate shadows, and sparse amber highlights leading toward the blocked executive room.",
+          "subject": "One unmistakable mid-career marketer, visibly focused and capable, using believable hands to repair and organize the technical system rather than merely presenting it.",
+          "mood": "Human-centered noir with tactile realism, quiet pressure, muted resentment, and a narrow sense of determined possibility.",
+          "reference_ids": [
+            "08",
+            "01",
+            "09"
+          ],
+          "alt": "A focused marketer repairs a complex digital console in a dark corridor while hollow masks block the amber-lit executive room and its occupied chairs."
+        }
+      },
+      "quality_review": {
+        "model": "gpt-5.6-sol",
+        "result": {
+          "article_fit": 98,
+          "human_editorial_resonance": 96,
+          "thumbnail_clarity": 90,
+          "house_style_match": 94,
+          "technical_cleanliness": 95,
+          "material_defect": false,
+          "issues": [
+            "Fine console wiring and interface details will partially merge at very small thumbnail sizes, though the worker, mask wall, and occupied office remain clear."
+          ],
+          "passed": true,
+          "rationale": "The image directly and legibly stages hands-on marketing competence outside an executive room obstructed by hollow authority: the kneeling worker is a strong human anchor, the mask wall reads immediately as institutional bluff and mistrust, and the seated figures beyond clearly suggest blocked senior opportunity. Amber light guides the eye through the barrier, while the restrained charcoal palette, textured ink-like surfaces, and controlled wash effects closely match the mature noir editorial house style. Despite dense equipment detail, the core metaphor survives at thumbnail scale, and no material technical or compositional defect is visible.",
+          "alt": "An experienced marketer reconnects a complex console in a dim corporate corridor while a wall of hollow masks blocks the amber-lit executive room and its occupied senior chairs.",
+          "weighted_score": 95.0
+        }
+      },
+      "references": [
+        {
+          "id": "08",
+          "filename": "08-overload-gift-rice-system.png",
+          "sha256": "9ce8f0089aa7fcb18dee7dce6ceb3084daea720ad48ca093fb0b8a7d60c05923"
+        },
+        {
+          "id": "01",
+          "filename": "01-market-bubble-industrial-system.png",
+          "sha256": "9514e23896f9d1b0d013eed25ad83d5e45b5e30b5c779f667fb03715b9abcd93"
+        },
+        {
+          "id": "09",
+          "filename": "09-wall-break-work-to-community.png",
+          "sha256": "eaed29ca0558e66c7ee0a5b9ccf61ca6bb688806f7ab55f5e17133e0353a92f5"
+        }
+      ],
+      "prompt": "Use case: illustration-story\nAsset type: borderless blog main image\nPrimary request: A single experienced marketer with rolled-up sleeves kneels in a dim corporate corridor, actively reconnecting a complex digital marketing console while a wall of polished hollow masks blocks the amber-lit executive doorway ahead; through narrow gaps, occupied senior chairs can be seen beyond, making clear that real competence is working outside while bluff and inertia hold the seats.\nInput images: Image 1: style reference for human narrative - distressed foreground person, material clutter, spotlight, and a simplified symbolic process; Image 2: style reference for medium and palette - industrial scale, smoky charcoal atmosphere, transparent fragility, and fine amber accents; Image 3: style reference for composition or metaphor - human movement through a breaking boundary and a coherent environmental transformation\nScene/backdrop: A smoky charcoal office environment with soft architectural geometry, frosted glass, muted slate shadows, and sparse amber highlights leading toward the blocked executive room.\nSubject: One unmistakable mid-career marketer, visibly focused and capable, using believable hands to repair and organize the technical system rather than merely presenting it.\nStyle/medium: muted, human-centered noir editorial illustration; graphic-novel ink linework; charcoal, graphite, and restrained watercolor/gouache washes; tactile paper grain; sophisticated rather than superhero-comic styling\nComposition/framing: cinematic 16:9 landscape; full bleed; readable focal hierarchy at thumbnail size; no ornamental frame\nLighting/mood: Human-centered noir with tactile realism, quiet pressure, muted resentment, and a narrow sense of determined possibility.; shadows retain detail and are never crushed to pure black\nColor palette: greyscale-led, low-saturation stone and charcoal midtones with one or two restrained blue, rust, amber, burgundy, or forest accents\nText: none\nConstraints: concept must communicate the article's central thesis; synthesize the references' visual family without copying their literal subjects or layouts; prefer a clear human emotional anchor; non-photorealistic; no title, caption, lettering, logo, watermark, or visible brand mark\nAvoid: neon or flashy colors, pitch-black areas, glossy 3D, flat corporate vector art, generic stock imagery, visual clutter, ornate mechanical spectacle, speech bubbles, dialogue or word balloons, speed lines, panel grids, comic panels, superhero-comic exaggeration, and comic-panel borders",
+      "dimensions": {
+        "width": 1200,
+        "height": 675
+      },
+      "bytes": 676941,
+      "alt": "An experienced marketer reconnects a complex console in a dim corporate corridor while a wall of hollow masks blocks the amber-lit executive room and its occupied senior chairs."
+    }
+  }
+}

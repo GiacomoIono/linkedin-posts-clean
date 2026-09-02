@@ -8,12 +8,12 @@ from pipeline.webflow import (
     AUTHOR_COLLECTION_ID,
     AUTHOR_ITEM_ID,
     WEBFLOW_PAYLOAD_VERSION,
+    WebflowClient,
     WebflowError,
     build_field_data,
     image_sequence,
     sync_post_to_webflow,
 )
-
 
 POST = {
     "content": "<p>Hello from LinkedIn.</p>",
@@ -55,6 +55,16 @@ SINGLE_DATE_IMAGE_POST = {
             "alt": "Single image alt text",
         },
     ],
+}
+
+GENERATED_MAIN_IMAGE_POST = {
+    **POST,
+    "images": [],
+    "generated_main_image": {
+        "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/abc123/"
+        "images/generated/2026-05-31-hello-from-linkedin-a1b2c3d4e5.png",
+        "alt": "Editorial illustration representing Hello from LinkedIn",
+    },
 }
 
 
@@ -111,6 +121,41 @@ class WebflowPayloadTests(unittest.TestCase):
         self.assertEqual(field_data["thumbnail-image"], expected_image)
         self.assertIsNone(image_sequence(expected_image))
 
+    def test_generated_fallback_is_sent_to_main_image_only(self) -> None:
+        field_data = build_field_data(GENERATED_MAIN_IMAGE_POST)
+
+        self.assertEqual(
+            field_data["main-image"], GENERATED_MAIN_IMAGE_POST["generated_main_image"]
+        )
+        self.assertNotIn("post-images", field_data)
+        self.assertNotIn("thumbnail-image", field_data)
+
+    def test_generated_main_image_must_not_be_silently_skipped(self) -> None:
+        field_data = build_field_data(GENERATED_MAIN_IMAGE_POST)
+        client = WebflowClient("token", "collection")
+
+        with patch.object(client, "request", return_value={}) as request:
+            client.create_item(field_data)
+            client.update_item("item-id", field_data)
+            client.update_live_item("item-id", field_data)
+
+        self.assertEqual(request.call_count, 3)
+        self.assertTrue(
+            all(
+                call.kwargs["params"]["skipInvalidFiles"] == "false"
+                for call in request.call_args_list
+            )
+        )
+
+    def test_source_images_keep_existing_lenient_file_handling(self) -> None:
+        field_data = build_field_data(POST)
+        client = WebflowClient("token", "collection")
+
+        with patch.object(client, "request", return_value={}) as request:
+            client.create_item(field_data)
+
+        self.assertEqual(request.call_args.kwargs["params"]["skipInvalidFiles"], "true")
+
     def test_build_field_data_includes_only_known_optional_schema_fields(self) -> None:
         post = {
             **POST,
@@ -153,7 +198,12 @@ class WebflowPayloadTests(unittest.TestCase):
                 return []
 
             def list_live_items(self):
-                return [{"id": "live-item", "fieldData": {"linkedin-post-link": POST["url"]}}]
+                return [
+                    {
+                        "id": "live-item",
+                        "fieldData": {"linkedin-post-link": POST["url"]},
+                    }
+                ]
 
             def update_live_item(self, item_id, field_data):
                 self.updated_live.append((item_id, field_data))
@@ -176,27 +226,26 @@ class WebflowPayloadTests(unittest.TestCase):
                 "force_webflow_sync": False,
             },
         )()
-        state = {
-            "items": {
-                POST["url"]: {
-                    "item_id": "deleted-staged-item",
-                    "signature": "stale-signature",
-                    "payload_version": WEBFLOW_PAYLOAD_VERSION - 1,
-                    "published": True,
-                }
-            }
-        }
         saved_states = []
         fake_client = FakeClient("token", "collection")
 
         with (
             patch("pipeline.webflow.WebflowClient", return_value=fake_client),
             patch("pipeline.webflow.load_webflow_state") as load_webflow_state,
-            patch("pipeline.webflow.save_webflow_state", side_effect=saved_states.append),
+            patch(
+                "pipeline.webflow.save_webflow_state", side_effect=saved_states.append
+            ),
         ):
             result = sync_post_to_webflow(POST, config)
 
-        self.assertEqual(result, {"action": "skipped_existing_live_url", "item_id": "live-item", "published": True})
+        self.assertEqual(
+            result,
+            {
+                "action": "skipped_existing_live_url",
+                "item_id": "live-item",
+                "published": True,
+            },
+        )
         load_webflow_state.assert_not_called()
         self.assertEqual(fake_client.updated, [])
         self.assertEqual(fake_client.updated_live, [])
@@ -211,7 +260,12 @@ class WebflowPayloadTests(unittest.TestCase):
                 self.published = []
 
             def list_live_items(self):
-                return [{"id": "live-item", "fieldData": {"linkedin-post-link": POST["url"]}}]
+                return [
+                    {
+                        "id": "live-item",
+                        "fieldData": {"linkedin-post-link": POST["url"]},
+                    }
+                ]
 
             def update_live_item(self, item_id, field_data):
                 self.updated_live.append((item_id, field_data))
@@ -236,13 +290,20 @@ class WebflowPayloadTests(unittest.TestCase):
         with (
             patch("pipeline.webflow.WebflowClient", return_value=fake_client),
             patch("pipeline.webflow.load_webflow_state", return_value={"items": {}}),
-            patch("pipeline.webflow.save_webflow_state", side_effect=saved_states.append),
+            patch(
+                "pipeline.webflow.save_webflow_state", side_effect=saved_states.append
+            ),
         ):
             result = sync_post_to_webflow(POST, config)
 
-        self.assertEqual(result, {"action": "updated_live", "item_id": "live-item", "published": True})
+        self.assertEqual(
+            result,
+            {"action": "updated_live", "item_id": "live-item", "published": True},
+        )
         self.assertEqual(fake_client.updated_live[0][0], "live-item")
-        self.assertEqual(fake_client.updated_live[0][1]["linkedin-post-link"], POST["url"])
+        self.assertEqual(
+            fake_client.updated_live[0][1]["linkedin-post-link"], POST["url"]
+        )
         self.assertEqual(fake_client.published, [])
         self.assertEqual(saved_states[0]["items"][POST["url"]]["item_id"], "live-item")
 
@@ -260,7 +321,12 @@ class WebflowPayloadTests(unittest.TestCase):
                 return []
 
             def list_live_items(self):
-                return [{"id": "live-item", "fieldData": {"linkedin-post-link": POST["url"]}}]
+                return [
+                    {
+                        "id": "live-item",
+                        "fieldData": {"linkedin-post-link": POST["url"]},
+                    }
+                ]
 
             def update_live_item(self, _item_id, _field_data):
                 raise WebflowError("Webflow PATCH live failed: 404 resource_not_found")
@@ -302,11 +368,15 @@ class WebflowPayloadTests(unittest.TestCase):
         with (
             patch("pipeline.webflow.WebflowClient", return_value=fake_client),
             patch("pipeline.webflow.load_webflow_state", return_value=state),
-            patch("pipeline.webflow.save_webflow_state", side_effect=saved_states.append),
+            patch(
+                "pipeline.webflow.save_webflow_state", side_effect=saved_states.append
+            ),
         ):
             result = sync_post_to_webflow(POST, config)
 
-        self.assertEqual(result, {"action": "created", "item_id": "new-item", "published": True})
+        self.assertEqual(
+            result, {"action": "created", "item_id": "new-item", "published": True}
+        )
         self.assertEqual(fake_client.unpublished, ["live-item"])
         self.assertEqual(fake_client.created[0]["linkedin-post-link"], POST["url"])
         self.assertEqual(fake_client.published, ["new-item"])
@@ -324,7 +394,12 @@ class WebflowPayloadTests(unittest.TestCase):
                 return []
 
             def list_live_items(self):
-                return [{"id": "live-item", "fieldData": {"linkedin-post-link": POST["url"]}}]
+                return [
+                    {
+                        "id": "live-item",
+                        "fieldData": {"linkedin-post-link": POST["url"]},
+                    }
+                ]
 
             def update_live_item(self, _item_id, _field_data):
                 raise WebflowError("Webflow PATCH live failed: 404 resource_not_found")
@@ -354,11 +429,14 @@ class WebflowPayloadTests(unittest.TestCase):
         }
 
         with (
-            patch("pipeline.webflow.WebflowClient", return_value=FakeClient("token", "collection")),
+            patch(
+                "pipeline.webflow.WebflowClient",
+                return_value=FakeClient("token", "collection"),
+            ),
             patch("pipeline.webflow.load_webflow_state", return_value=state),
+            self.assertRaisesRegex(WebflowError, "Publish the deletion in Webflow"),
         ):
-            with self.assertRaisesRegex(WebflowError, "Publish the deletion in Webflow"):
-                sync_post_to_webflow(POST, config)
+            sync_post_to_webflow(POST, config)
 
 
 if __name__ == "__main__":

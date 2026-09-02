@@ -45,7 +45,7 @@ class SeoPreviewTests(unittest.TestCase):
             "currentDescription": "A current description.",
             "targetKeyword": "AI customer journey",
         }
-        config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5.6")
+        config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5.6-sol")
         fake_client = object()
         generated = {
             "headline": "Can marketers still measure the AI customer journey?",
@@ -83,7 +83,7 @@ class SeoPreviewTests(unittest.TestCase):
                 json.dumps({"content": "<p>Saved content.</p>", "url": "https://example.com/post"}),
                 encoding="utf-8",
             )
-            config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5.6")
+            config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5.6-sol")
             preview = {
                 "headline": "A sentence case title about AI measurement",
                 "description": "A complete description based on the supplied post.",
@@ -105,7 +105,7 @@ class SeoPreviewTests(unittest.TestCase):
         self.assertIn(preview["headline"], output.getvalue())
 
     def test_missing_openai_key_fails_before_creating_a_client(self) -> None:
-        config = SimpleNamespace(openai_api_key="", openai_model="gpt-5.6")
+        config = SimpleNamespace(openai_api_key="", openai_model="gpt-5.6-sol")
 
         with (
             patch("pipeline.seo_preview.OpenAI") as openai,
