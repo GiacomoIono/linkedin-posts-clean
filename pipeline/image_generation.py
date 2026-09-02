@@ -131,18 +131,6 @@ def source_images(post: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def linkedin_reports_image(post: dict[str, Any]) -> bool:
-    return post.get("linkedin_has_image") is True
-
-
-def missing_linkedin_source_image_error() -> RuntimeError:
-    return RuntimeError(
-        "LinkedIn reports that this post contains an image, but no matching source image "
-        "exists at the top level of images/. Add the source file before publishing; an AI "
-        "fallback will not replace LinkedIn media."
-    )
-
-
 def post_date(post: dict[str, Any]) -> str:
     value = str(post.get("published_at") or "")[:10]
     if not POST_DATE_RE.fullmatch(value):
@@ -431,8 +419,6 @@ def generate_missing_main_image(
 ) -> dict[str, Any]:
     if source_images(post):
         return {"action": "skipped_source_images"}
-    if linkedin_reports_image(post):
-        raise missing_linkedin_source_image_error()
 
     target = generated_image_path(post)
     registration = ensure_generated_filename_available(target, post)
@@ -502,8 +488,6 @@ def attach_generated_main_image(
     if source_images(post):
         enriched.pop("generated_main_image", None)
         return enriched
-    if linkedin_reports_image(post):
-        raise missing_linkedin_source_image_error()
 
     target = generated_image_path(post)
     if not target.is_file():
@@ -536,8 +520,6 @@ def wait_for_generated_image_public(
 ) -> str:
     if source_images(post):
         return ""
-    if linkedin_reports_image(post):
-        raise missing_linkedin_source_image_error()
 
     target = generated_image_path(post)
     registration = validate_registered_generated_image(target, post_identity(post))

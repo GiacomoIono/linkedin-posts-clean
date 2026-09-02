@@ -89,19 +89,22 @@ class PrepareImageTests(unittest.TestCase):
         find_live.assert_called_once_with(config(), POST["url"])
         generate.assert_called_once_with(POST, config())
 
-    def test_linkedin_image_without_local_file_stops_before_generation(self) -> None:
+    def test_linkedin_media_signal_without_dated_source_still_generates(self) -> None:
         post = {**POST, "linkedin_has_image": True}
         with (
             patch(
                 "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=post
             ),
             patch("pipeline.prepare_image.find_live_webflow_item", return_value=None),
-            patch("pipeline.prepare_image.generate_missing_main_image") as generate,
-            self.assertRaisesRegex(RuntimeError, "LinkedIn reports"),
+            patch(
+                "pipeline.prepare_image.generate_missing_main_image",
+                return_value={"action": "generated"},
+            ) as generate,
         ):
-            prepare_latest_post_image(config())
+            exit_code = prepare_latest_post_image(config())
 
-        generate.assert_not_called()
+        self.assertEqual(exit_code, 0)
+        generate.assert_called_once_with(post, config())
 
 
 class VerifyImageTests(unittest.TestCase):
@@ -148,9 +151,10 @@ class VerifyImageTests(unittest.TestCase):
 
     def test_prepared_generated_image_is_verified(self) -> None:
         image_config = config()
+        post = {**POST, "linkedin_has_image": True}
         with (
             patch(
-                "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=POST
+                "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=post
             ),
             patch("pipeline.prepare_image.is_valid_prepared_png_file", return_value=True),
             patch("pipeline.prepare_image.wait_for_generated_image_public") as verify,
@@ -158,7 +162,7 @@ class VerifyImageTests(unittest.TestCase):
             exit_code = verify_latest_post_image(image_config)
 
         self.assertEqual(exit_code, 0)
-        verify.assert_called_once_with(POST, image_config)
+        verify.assert_called_once_with(post, image_config)
 
 
 if __name__ == "__main__":

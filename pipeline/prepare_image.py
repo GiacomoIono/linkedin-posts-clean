@@ -12,8 +12,6 @@ from .config import (
 from .image_generation import (
     generate_missing_main_image,
     generated_image_path,
-    linkedin_reports_image,
-    missing_linkedin_source_image_error,
     source_images,
     wait_for_generated_image_public,
 )
@@ -45,9 +43,6 @@ def prepare_latest_post_image(config: PipelineConfig) -> int:
         )
         return 0
 
-    if linkedin_reports_image(latest_post):
-        raise missing_linkedin_source_image_error()
-
     result = generate_missing_main_image(latest_post, config)
     print(f"Fallback image preparation: {result['action']}.")
     return 0
@@ -64,12 +59,6 @@ def verify_latest_post_image(config: PipelineConfig) -> int:
     if source_images(latest_post):
         print(
             "The latest LinkedIn post uses source images. No generated image URL needs verification."
-        )
-        return 0
-
-    if linkedin_reports_image(latest_post):
-        print(
-            "LinkedIn reports a source image. No generated image URL needs verification."
         )
         return 0
 

@@ -7,7 +7,7 @@ In plain English, the pipeline does this:
 1. Looks for your newest LinkedIn post from the last 48 hours.
 2. Turns the post text into simple blog-post HTML.
 3. Finds matching source images directly inside the top-level `images/` folder.
-4. If LinkedIn reports no image and no matching source file exists, uses OpenAI to create one reviewed 16:9 PNG fallback under `images/generated/`.
+4. If no date-matched top-level source file exists, uses OpenAI to create one reviewed 16:9 PNG fallback under `images/generated/`.
 5. Uses OpenAI to create the headline, summary, and missing image ALT text.
 6. Sends the post to the Webflow Blog Posts collection.
 7. Saves a record of what happened in the `data/` folder.
@@ -819,7 +819,7 @@ images/2026-06-01_3.jpg
 
 Supported formats are `.jpg`, `.jpeg`, `.png`, and `.webp`.
 
-Important: the current pipeline does not download media directly from LinkedIn. In this project, a "source image" means a date-matched file already present directly at the top level of `images/`. Discovery is deliberately non-recursive, so files inside `images/generated/` are never mistaken for LinkedIn source media. The pipeline also records LinkedIn's own image signal. If LinkedIn reports an image but the matching local source file is missing, the workflow stops instead of replacing that image with an AI fallback.
+Important: the current pipeline does not download media directly from LinkedIn. In this project, a "source image" means a date-matched file already present directly at the top level of `images/`. Discovery is deliberately non-recursive, so files inside `images/generated/` are never mistaken for LinkedIn source media. This folder is the sole image source of truth: when no matching top-level file exists, the pipeline generates a fallback even if LinkedIn's metadata reports media.
 
 When there are multiple images, the number decides the order. `_1` is first, `_2` is second, and so on. When there is only one image, the filename can just be the date.
 
@@ -834,7 +834,7 @@ Important: image URLs are built from the GitHub `main` branch. So if you run the
 
 ### OpenAI fallback for a post without a source image
 
-When LinkedIn reports that the post has no image and there is no matching source file, the production workflow:
+When there is no date-matched top-level source file, the production workflow:
 
 1. Checks again that Webflow does not already have the LinkedIn URL, avoiding an unnecessary paid image request.
 2. Uses `gpt-5.6-sol` to commit to exactly one article-specific concept and select exactly three distinct bundled style references. At least one chosen reference is human-centered.

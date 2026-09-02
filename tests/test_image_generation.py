@@ -183,15 +183,17 @@ class ImageGenerationTests(unittest.TestCase):
         completions.assert_not_called()
         self.assertEqual(list(self.generated_directory.iterdir()), [])
 
-    def test_linkedin_media_without_local_source_fails_closed_before_openai(self) -> None:
+    def test_linkedin_media_signal_without_dated_source_still_generates(self) -> None:
         client, edit, generate, completions = self.fake_client()
 
-        with self.assertRaisesRegex(RuntimeError, "LinkedIn reports"):
-            generate_missing_main_image({**POST, "linkedin_has_image": True}, config(), client=client)
+        result = generate_missing_main_image(
+            {**POST, "linkedin_has_image": True}, config(), client=client
+        )
 
-        edit.assert_not_called()
+        self.assertEqual(result["action"], "generated")
+        edit.assert_called_once()
         generate.assert_not_called()
-        completions.assert_not_called()
+        self.assertEqual(completions.call_count, 2)
 
     def test_generates_once_with_exactly_three_references_then_reviews_and_saves_png(self) -> None:
         client, edit, generate, completions = self.fake_client()
