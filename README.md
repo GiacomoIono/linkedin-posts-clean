@@ -839,7 +839,7 @@ When LinkedIn reports that the post has no image and there is no matching source
 1. Checks again that Webflow does not already have the LinkedIn URL, avoiding an unnecessary paid image request.
 2. Uses `gpt-5.6-sol` to commit to exactly one article-specific concept and select exactly three distinct bundled style references. At least one chosen reference is human-centered.
 3. Makes exactly one `gpt-image-2` image call requesting one exact `1536 x 864` PNG, with automatic SDK retries disabled.
-4. Rejects any sole raw result that is not a decodable exact-16:9 PNG, then uses `gpt-5.6-sol` for semantic review before resizing or compression. Preparation preserves the reviewed composition and never crops it. A failed review saves nothing and does not generate a replacement in the same run.
+4. Rejects any sole raw result that is not a decodable exact-16:9 PNG, then uses `gpt-5.6-sol` for semantic review before resizing or compression. That same vision review writes final ALT text from both the post context and the content actually visible in the rendered image. Preparation preserves the reviewed composition and never crops it. A failed review or empty final ALT saves nothing and does not generate a replacement in the same run.
 5. Prepares exactly one full-bleed PNG at an exact 16:9 ratio, preferring `1200 x 675`, and enforces a maximum size of 800,000 bytes.
 6. Saves it only under `images/generated/` with a stable filename containing the publication date, a descriptive slug, and a LinkedIn URL hash.
 7. Records its checksum, models, concept, quality review, references, prompt, dimensions, byte count, and ALT text in `data/generated_main_images.json`.
@@ -858,6 +858,8 @@ If a LinkedIn image is missing locally, or if image generation, validation, publ
 ## ALT Text
 
 Every image should leave the enrichment step with ALT text.
+
+For an OpenAI-generated fallback, `gpt-5.6-sol` inspects the sole raw PNG and writes the final ALT text from the post's central claim plus the people, action, setting, and metaphor actually visible in that PNG. The pipeline stores this reviewed value in the generated-image manifest and sends it with `main-image` to Webflow; it does not rely on the pre-render concept description.
 
 The pipeline tries, in order:
 

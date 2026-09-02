@@ -106,6 +106,7 @@ QUALITY_REVIEW_SCHEMA: dict[str, Any] = {
         "issues",
         "passed",
         "rationale",
+        "alt",
     ],
     "properties": {
         "article_fit": {"type": "integer", "minimum": 0, "maximum": 100},
@@ -117,6 +118,7 @@ QUALITY_REVIEW_SCHEMA: dict[str, Any] = {
         "issues": {"type": "array", "items": {"type": "string"}},
         "passed": {"type": "boolean"},
         "rationale": {"type": "string"},
+        "alt": {"type": "string"},
     },
 }
 
@@ -307,7 +309,6 @@ def generate_one_raw_image(
             quality=RAW_GENERATION_QUALITY,
             output_format=RAW_GENERATION_FORMAT,
             background="opaque",
-            input_fidelity="high",
         )
     return response_image_bytes(response)
 
@@ -356,6 +357,13 @@ def review_raw_image(
         raise RuntimeError("OpenAI returned incomplete image quality scores.") from exc
     if any(score < 0 or score > 100 for score in scores.values()):
         raise RuntimeError("OpenAI returned an image quality score outside 0-100.")
+    review["alt"] = soft_trim(
+        sanitize_text(str(review.get("alt") or "")), GENERATED_IMAGE_ALT_MAX
+    )
+    if not review["alt"]:
+        raise RuntimeError(
+            "OpenAI returned an empty final ALT description after reviewing the image."
+        )
     weighted_score = round(
         scores["article_fit"] * 0.30
         + scores["human_editorial_resonance"] * 0.25
@@ -408,7 +416,6 @@ def _save_generated_image(
                 references=reference_manifest(references),
                 prompt=prompt,
                 dimensions=dimensions,
-                alt=str(concept["alt"]),
             )
         except Exception:
             target.unlink(missing_ok=True)

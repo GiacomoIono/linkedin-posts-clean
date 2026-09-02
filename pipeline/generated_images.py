@@ -126,11 +126,15 @@ def record_generated_image(
     references: list[dict[str, Any]],
     prompt: str,
     dimensions: dict[str, int],
-    alt: str,
 ) -> None:
     post_url = post_identity(post)
     if not post_url:
         raise RuntimeError("Cannot register a generated image without a LinkedIn post URL.")
+    reviewed_alt = str(quality_review.get("alt") or "").strip()
+    if not reviewed_alt:
+        raise RuntimeError(
+            "Cannot register a generated image without ALT text from its quality review."
+        )
 
     manifest = load_generated_image_manifest()
     existing = manifest["files"].get(filename)
@@ -153,6 +157,6 @@ def record_generated_image(
             "height": int(dimensions["height"]),
         },
         "bytes": len(image_bytes),
-        "alt": alt,
+        "alt": reviewed_alt,
     }
     write_generated_image_manifest(manifest)

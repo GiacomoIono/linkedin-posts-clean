@@ -31,6 +31,7 @@ from pipeline.image_processing import (
     prepare_blog_main_png,
 )
 from pipeline.image_references import STYLE_REFERENCES, reference_manifest, validated_style_references
+from pipeline.webflow import build_field_data
 
 POST = {
     "content": "<p>AI is changing how customers discover and evaluate products.</p>",
@@ -65,6 +66,7 @@ PASSING_REVIEW = {
     "issues": [],
     "passed": True,
     "rationale": "The human story and changing path are clear.",
+    "alt": "A cautious marketer crosses a path that shifts into branching product-discovery routes.",
 }
 
 
@@ -166,7 +168,6 @@ class ImageGenerationTests(unittest.TestCase):
             references=reference_manifest(references),
             prompt="one prompt",
             dimensions=dimensions,
-            alt=CONCEPT["alt"],
         )
         return output, final_bytes
 
@@ -216,6 +217,7 @@ class ImageGenerationTests(unittest.TestCase):
         self.assertEqual(edit_kwargs["quality"], RAW_GENERATION_QUALITY)
         self.assertEqual(edit_kwargs["output_format"], RAW_GENERATION_FORMAT)
         self.assertEqual(edit_kwargs["output_format"], "png")
+        self.assertNotIn("input_fidelity", edit_kwargs)
         reference_names = [Path(handle.name).name for handle in edit_kwargs["image"]]
         self.assertEqual(len(reference_names), 3)
         self.assertEqual(len(set(reference_names)), 3)
@@ -236,8 +238,16 @@ class ImageGenerationTests(unittest.TestCase):
         self.assertEqual(len(entry["references"]), 3)
         self.assertEqual(entry["dimensions"], {"width": 1200, "height": 675})
         self.assertEqual(entry["bytes"], output.stat().st_size)
-        self.assertEqual(entry["alt"], CONCEPT["alt"])
+        self.assertEqual(entry["alt"], PASSING_REVIEW["alt"])
+        self.assertNotEqual(entry["alt"], CONCEPT["alt"])
         self.assertIn("Primary request", entry["prompt"])
+
+        attached = attach_generated_main_image(
+            POST, config(image_public_ref="committed-image-sha")
+        )
+        self.assertEqual(
+            build_field_data(attached)["main-image"]["alt"], PASSING_REVIEW["alt"]
+        )
 
     def test_default_client_disables_automatic_sdk_retries(self) -> None:
         client, edit, _, _ = self.fake_client()
@@ -264,6 +274,42 @@ class ImageGenerationTests(unittest.TestCase):
         generate.assert_not_called()
         self.assertEqual(completions.call_count, 2)
         self.assertFalse(generated_image_path(POST).exists())
+        self.assertFalse(self.manifest_path.exists())
+
+    def test_missing_post_render_review_alt_saves_nothing(self) -> None:
+        client, edit, generate, completions = self.fake_client(
+            review={**PASSING_REVIEW, "alt": ""}
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "empty final ALT"):
+            generate_missing_main_image(POST, config(), client=client)
+
+        edit.assert_called_once()
+        generate.assert_not_called()
+        self.assertEqual(completions.call_count, 2)
+        self.assertFalse(generated_image_path(POST).exists())
+        self.assertFalse(self.manifest_path.exists())
+
+    def test_manifest_registration_requires_quality_review_alt(self) -> None:
+        final_bytes, dimensions = prepare_blog_main_png(png_bytes())
+
+        with self.assertRaisesRegex(RuntimeError, "ALT text from its quality review"):
+            record_generated_image(
+                POST,
+                generated_image_filename(POST),
+                final_bytes,
+                renderer_model="gpt-image-2",
+                planner_model="gpt-5.6-sol",
+                qa_model="gpt-5.6-sol",
+                concept=CONCEPT,
+                quality_review={**PASSING_REVIEW, "alt": ""},
+                references=reference_manifest(
+                    validated_style_references(CONCEPT["reference_ids"])
+                ),
+                prompt="one prompt",
+                dimensions=dimensions,
+            )
+
         self.assertFalse(self.manifest_path.exists())
 
     def test_invalid_raw_image_stops_before_quality_review_or_save(self) -> None:
@@ -346,7 +392,7 @@ class ImageGenerationTests(unittest.TestCase):
         enriched = attach_generated_main_image(POST, config(image_public_ref="abc123"))
 
         self.assertEqual(enriched["images"], [])
-        self.assertEqual(enriched["generated_main_image"]["alt"], CONCEPT["alt"])
+        self.assertEqual(enriched["generated_main_image"]["alt"], PASSING_REVIEW["alt"])
         self.assertEqual(
             enriched["generated_main_image"]["url"],
             "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/abc123/"
