@@ -7,13 +7,12 @@ import json
 import re
 import time
 import unicodedata
-from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
 import requests
-from openai import OpenAI
+from openai import APIConnectionError, OpenAI
 
 from .config import GENERATED_IMAGE_DIR, PipelineConfig
 from .enrichment import load_prompts, response_text
@@ -42,13 +41,21 @@ from .utils import post_identity, sanitize_text, soft_trim, strip_html_to_text
 RAW_GENERATION_SIZE = "1536x864"
 RAW_GENERATION_QUALITY = "high"
 RAW_GENERATION_FORMAT = "png"
-GENERATED_IMAGE_TIMEOUT_SECONDS = 180.0
+GENERATED_IMAGE_TIMEOUT_SECONDS = 600.0
+BACKGROUND_IMAGE_POLL_SECONDS = 2.0
+BACKGROUND_IMAGE_MAX_SECONDS = 480.0
+BACKGROUND_STATUS_TIMEOUT_SECONDS = 30.0
 GENERATED_IMAGE_ALT_MAX = 180
 MAX_IMAGE_PROMPT_CONTENT = 6000
 PUBLIC_IMAGE_MAX_ATTEMPTS = 10
 PUBLIC_IMAGE_RETRY_SECONDS = 5
 RAW_REPOSITORY_URL = "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean"
 POST_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+FORBIDDEN_VISUAL_MOTIF_RE = re.compile(
+    r"\b(?:(?:speech|dialogue|word)[- ](?:bubbles?|balloons?)|"
+    r"speed[- ]lines?|panel[- ]grids?|comic[- ]panels?|superhero[- ]comic)\b",
+    re.IGNORECASE,
+)
 
 CONCEPT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -109,11 +116,36 @@ QUALITY_REVIEW_SCHEMA: dict[str, Any] = {
         "alt",
     ],
     "properties": {
-        "article_fit": {"type": "integer", "minimum": 0, "maximum": 100},
-        "human_editorial_resonance": {"type": "integer", "minimum": 0, "maximum": 100},
-        "thumbnail_clarity": {"type": "integer", "minimum": 0, "maximum": 100},
-        "house_style_match": {"type": "integer", "minimum": 0, "maximum": 100},
-        "technical_cleanliness": {"type": "integer", "minimum": 0, "maximum": 100},
+        "article_fit": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Independent 0-100 score before applying the 30 percent weight.",
+        },
+        "human_editorial_resonance": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Independent 0-100 score before applying the 25 percent weight.",
+        },
+        "thumbnail_clarity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Independent 0-100 score before applying the 20 percent weight.",
+        },
+        "house_style_match": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Independent 0-100 score before applying the 15 percent weight.",
+        },
+        "technical_cleanliness": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Independent 0-100 score before applying the 10 percent weight.",
+        },
         "material_defect": {"type": "boolean"},
         "issues": {"type": "array", "items": {"type": "string"}},
         "passed": {"type": "boolean"},
@@ -224,6 +256,20 @@ def plan_image_concept(
     motifs = concept.get("motifs")
     if not isinstance(motifs, list) or not 2 <= len(motifs) <= 3:
         raise RuntimeError("OpenAI must choose two or three concrete motifs for the sole image concept.")
+    concept_visual_text = "\n".join(
+        [
+            *(str(motif) for motif in motifs),
+            str(concept.get("scene") or ""),
+            str(concept.get("backdrop") or ""),
+            str(concept.get("subject") or ""),
+        ]
+    )
+    forbidden_motif = FORBIDDEN_VISUAL_MOTIF_RE.search(concept_visual_text)
+    if forbidden_motif:
+        raise RuntimeError(
+            "OpenAI planned a visual motif forbidden by the image skill: "
+            f"{forbidden_motif.group(0)}. No image was generated."
+        )
     concept["alt"] = soft_trim(sanitize_text(str(concept["alt"])), GENERATED_IMAGE_ALT_MAX)
     if not concept["alt"]:
         raise RuntimeError("OpenAI returned an empty ALT description for the image concept.")
@@ -262,18 +308,25 @@ def build_generation_prompt(
             "Color palette: greyscale-led, low-saturation stone and charcoal midtones with one or two restrained blue, rust, amber, burgundy, or forest accents",
             "Text: none",
             "Constraints: concept must communicate the article's central thesis; synthesize the references' visual family without copying their literal subjects or layouts; prefer a clear human emotional anchor; non-photorealistic; no title, caption, lettering, logo, watermark, or visible brand mark",
-            "Avoid: neon or flashy colors, pitch-black areas, glossy 3D, flat corporate vector art, generic stock imagery, visual clutter, ornate mechanical spectacle, and comic-panel borders",
+            "Avoid: neon or flashy colors, pitch-black areas, glossy 3D, flat corporate vector art, generic stock imagery, visual clutter, ornate mechanical spectacle, speech bubbles, dialogue or word balloons, speed lines, panel grids, comic panels, superhero-comic exaggeration, and comic-panel borders",
         ]
     )
 
 
-def response_image_bytes(response: Any) -> bytes:
-    data = getattr(response, "data", None)
-    if not isinstance(data, list) or len(data) != 1:
-        raise RuntimeError("OpenAI must return exactly one image result.")
-    encoded = str(getattr(data[0], "b64_json", "") or "")
+def background_image_bytes(response: Any) -> bytes:
+    image_calls = [
+        output
+        for output in (getattr(response, "output", None) or [])
+        if getattr(output, "type", "") == "image_generation_call"
+    ]
+    if len(image_calls) != 1:
+        raise RuntimeError("OpenAI must return exactly one image generation call.")
+    image_call = image_calls[0]
+    if getattr(image_call, "status", "") != "completed":
+        raise RuntimeError("OpenAI's sole image generation call did not complete.")
+    encoded = str(getattr(image_call, "result", "") or "")
     if not encoded:
-        raise RuntimeError("OpenAI returned no image data.")
+        raise RuntimeError("OpenAI returned a completed image without image data.")
     try:
         return base64.b64decode(encoded, validate=True)
     except (binascii.Error, ValueError) as exc:
@@ -286,19 +339,88 @@ def generate_one_raw_image(
     prompt: str,
     references: tuple[StyleReference, ...],
 ) -> bytes:
-    with ExitStack() as stack:
-        reference_files = [stack.enter_context(reference.path.open("rb")) for reference in references]
-        response = client.images.edit(
-            model=config.openai_image_model,
-            image=reference_files,
-            prompt=prompt,
-            n=1,
-            size=RAW_GENERATION_SIZE,
-            quality=RAW_GENERATION_QUALITY,
-            output_format=RAW_GENERATION_FORMAT,
-            background="opaque",
+    content: list[dict[str, str]] = [{"type": "input_text", "text": prompt}]
+    for reference in references:
+        encoded = base64.b64encode(reference.path.read_bytes()).decode("ascii")
+        content.append(
+            {
+                "type": "input_image",
+                "image_url": f"data:image/png;base64,{encoded}",
+                "detail": "original",
+            }
         )
-    return response_image_bytes(response)
+
+    started_at = time.monotonic()
+    try:
+        response = client.responses.create(
+            model=config.openai_model,
+            input=[{"role": "user", "content": content}],
+            tools=[
+                {
+                    "type": "image_generation",
+                    "model": config.openai_image_model,
+                    "action": "generate",
+                    "size": RAW_GENERATION_SIZE,
+                    "quality": RAW_GENERATION_QUALITY,
+                    "output_format": RAW_GENERATION_FORMAT,
+                    "background": "opaque",
+                    "partial_images": 0,
+                }
+            ],
+            tool_choice={"type": "image_generation"},
+            max_tool_calls=1,
+            parallel_tool_calls=False,
+            reasoning={"effort": "low"},
+            background=True,
+            store=False,
+        )
+    except APIConnectionError as exc:
+        elapsed = time.monotonic() - started_at
+        cause = type(exc.__cause__).__name__ if exc.__cause__ else "unknown"
+        print(
+            "OpenAI background image submission failed after "
+            f"{elapsed:.1f}s ({type(exc).__name__}; cause={cause}). "
+            "No automatic generation retry was attempted."
+        )
+        raise
+
+    response_id = str(getattr(response, "id", "") or "")
+    if not response_id:
+        raise RuntimeError("OpenAI background image submission returned no response ID.")
+
+    deadline = started_at + BACKGROUND_IMAGE_MAX_SECONDS
+    while getattr(response, "status", "") in {"queued", "in_progress"}:
+        if time.monotonic() >= deadline:
+            raise RuntimeError(
+                "OpenAI background image generation did not finish within "
+                f"{BACKGROUND_IMAGE_MAX_SECONDS:.0f} seconds. The generation call "
+                "was not retried."
+            )
+        time.sleep(BACKGROUND_IMAGE_POLL_SECONDS)
+        try:
+            response = client.responses.retrieve(
+                response_id, timeout=BACKGROUND_STATUS_TIMEOUT_SECONDS
+            )
+        except APIConnectionError as exc:
+            elapsed = time.monotonic() - started_at
+            cause = type(exc.__cause__).__name__ if exc.__cause__ else "unknown"
+            print(
+                "OpenAI background image status check failed after "
+                f"{elapsed:.1f}s ({type(exc).__name__}; cause={cause}). "
+                "The existing generation will be checked again; no new image request "
+                "was made."
+            )
+            continue
+
+    status = str(getattr(response, "status", "") or "unknown")
+    if status != "completed":
+        error = getattr(response, "error", None)
+        error_code = str(getattr(error, "code", "") or "unknown")
+        raise RuntimeError(
+            f"OpenAI background image generation ended with status {status} "
+            f"(error code: {error_code})."
+        )
+    return background_image_bytes(response)
 
 
 def review_raw_image(
@@ -345,6 +467,26 @@ def review_raw_image(
         raise RuntimeError("OpenAI returned incomplete image quality scores.") from exc
     if any(score < 0 or score > 100 for score in scores.values()):
         raise RuntimeError("OpenAI returned an image quality score outside 0-100.")
+    weighted_point_caps = {
+        "article_fit": 30,
+        "human_editorial_resonance": 25,
+        "thumbnail_clarity": 20,
+        "house_style_match": 15,
+        "technical_cleanliness": 10,
+    }
+    # A passing/no-defect review cannot plausibly put every independent score
+    # below its percentage weight. Fail closed when the model instead returns
+    # weighted category points such as 29/24/18/15/10.
+    if (
+        review.get("passed") is True
+        and review.get("material_defect") is False
+        and sum(scores.values()) >= 50
+        and all(scores[field] <= weighted_point_caps[field] for field in score_fields)
+    ):
+        raise RuntimeError(
+            "OpenAI returned category-weight points instead of independent 0-100 "
+            "image quality scores. Nothing was saved."
+        )
     review["alt"] = soft_trim(
         sanitize_text(str(review.get("alt") or "")), GENERATED_IMAGE_ALT_MAX
     )

@@ -14,6 +14,8 @@ from PIL import Image
 
 from pipeline.generated_images import load_generated_image_manifest, record_generated_image
 from pipeline.image_generation import (
+    BACKGROUND_STATUS_TIMEOUT_SECONDS,
+    GENERATED_IMAGE_TIMEOUT_SECONDS,
     PUBLIC_IMAGE_MAX_ATTEMPTS,
     RAW_GENERATION_FORMAT,
     RAW_GENERATION_QUALITY,
@@ -111,6 +113,7 @@ class ImageGenerationTests(unittest.TestCase):
 
         self.patches = [
             patch("pipeline.image_generation.GENERATED_IMAGE_DIR", self.generated_directory),
+            patch("pipeline.image_generation.BACKGROUND_IMAGE_POLL_SECONDS", 0.0),
             patch("pipeline.generated_images.GENERATED_IMAGE_MANIFEST_PATH", self.manifest_path),
             patch("pipeline.image_references.STYLE_REFERENCE_DIR", self.reference_directory),
         ]
@@ -128,13 +131,27 @@ class ImageGenerationTests(unittest.TestCase):
         review: dict | None = None,
         concept: dict | None = None,
     ) -> tuple[SimpleNamespace, Mock, Mock, Mock]:
-        edit = Mock(
+        completed_image = base64.b64encode(image_bytes or png_bytes()).decode("ascii")
+        create = Mock(
             return_value=SimpleNamespace(
-                data=[
+                id="resp-image-test",
+                status="in_progress",
+                output=[],
+                error=None,
+            )
+        )
+        retrieve = Mock(
+            return_value=SimpleNamespace(
+                id="resp-image-test",
+                status="completed",
+                output=[
                     SimpleNamespace(
-                        b64_json=base64.b64encode(image_bytes or png_bytes()).decode("ascii")
+                        type="image_generation_call",
+                        status="completed",
+                        result=completed_image,
                     )
-                ]
+                ],
+                error=None,
             )
         )
         generate = Mock()
@@ -145,10 +162,11 @@ class ImageGenerationTests(unittest.TestCase):
             ]
         )
         client = SimpleNamespace(
-            images=SimpleNamespace(edit=edit, generate=generate),
+            responses=SimpleNamespace(create=create, retrieve=retrieve),
+            images=SimpleNamespace(generate=generate),
             chat=SimpleNamespace(completions=SimpleNamespace(create=completions)),
         )
-        return client, edit, generate, completions
+        return client, create, generate, completions
 
     def write_registered_image(self, post: dict | None = None) -> tuple[Path, bytes]:
         chosen_post = post or POST
@@ -211,26 +229,73 @@ class ImageGenerationTests(unittest.TestCase):
         generate.assert_not_called()
         self.assertEqual(completions.call_count, 2)
 
-        edit_kwargs = edit.call_args.kwargs
-        self.assertEqual(edit_kwargs["model"], "gpt-image-2")
-        self.assertEqual(edit_kwargs["n"], 1)
-        self.assertEqual(edit_kwargs["size"], RAW_GENERATION_SIZE)
-        self.assertEqual(edit_kwargs["size"], "1536x864")
-        self.assertEqual(edit_kwargs["quality"], RAW_GENERATION_QUALITY)
-        self.assertEqual(edit_kwargs["output_format"], RAW_GENERATION_FORMAT)
-        self.assertEqual(edit_kwargs["output_format"], "png")
-        self.assertNotIn("input_fidelity", edit_kwargs)
-        reference_names = [Path(handle.name).name for handle in edit_kwargs["image"]]
-        self.assertEqual(len(reference_names), 3)
-        self.assertEqual(len(set(reference_names)), 3)
-        self.assertTrue(reference_names[0].startswith("03-"))
-        self.assertIn("Input images: Image 1: style reference", edit_kwargs["prompt"])
-        self.assertIn("Text: none", edit_kwargs["prompt"])
+        create_kwargs = edit.call_args.kwargs
+        self.assertEqual(create_kwargs["model"], "gpt-5.6-sol")
+        self.assertIs(create_kwargs["background"], True)
+        self.assertIs(create_kwargs["store"], False)
+        self.assertEqual(create_kwargs["max_tool_calls"], 1)
+        self.assertIs(create_kwargs["parallel_tool_calls"], False)
+        self.assertEqual(create_kwargs["tool_choice"], {"type": "image_generation"})
+
+        tool = create_kwargs["tools"][0]
+        self.assertEqual(tool["model"], "gpt-image-2")
+        self.assertEqual(tool["action"], "generate")
+        self.assertEqual(tool["size"], RAW_GENERATION_SIZE)
+        self.assertEqual(tool["size"], "1536x864")
+        self.assertEqual(tool["quality"], RAW_GENERATION_QUALITY)
+        self.assertEqual(tool["output_format"], RAW_GENERATION_FORMAT)
+        self.assertEqual(tool["output_format"], "png")
+        self.assertEqual(tool["partial_images"], 0)
+        self.assertNotIn("input_fidelity", tool)
+
+        content = create_kwargs["input"][0]["content"]
+        self.assertIn("Input images: Image 1: style reference", content[0]["text"])
+        self.assertIn("Text: none", content[0]["text"])
+        self.assertIn("speech bubbles", content[0]["text"])
+        reference_content = content[1:]
+        self.assertEqual(len(reference_content), 3)
+        self.assertTrue(all(item["detail"] == "original" for item in reference_content))
+        reference_bytes = [
+            base64.b64decode(item["image_url"].partition(",")[2])
+            for item in reference_content
+        ]
+        expected_references = validated_style_references(CONCEPT["reference_ids"])
+        self.assertEqual(
+            reference_bytes, [item.path.read_bytes() for item in expected_references]
+        )
+        client.responses.retrieve.assert_called_once_with(
+            "resp-image-test", timeout=BACKGROUND_STATUS_TIMEOUT_SECONDS
+        )
 
         self.assertEqual(completions.call_args_list[0].kwargs["model"], "gpt-5.6-sol")
         self.assertEqual(completions.call_args_list[1].kwargs["model"], "gpt-5.6-sol")
+        concept_system = completions.call_args_list[0].kwargs["messages"][0]["content"]
+        self.assertIn("Never use speech bubbles", concept_system)
+        concept_user = completions.call_args_list[0].kwargs["messages"][1]["content"]
+        self.assertIn("must not contain speech bubbles", concept_user)
+        qa_system = completions.call_args_list[1].kwargs["messages"][0]["content"]
+        self.assertIn("independently from 0 to 100", qa_system)
+        for forbidden_family in (
+            "speech bubbles",
+            "speed lines",
+            "panel grids",
+            "comic panels",
+            "superhero-comic exaggeration",
+        ):
+            self.assertIn(forbidden_family, content[0]["text"])
+            self.assertIn(forbidden_family, qa_system)
         qa_content = completions.call_args_list[1].kwargs["messages"][1]["content"]
+        self.assertIn("not as points capped", qa_content[0]["text"])
         self.assertTrue(qa_content[1]["image_url"]["url"].startswith("data:image/png;base64,"))
+        qa_schema = completions.call_args_list[1].kwargs["response_format"]["json_schema"]["schema"]
+        for field in (
+            "article_fit",
+            "human_editorial_resonance",
+            "thumbnail_clarity",
+            "house_style_match",
+            "technical_cleanliness",
+        ):
+            self.assertIn("Independent 0-100 score", qa_schema["properties"][field]["description"])
 
         entry = load_generated_image_manifest()["files"][output.name]
         self.assertEqual(entry["sha256"], hashlib.sha256(output.read_bytes()).hexdigest())
@@ -251,13 +316,36 @@ class ImageGenerationTests(unittest.TestCase):
             build_field_data(attached)["main-image"]["alt"], PASSING_REVIEW["alt"]
         )
 
-    def test_default_client_disables_automatic_sdk_retries(self) -> None:
+    def test_default_client_allows_one_long_request_without_sdk_retries(self) -> None:
         client, edit, _, _ = self.fake_client()
         with patch("pipeline.image_generation.OpenAI", return_value=client) as openai:
             generate_missing_main_image(POST, config())
 
         self.assertEqual(openai.call_args.kwargs["max_retries"], 0)
+        self.assertEqual(GENERATED_IMAGE_TIMEOUT_SECONDS, 600.0)
+        self.assertEqual(openai.call_args.kwargs["timeout"], 600.0)
         edit.assert_called_once()
+
+    def test_mixed_background_image_calls_are_rejected_without_saving(self) -> None:
+        client, create, generate, completions = self.fake_client()
+        completed = client.responses.retrieve.return_value.output[0]
+        client.responses.retrieve.return_value.output = [
+            completed,
+            SimpleNamespace(
+                type="image_generation_call",
+                status="failed",
+                result=None,
+            ),
+        ]
+
+        with self.assertRaisesRegex(RuntimeError, "exactly one image generation call"):
+            generate_missing_main_image(POST, config(), client=client)
+
+        create.assert_called_once()
+        generate.assert_not_called()
+        self.assertEqual(completions.call_count, 1)
+        self.assertFalse(generated_image_path(POST).exists())
+        self.assertFalse(self.manifest_path.exists())
 
     def test_failed_semantic_review_saves_nothing_and_does_not_retry(self) -> None:
         failed_review = {
@@ -273,6 +361,53 @@ class ImageGenerationTests(unittest.TestCase):
             generate_missing_main_image(POST, config(), client=client)
 
         edit.assert_called_once()
+        generate.assert_not_called()
+        self.assertEqual(completions.call_count, 2)
+        self.assertFalse(generated_image_path(POST).exists())
+        self.assertFalse(self.manifest_path.exists())
+
+    def test_forbidden_planned_motif_stops_before_image_generation(self) -> None:
+        for forbidden_motif in (
+            "blank speech balloon",
+            "dramatic speed lines",
+            "panel grid",
+            "three comic panels",
+            "superhero-comic exaggeration",
+        ):
+            with self.subTest(forbidden_motif=forbidden_motif):
+                forbidden_concept = {
+                    **CONCEPT,
+                    "motifs": ["marketer", forbidden_motif, "boardroom"],
+                    "scene": f"A marketer crosses a boardroom with {forbidden_motif}.",
+                }
+                client, create, generate, completions = self.fake_client(
+                    concept=forbidden_concept
+                )
+
+                with self.assertRaisesRegex(RuntimeError, "forbidden by the image skill"):
+                    generate_missing_main_image(POST, config(), client=client)
+
+                create.assert_not_called()
+                generate.assert_not_called()
+                completions.assert_called_once()
+                self.assertFalse(generated_image_path(POST).exists())
+                self.assertFalse(self.manifest_path.exists())
+
+    def test_weight_point_scores_are_rejected_as_malformed(self) -> None:
+        weighted_points = {
+            **PASSING_REVIEW,
+            "article_fit": 29,
+            "human_editorial_resonance": 24,
+            "thumbnail_clarity": 18,
+            "house_style_match": 15,
+            "technical_cleanliness": 10,
+        }
+        client, create, generate, completions = self.fake_client(review=weighted_points)
+
+        with self.assertRaisesRegex(RuntimeError, "category-weight points"):
+            generate_missing_main_image(POST, config(), client=client)
+
+        create.assert_called_once()
         generate.assert_not_called()
         self.assertEqual(completions.call_count, 2)
         self.assertFalse(generated_image_path(POST).exists())
