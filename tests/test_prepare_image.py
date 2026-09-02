@@ -70,7 +70,7 @@ class PrepareImageTests(unittest.TestCase):
         generate.assert_not_called()
 
     def test_missing_source_image_generates_after_duplicate_check(self) -> None:
-        expected = {"action": "generated", "path": "image.jpeg"}
+        expected = {"action": "generated", "path": "images/generated/image.png"}
         with (
             patch(
                 "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=POST
@@ -138,7 +138,7 @@ class VerifyImageTests(unittest.TestCase):
             patch(
                 "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=POST
             ),
-            patch("pipeline.prepare_image.is_valid_jpeg_file", return_value=False),
+            patch("pipeline.prepare_image.is_valid_prepared_png_file", return_value=False),
             patch("pipeline.prepare_image.wait_for_generated_image_public") as verify,
         ):
             exit_code = verify_latest_post_image(config())
@@ -152,7 +152,7 @@ class VerifyImageTests(unittest.TestCase):
             patch(
                 "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=POST
             ),
-            patch("pipeline.prepare_image.is_valid_jpeg_file", return_value=True),
+            patch("pipeline.prepare_image.is_valid_prepared_png_file", return_value=True),
             patch("pipeline.prepare_image.wait_for_generated_image_public") as verify,
         ):
             exit_code = verify_latest_post_image(image_config)

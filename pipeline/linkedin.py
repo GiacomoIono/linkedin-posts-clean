@@ -8,10 +8,6 @@ from typing import Any
 import requests
 
 from .config import IMAGE_DIR
-from .generated_images import (
-    registered_generated_filenames,
-    validate_registered_generated_image,
-)
 
 LINKEDIN_CHANGE_LOG_URL = "https://api.linkedin.com/rest/memberChangeLogs"
 LINKEDIN_VERSION = "202312"
@@ -36,17 +32,14 @@ def find_images_for_date(post_date: str) -> list[dict[str, str]]:
     if not IMAGE_DIR.is_dir():
         return []
 
-    generated_filenames = registered_generated_filenames()
     filenames = []
+    # Direct children only: the nested images/generated/ directory is never source media.
     for item in IMAGE_DIR.iterdir():
         if not (
             item.is_file()
             and item.name.startswith(post_date)
             and item.name.lower().endswith(IMAGE_EXTENSIONS)
         ):
-            continue
-        if item.name in generated_filenames:
-            validate_registered_generated_image(item)
             continue
         filenames.append(item.name)
     filenames.sort(key=image_filename_sort_key)

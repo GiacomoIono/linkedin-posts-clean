@@ -12,12 +12,12 @@ from .config import (
 from .image_generation import (
     generate_missing_main_image,
     generated_image_path,
-    is_valid_jpeg_file,
     linkedin_reports_image,
     missing_linkedin_source_image_error,
     source_images,
     wait_for_generated_image_public,
 )
+from .image_processing import is_valid_prepared_png_file
 from .linkedin import fetch_latest_linkedin_post
 from .utils import post_identity
 from .webflow import find_live_webflow_item, item_id_from
@@ -73,9 +73,9 @@ def verify_latest_post_image(config: PipelineConfig) -> int:
         )
         return 0
 
-    if not is_valid_jpeg_file(generated_image_path(latest_post)):
+    if not is_valid_prepared_png_file(generated_image_path(latest_post)):
         print(
-            "No prepared generated JPEG exists locally. No public image URL needs verification."
+            "No prepared generated PNG exists locally. No public image URL needs verification."
         )
         return 0
 
@@ -96,7 +96,7 @@ def cli() -> int:
     parser.add_argument(
         "--verify-public",
         action="store_true",
-        help="Verify the commit-pinned generated JPEG URL without calling OpenAI or Webflow.",
+        help="Verify the commit-pinned generated PNG URL without calling OpenAI or Webflow.",
     )
     args = parser.parse_args()
     return main(verify_public=args.verify_public)

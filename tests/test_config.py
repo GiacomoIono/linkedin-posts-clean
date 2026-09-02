@@ -9,6 +9,8 @@ from pipeline.config import (
     DEFAULT_OPENAI_IMAGE_MODEL,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_WEBFLOW_COLLECTION_ID,
+    GENERATED_IMAGE_DIR,
+    IMAGE_DIR,
     load_config,
 )
 
@@ -21,12 +23,14 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.linkedin_access_token, "")
         self.assertEqual(config.openai_api_key, "")
         self.assertEqual(config.openai_model, DEFAULT_OPENAI_MODEL)
+        self.assertEqual(config.openai_model, "gpt-5.6-sol")
         self.assertEqual(config.webflow_api_token, "")
         self.assertEqual(config.webflow_collection_id, DEFAULT_WEBFLOW_COLLECTION_ID)
         self.assertTrue(config.webflow_publish)
         self.assertFalse(config.force_webflow_sync)
         self.assertEqual(config.openai_image_model, DEFAULT_OPENAI_IMAGE_MODEL)
         self.assertEqual(config.image_public_ref, DEFAULT_IMAGE_PUBLIC_REF)
+        self.assertEqual(GENERATED_IMAGE_DIR, IMAGE_DIR / "generated")
 
     def test_loads_active_settings_from_environment(self) -> None:
         environment = {

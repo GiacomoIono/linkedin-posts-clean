@@ -23,4 +23,5 @@ __pycache__/
 /images/*.gz
 /images/*.7z
 /images/*.tmp
+/images/generated/*.tmp
 /data/generated_main_images.json.tmp

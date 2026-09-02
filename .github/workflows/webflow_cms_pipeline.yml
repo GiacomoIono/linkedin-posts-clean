@@ -39,6 +39,7 @@ jobs:
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-5.6-sol
           OPENAI_IMAGE_MODEL: gpt-image-2
           WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS || vars.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
           WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'
@@ -65,7 +66,7 @@ jobs:
           git config rebase.autoStash true
 
           changed_files=$(git status --porcelain -- \
-            images \
+            images/generated \
             data/generated_main_images.json)
 
           if [ -z "$changed_files" ]; then
@@ -77,7 +78,7 @@ jobs:
           echo "$changed_files"
 
           git add -- \
-            images \
+            images/generated \
             data/generated_main_images.json
           git commit -m "chore(bot): add generated fallback image for $(date -u +'%Y-%m-%d')"
 
@@ -108,7 +109,7 @@ jobs:
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: gpt-5-nano
+          OPENAI_MODEL: gpt-5.6-sol
           OPENAI_IMAGE_MODEL: gpt-image-2
           WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS || vars.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
           WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'

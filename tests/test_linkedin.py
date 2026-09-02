@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import Mock, call, patch
 
-from pipeline.generated_images import record_generated_image
 from pipeline.linkedin import (
     LINKEDIN_CHANGE_LOG_URL,
     LINKEDIN_VERSION,
@@ -115,155 +114,31 @@ class LinkedInTests(unittest.TestCase):
 
         self.assertTrue(linkedin_share_has_image(content))
 
-    def test_registered_generated_image_is_excluded_after_refetch(self) -> None:
-        post_url = "https://www.linkedin.com/feed/update/urn:li:ugcPost:123"
-        post = {
-            "url": post_url,
-            "published_at": "2026-08-25T08:00:00",
-        }
+    def test_find_images_only_scans_ordered_top_level_source_files(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            image_directory = root / "images"
+            image_directory = Path(temporary_directory) / "images"
             image_directory.mkdir()
-            manifest_path = root / "data" / "generated_main_images.json"
-            generated_path = image_directory / "2026-08-25.jpeg"
-            generated_bytes = b"registered generated image"
-            generated_path.write_bytes(generated_bytes)
-
-            with (
-                patch("pipeline.linkedin.IMAGE_DIR", image_directory),
-                patch(
-                    "pipeline.generated_images.GENERATED_IMAGE_MANIFEST_PATH",
-                    manifest_path,
-                ),
+            generated_directory = image_directory / "generated"
+            generated_directory.mkdir()
+            for filename in (
+                "2026-08-25_10.jpg",
+                "2026-08-25_2.png",
+                "2026-08-25_1.webp",
+                "2026-08-24_1.jpg",
             ):
-                record_generated_image(
-                    post,
-                    generated_path.name,
-                    generated_bytes,
-                    "gpt-image-2",
-                )
-                generated_only_images = find_images_for_date("2026-08-25")
-                (image_directory / "2026-08-25_1.jpg").write_bytes(b"source image")
-                images_with_source = find_images_for_date("2026-08-25")
+                (image_directory / filename).write_bytes(b"source")
+            (generated_directory / "2026-08-25-nested-generated.png").write_bytes(
+                b"generated"
+            )
 
-        self.assertEqual(generated_only_images, [])
-        self.assertEqual(
-            images_with_source,
-            [
-                {
-                    "url": "https://raw.githubusercontent.com/GiacomoIono/"
-                    "linkedin-posts-clean/refs/heads/main/images/2026-08-25_1.jpg",
-                    "alt": "",
-                }
-            ],
-        )
-
-    def test_same_date_generated_image_does_not_block_a_newer_sourced_post(
-        self,
-    ) -> None:
-        post_date = "2026-05-31"
-        older_timestamp = int(
-            datetime(2026, 5, 31, 8, 0, tzinfo=timezone.utc).timestamp() * 1000
-        )
-        latest_timestamp = int(
-            datetime(2026, 5, 31, 12, 0, tzinfo=timezone.utc).timestamp() * 1000
-        )
-        older_url = (
-            "https://www.linkedin.com/feed/update/urn:li:ugcPost:generated-older"
-        )
-        older_post = {
-            "url": older_url,
-            "published_at": "2026-05-31T08:00:00",
-        }
-
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            image_directory = root / "images"
-            image_directory.mkdir()
-            manifest_path = root / "data" / "generated_main_images.json"
-            generated_path = image_directory / f"{post_date}.jpeg"
-            generated_bytes = b"registered generated image"
-            generated_path.write_bytes(generated_bytes)
-            (image_directory / f"{post_date}_1.jpg").write_bytes(b"source image")
-
-            with (
-                patch("pipeline.linkedin.datetime", FixedDatetime),
-                patch("pipeline.linkedin.IMAGE_DIR", image_directory),
-                patch(
-                    "pipeline.generated_images.GENERATED_IMAGE_MANIFEST_PATH",
-                    manifest_path,
-                ),
-                patch(
-                    "pipeline.linkedin.requests.get",
-                    return_value=api_response(
-                        [
-                            ugc_post(
-                                older_timestamp,
-                                "urn:li:ugcPost:generated-older",
-                            ),
-                            ugc_post(
-                                latest_timestamp,
-                                "urn:li:ugcPost:sourced-latest",
-                            ),
-                        ]
-                    ),
-                ),
-            ):
-                record_generated_image(
-                    older_post,
-                    generated_path.name,
-                    generated_bytes,
-                    "gpt-image-2",
-                )
-                post = fetch_latest_linkedin_post("token")
+            with patch("pipeline.linkedin.IMAGE_DIR", image_directory):
+                images = find_images_for_date("2026-08-25")
 
         self.assertEqual(
-            post["url"],
-            "https://www.linkedin.com/feed/update/urn:li:ugcPost:sourced-latest",
+            [image["url"].rsplit("/", 1)[-1] for image in images],
+            ["2026-08-25_1.webp", "2026-08-25_2.png", "2026-08-25_10.jpg"],
         )
-        self.assertEqual(
-            post["images"],
-            [
-                {
-                    "url": "https://raw.githubusercontent.com/GiacomoIono/"
-                    "linkedin-posts-clean/refs/heads/main/images/"
-                    "2026-05-31_1.jpg",
-                    "alt": "",
-                }
-            ],
-        )
-
-    def test_generated_image_checksum_mismatch_fails_during_refetch(self) -> None:
-        post_url = "https://www.linkedin.com/feed/update/urn:li:ugcPost:123"
-        post = {
-            "url": post_url,
-            "published_at": "2026-08-25T08:00:00",
-        }
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            image_directory = root / "images"
-            image_directory.mkdir()
-            manifest_path = root / "data" / "generated_main_images.json"
-            generated_path = image_directory / "2026-08-25.jpeg"
-            generated_path.write_bytes(b"original")
-
-            with (
-                patch("pipeline.linkedin.IMAGE_DIR", image_directory),
-                patch(
-                    "pipeline.generated_images.GENERATED_IMAGE_MANIFEST_PATH",
-                    manifest_path,
-                ),
-            ):
-                record_generated_image(
-                    post,
-                    generated_path.name,
-                    b"original",
-                    "gpt-image-2",
-                )
-                generated_path.write_bytes(b"changed")
-                with self.assertRaisesRegex(RuntimeError, "manifest checksum"):
-                    find_images_for_date("2026-08-25")
+        self.assertTrue(all(image["alt"] == "" for image in images))
 
     def test_paginates_until_every_record_in_window_has_been_checked(self) -> None:
         page_one = [ugc_post(self.cutoff + 2_000, "urn:li:ugcPost:older")] + [

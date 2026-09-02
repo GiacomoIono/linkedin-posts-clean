@@ -36,7 +36,16 @@ def load_prompts() -> dict[str, str]:
     if chosen is None:
         chosen = prompt_sets[0]
 
-    required = ["seo_system", "seo_user", "alt_system", "alt_user", "image_system", "image_user"]
+    required = [
+        "seo_system",
+        "seo_user",
+        "alt_system",
+        "alt_user",
+        "image_system",
+        "image_user",
+        "image_qa_system",
+        "image_qa_user",
+    ]
     for key in required:
         if not isinstance(chosen.get(key), str):
             raise RuntimeError(f"Selected enrichment prompt is missing {key}.")

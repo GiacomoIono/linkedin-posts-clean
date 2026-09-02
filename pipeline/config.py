@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "data"
 IMAGE_DIR = REPO_ROOT / "images"
+GENERATED_IMAGE_DIR = IMAGE_DIR / "generated"
 CONFIG_DIR = REPO_ROOT / "config"
 
 RAW_POST_PATH = DATA_DIR / "last_linkedin_post.json"
@@ -19,7 +20,7 @@ GENERATED_IMAGE_MANIFEST_PATH = DATA_DIR / "generated_main_images.json"
 
 PROMPTS_PATH = CONFIG_DIR / "prompts.json"
 
-DEFAULT_OPENAI_MODEL = "gpt-5-nano"
+DEFAULT_OPENAI_MODEL = "gpt-5.6-sol"
 DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-2"
 DEFAULT_IMAGE_PUBLIC_REF = "main"
 DEFAULT_WEBFLOW_COLLECTION_ID = "63250855178122098387d7ef"
@@ -76,3 +77,4 @@ def load_config() -> PipelineConfig:
 def ensure_directories() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+    GENERATED_IMAGE_DIR.mkdir(parents=True, exist_ok=True)
