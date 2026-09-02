@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 
 import requests
@@ -10,6 +11,8 @@ from .utils import iso_to_webflow, load_json, post_hash, strip_html_to_text, wri
 
 WEBFLOW_BASE_URL = "https://api.webflow.com/v2"
 WEBFLOW_PAYLOAD_VERSION = 8
+WEBFLOW_LIVE_READBACK_ATTEMPTS = 3
+WEBFLOW_LIVE_READBACK_DELAY_SECONDS = 1
 AUTHOR_COLLECTION_ID = "63250855178122e0e087d804"
 AUTHOR_ITEM_ID = "632508551781225a7587d893"
 IMAGE_SEQUENCE_RE = re.compile(r"_(\d+)(?=\.[^.]+$)")
@@ -86,6 +89,16 @@ class WebflowClient:
 
     def list_live_items(self) -> list[dict[str, Any]]:
         return self.list_items_for_path("items/live")
+
+    def get_item(self, item_id: str) -> dict[str, Any]:
+        return self.request(
+            "GET", f"/collections/{self.collection_id}/items/{item_id}"
+        )
+
+    def get_live_item(self, item_id: str) -> dict[str, Any]:
+        return self.request(
+            "GET", f"/collections/{self.collection_id}/items/{item_id}/live"
+        )
 
     def create_item(self, field_data: dict[str, Any]) -> dict[str, Any]:
         return self.request(
@@ -429,6 +442,46 @@ def publish_if_needed(
     return False
 
 
+def verify_saved_post_body(
+    client: WebflowClient,
+    item_id: str,
+    expected_body: str,
+    *,
+    live: bool,
+) -> None:
+    attempts = WEBFLOW_LIVE_READBACK_ATTEMPTS if live else 1
+    last_error: WebflowError | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            saved = client.get_live_item(item_id) if live else client.get_item(item_id)
+            if item_id_from(saved) != item_id:
+                raise WebflowError(
+                    "Webflow read-back returned a different or missing item ID."
+                )
+            field_data = saved.get("fieldData")
+            if (
+                not isinstance(field_data, dict)
+                or field_data.get("post-body") != expected_body
+            ):
+                location = "live" if live else "staged"
+                raise WebflowError(
+                    f"Webflow {location} read-back did not preserve the verified post body exactly."
+                )
+            return
+        except WebflowError as exc:
+            last_error = exc
+            if attempt < attempts:
+                time.sleep(WEBFLOW_LIVE_READBACK_DELAY_SECONDS)
+
+    if last_error is None:
+        raise WebflowError("Webflow read-back ended without a result.")
+    if attempts == 1:
+        raise last_error
+    raise WebflowError(
+        f"Webflow live read-back failed after {attempts} attempts. Last error: {last_error}"
+    ) from last_error
+
+
 def sync_post_to_webflow(
     post: dict[str, Any], config: PipelineConfig
 ) -> dict[str, Any]:
@@ -475,10 +528,29 @@ def sync_post_to_webflow(
     _, item_id, action = write_item_to_webflow(
         client, source_url, item_id, item_location, field_data
     )
+    if action != "updated_live":
+        verify_saved_post_body(
+            client,
+            item_id,
+            str(field_data.get("post-body") or ""),
+            live=False,
+        )
     published = publish_if_needed(client, item_id, action, config.webflow_publish)
+    if published:
+        verify_saved_post_body(
+            client,
+            item_id,
+            str(field_data.get("post-body") or ""),
+            live=True,
+        )
 
     record_item_state(
         state, source_url, item_id, signature, published, field_data.get("slug", "")
     )
     print(f"Webflow item {action}: {item_id}. Published={published}.")
-    return {"action": action, "item_id": item_id, "published": published}
+    return {
+        "action": action,
+        "item_id": item_id,
+        "published": published,
+        "read_back_verified": True,
+    }

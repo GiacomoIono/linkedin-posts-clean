@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from pipeline.linkedin import image_filename_sort_key
 from pipeline.webflow import (
@@ -86,6 +86,22 @@ class WebflowPayloadTests(unittest.TestCase):
         self.assertEqual(field_data["linkedin-post-link"], POST["url"])
         self.assertEqual(field_data["author"], AUTHOR_ITEM_ID)
 
+    def test_build_field_data_passes_verified_linked_html_to_post_body_only(self) -> None:
+        linked_html = (
+            '<p>Revenue reached <a href="https://example.org/reports/revenue-2024">'
+            "$10 billion in 2024</a>.</p>"
+        )
+        linked_post = {**POST, "content": linked_html}
+
+        original_fields = build_field_data(POST)
+        linked_fields = build_field_data(linked_post)
+
+        self.assertEqual(linked_fields["post-body"], linked_html)
+        self.assertEqual(
+            {key: value for key, value in linked_fields.items() if key != "post-body"},
+            {key: value for key, value in original_fields.items() if key != "post-body"},
+        )
+
     def test_build_field_data_orders_post_images_and_reuses_first_image(self) -> None:
         field_data = build_field_data(MULTI_IMAGE_POST)
 
@@ -156,6 +172,21 @@ class WebflowPayloadTests(unittest.TestCase):
 
         self.assertEqual(request.call_args.kwargs["params"]["skipInvalidFiles"], "true")
 
+    def test_read_back_uses_the_staged_and_live_item_endpoints(self) -> None:
+        client = WebflowClient("token", "collection")
+
+        with patch.object(client, "request", return_value={"id": "item-id"}) as request:
+            client.get_item("item-id")
+            client.get_live_item("item-id")
+
+        self.assertEqual(
+            [call.args for call in request.call_args_list],
+            [
+                ("GET", "/collections/collection/items/item-id"),
+                ("GET", "/collections/collection/items/item-id/live"),
+            ],
+        )
+
     def test_build_field_data_includes_only_known_optional_schema_fields(self) -> None:
         post = {
             **POST,
@@ -209,6 +240,12 @@ class WebflowPayloadTests(unittest.TestCase):
                 self.updated_live.append((item_id, field_data))
                 return {"id": item_id}
 
+            def get_item(self, item_id):
+                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+
+            def get_live_item(self, item_id):
+                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+
             def create_item(self, field_data):
                 self.created.append(field_data)
                 return {"id": "new-item"}
@@ -258,6 +295,8 @@ class WebflowPayloadTests(unittest.TestCase):
             def __init__(self, _token, _collection_id):
                 self.updated_live = []
                 self.published = []
+                self.staged_reads = 0
+                self.live_reads = 0
 
             def list_live_items(self):
                 return [
@@ -270,6 +309,14 @@ class WebflowPayloadTests(unittest.TestCase):
             def update_live_item(self, item_id, field_data):
                 self.updated_live.append((item_id, field_data))
                 return {"id": item_id}
+
+            def get_item(self, item_id):
+                self.staged_reads += 1
+                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+
+            def get_live_item(self, item_id):
+                self.live_reads += 1
+                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
 
             def publish_item(self, item_id):
                 self.published.append(item_id)
@@ -298,13 +345,20 @@ class WebflowPayloadTests(unittest.TestCase):
 
         self.assertEqual(
             result,
-            {"action": "updated_live", "item_id": "live-item", "published": True},
+            {
+                "action": "updated_live",
+                "item_id": "live-item",
+                "published": True,
+                "read_back_verified": True,
+            },
         )
         self.assertEqual(fake_client.updated_live[0][0], "live-item")
         self.assertEqual(
             fake_client.updated_live[0][1]["linkedin-post-link"], POST["url"]
         )
         self.assertEqual(fake_client.published, [])
+        self.assertEqual(fake_client.staged_reads, 0)
+        self.assertEqual(fake_client.live_reads, 1)
         self.assertEqual(saved_states[0]["items"][POST["url"]]["item_id"], "live-item")
 
     def test_sync_recreates_item_when_live_leftover_cannot_be_updated(self) -> None:
@@ -342,6 +396,12 @@ class WebflowPayloadTests(unittest.TestCase):
             def publish_item(self, item_id):
                 self.published.append(item_id)
 
+            def get_item(self, item_id):
+                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+
+            def get_live_item(self, item_id):
+                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+
         config = type(
             "Config",
             (),
@@ -375,12 +435,117 @@ class WebflowPayloadTests(unittest.TestCase):
             result = sync_post_to_webflow(POST, config)
 
         self.assertEqual(
-            result, {"action": "created", "item_id": "new-item", "published": True}
+            result,
+            {
+                "action": "created",
+                "item_id": "new-item",
+                "published": True,
+                "read_back_verified": True,
+            },
         )
         self.assertEqual(fake_client.unpublished, ["live-item"])
         self.assertEqual(fake_client.created[0]["linkedin-post-link"], POST["url"])
         self.assertEqual(fake_client.published, ["new-item"])
         self.assertEqual(saved_states[0]["items"][POST["url"]]["item_id"], "new-item")
+
+    def test_sync_stops_before_publish_and_state_when_staged_body_read_back_differs(self) -> None:
+        class FakeClient:
+            def __init__(self, _token, _collection_id):
+                self.published = []
+
+            def list_live_items(self):
+                return []
+
+            def list_items(self):
+                return []
+
+            def create_item(self, _field_data):
+                return {"id": "new-item"}
+
+            def get_item(self, item_id):
+                return {
+                    "id": item_id,
+                    "fieldData": {"post-body": "<p>Webflow changed the body.</p>"},
+                }
+
+            def publish_item(self, item_id):
+                self.published.append(item_id)
+
+        config = type(
+            "Config",
+            (),
+            {
+                "webflow_api_token": "token",
+                "webflow_collection_id": "collection",
+                "webflow_publish": True,
+                "force_webflow_sync": False,
+            },
+        )()
+        fake_client = FakeClient("token", "collection")
+
+        with (
+            patch("pipeline.webflow.WebflowClient", return_value=fake_client),
+            patch("pipeline.webflow.load_webflow_state", return_value={"items": {}}),
+            patch("pipeline.webflow.save_webflow_state") as save_state,
+            self.assertRaisesRegex(WebflowError, "did not preserve the verified post body"),
+        ):
+            sync_post_to_webflow(POST, config)
+
+        self.assertEqual(fake_client.published, [])
+        save_state.assert_not_called()
+
+    def test_sync_retries_live_read_back_after_publish(self) -> None:
+        class FakeClient:
+            def __init__(self, _token, _collection_id):
+                self.live_reads = 0
+
+            def list_live_items(self):
+                return []
+
+            def list_items(self):
+                return []
+
+            def create_item(self, _field_data):
+                return {"id": "new-item"}
+
+            def get_item(self, item_id):
+                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+
+            def publish_item(self, _item_id):
+                return {}
+
+            def get_live_item(self, item_id):
+                self.live_reads += 1
+                body = (
+                    "<p>Stale live body.</p>"
+                    if self.live_reads == 1
+                    else POST["content"]
+                )
+                return {"id": item_id, "fieldData": {"post-body": body}}
+
+        config = type(
+            "Config",
+            (),
+            {
+                "webflow_api_token": "token",
+                "webflow_collection_id": "collection",
+                "webflow_publish": True,
+                "force_webflow_sync": False,
+            },
+        )()
+        fake_client = FakeClient("token", "collection")
+
+        with (
+            patch("pipeline.webflow.WebflowClient", return_value=fake_client),
+            patch("pipeline.webflow.load_webflow_state", return_value={"items": {}}),
+            patch("pipeline.webflow.save_webflow_state"),
+            patch("pipeline.webflow.time.sleep") as sleep,
+        ):
+            result = sync_post_to_webflow(POST, config)
+
+        self.assertTrue(result["read_back_verified"])
+        self.assertEqual(fake_client.live_reads, 2)
+        sleep.assert_called_once_with(1)
 
     def test_sync_explains_live_leftover_that_api_cannot_unpublish(self) -> None:
         class FakeClient:

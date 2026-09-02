@@ -153,6 +153,12 @@ def load_prompts() -> dict[str, str]:
     required = [
         "seo_system",
         "seo_user",
+        "link_system",
+        "link_user",
+        "link_verify_system",
+        "link_verify_user",
+        "link_coverage_verify_system",
+        "link_coverage_verify_user",
         "alt_system",
         "alt_user",
         "image_system",

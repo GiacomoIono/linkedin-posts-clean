@@ -9,8 +9,9 @@ In plain English, the pipeline does this:
 3. Finds matching source images directly inside the top-level `images/` folder.
 4. If no date-matched top-level source file exists, uses OpenAI to create one reviewed 16:9 PNG fallback under `images/generated/`.
 5. Uses OpenAI to create the headline, summary, and missing image ALT text.
-6. Sends the post to the Webflow Blog Posts collection.
-7. Saves a record of what happened in the `data/` folder.
+6. Researches whether the body needs authoritative evidence links and safely adds zero or more.
+7. Sends the post to the Webflow Blog Posts collection.
+8. Saves a record of what happened in the `data/` folder.
 
 ## Set up this project on a MacBook Pro
 
@@ -395,7 +396,7 @@ If the `code` command is unavailable, open `.env` from Visual Studio Code. Keep 
 | --- | --- | --- |
 | `LINKEDIN_ACCESS_TOKEN` | Yes | Secure copy of the old `.env` value, or a newly authorised token from the LinkedIn developer application. |
 | `OPENAI_API_KEY` | Yes | Secure copy of the old value, or a new key from the same OpenAI API project. Existing key values usually cannot be revealed again after creation. |
-| `OPENAI_MODEL` | No | Defaults to `gpt-5.6-sol` for concept planning, semantic image review, SEO metadata, and ALT text. |
+| `OPENAI_MODEL` | No | Defaults to `gpt-5.6-sol` for concept planning, semantic image review, SEO metadata, evidence-link research, and ALT text. |
 | `OPENAI_IMAGE_MODEL` | No | Defaults to `gpt-image-2`; change it only when the fallback-image pipeline is intentionally updated. |
 | `IMAGE_PUBLIC_REF` | No | Defaults to `main`; GitHub Actions pins generated-image URLs to the exact committed revision automatically. |
 | `WEBFLOW_API_TOKEN` | Yes, unless the alternative is set | Secure copy of the old token, or a replacement token with access to read and write the Blog Posts collection. |
@@ -819,8 +820,8 @@ Most days, these are the only settings you need to care about:
 | Setting | What it does |
 | --- | --- |
 | `LINKEDIN_ACCESS_TOKEN` | Lets the script read your recent LinkedIn activity. |
-| `OPENAI_API_KEY` | Lets the script write metadata, ALT text, and a missing-image fallback. |
-| `OPENAI_MODEL` | Uses `gpt-5.6-sol` for image concept planning and review, SEO metadata, and ALT text. |
+| `OPENAI_API_KEY` | Lets the script write metadata, research evidence links, create ALT text, and produce a missing-image fallback. |
+| `OPENAI_MODEL` | Uses `gpt-5.6-sol` for image concept planning and review, SEO metadata, evidence-link research, and ALT text. |
 | `OPENAI_IMAGE_MODEL` | Selects the image model; the default is `gpt-image-2`. |
 | `WEBFLOW_API_TOKEN` | Lets the script create, update, and publish Webflow posts. |
 | `WEBFLOW_PUBLISH` | When `true`, Webflow items are published after they are written. |
@@ -892,6 +893,24 @@ For a generated fallback, Webflow receives:
 - no value in `thumbnail-image`.
 
 If a LinkedIn image is missing locally, or if image generation, validation, public-URL verification, or the pre-Webflow Git push fails, the workflow stops. It does not publish an image-less replacement post.
+
+## Evidence Links
+
+Every new post passes through an evidence-link stage after its headline, summary, ALT text, and image attachment are complete. This stage does not rewrite the post and does not call Webflow itself.
+
+The stage:
+
+1. Decides whether the body contains material claims that warrant sources. Opinions and personal experiences can correctly receive zero links.
+2. Searches the live web, opens candidate pages, and prefers primary or otherwise authoritative sources.
+3. Uses a separate web-backed verification request, with the complete immutable body for context, to check that every exact source supports the adjacent claim. A separate audit also checks every proposed zero-link decision.
+4. Locally inserts only `<a href="...">` and `</a>` around one exact, unique substring in an existing text node.
+5. Rejects nested, overlapping, ambiguous, non-HTTPS, unopened, generic, search-result, or tracking URLs. After one correction attempt, an unsafe individual proposal is skipped without discarding other valid proposals.
+6. Proves that removing only the new wrappers restores the original body byte for byte. Structurally invalid model responses fail the run before the enriched JSON or Webflow write.
+7. Reads every staged write back before any configured publish step and reads every live update or publish back too. A body mismatch stops the run and is not recorded as a successful sync.
+
+There is no fixed one-link or two-link limit. The result is the minimum useful number for the post, which can be zero, one, two, or more.
+
+The evidence-link stage does not change the pipeline's existing `WEBFLOW_PUBLISH` setting. It only adds and verifies the body links; publication remains controlled by the existing configuration.
 
 ## ALT Text
 
@@ -975,6 +994,7 @@ images/
 | `pipeline/main.py` | The main pipeline flow. |
 | `pipeline/linkedin.py` | Fetches the latest LinkedIn post from the last 48 hours. |
 | `pipeline/enrichment.py` | Creates headline, summary, and ALT text. |
+| `pipeline/linking.py` | Researches, verifies, validates, and inserts authoritative evidence links without changing body wording. |
 | `pipeline/image_generation.py` | Plans, generates once, reviews, reuses, and attaches a generated fallback PNG. |
 | `pipeline/image_processing.py` | Validates the raw result and prepares an exact-16:9 PNG under 800,000 bytes. |
 | `pipeline/image_references.py` | Validates and resolves the eleven bundled style references. |
@@ -999,7 +1019,7 @@ The script writes these files:
 | File | What it contains |
 | --- | --- |
 | `data/last_linkedin_post.json` | The latest raw LinkedIn post found. |
-| `data/last_linkedin_post.enriched.json` | The post after headline, summary, and ALT text are added. |
+| `data/last_linkedin_post.enriched.json` | The post after headline, summary, ALT text, image attachment, and verified evidence links are added. |
 | `data/webflow_items.json` | Webflow item IDs and sync state. |
 | `data/pipeline_state.json` | The latest run status. |
 

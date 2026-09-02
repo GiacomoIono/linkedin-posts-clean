@@ -15,6 +15,7 @@ from .config import (
 from .enrichment import enrich_post
 from .image_generation import attach_generated_main_image, source_images
 from .linkedin import fetch_latest_linkedin_post
+from .linking import link_post_body
 from .utils import load_json, post_hash, post_identity, write_json
 from .webflow import find_live_webflow_item, item_id_from, sync_post_to_webflow
 
@@ -64,6 +65,8 @@ def main() -> int:
     statuses["enrichment"] = "generated"
     enriched_post = attach_generated_main_image(enriched_post, config)
     statuses["image"] = "source_images" if source_images(latest_post) else "generated_main_image"
+    enriched_post, link_audit = link_post_body(enriched_post, config)
+    statuses["links"] = link_audit
     write_json(ENRICHED_POST_PATH, enriched_post)
 
     statuses["webflow"] = sync_post_to_webflow(enriched_post, config)
