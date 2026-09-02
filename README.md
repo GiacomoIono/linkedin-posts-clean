@@ -364,6 +364,7 @@ python -m pip --version
 `requirements.txt` is the source of truth. It currently installs pinned versions of:
 
 - `openai`
+- `Pillow`
 - `python-dotenv`
 - `requests`
 
