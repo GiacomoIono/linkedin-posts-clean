@@ -177,7 +177,7 @@ def generated_main_image(post: dict[str, Any]) -> dict[str, str] | None:
 def post_headline(post: dict[str, Any]) -> str:
     return str(
         post.get("headline")
-        or strip_html_to_text(post.get("content", ""))[:70]
+        or strip_html_to_text(post.get("content", ""))[:60]
         or "LinkedIn post"
     )
 

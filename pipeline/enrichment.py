@@ -10,14 +10,127 @@ from openai import OpenAI
 from .config import PROMPTS_PATH, PipelineConfig
 from .utils import sanitize_text, soft_trim, strip_html_to_text
 
-HEADLINE_MAX = 70
+HEADLINE_MIN = 45
+HEADLINE_TARGET_MIN = 48
+HEADLINE_TARGET_MAX = 58
+HEADLINE_MAX = 60
+DESCRIPTION_TARGET_MIN = 145
+DESCRIPTION_TARGET_MAX = 155
 DESCRIPTION_MAX = 160
+DESCRIPTION_MIN_WORDS = 3
+SEO_SOURCE_MIN_WORDS = 5
+SEO_MAX_ATTEMPTS = 2
+INSUFFICIENT_SOURCE_SENTINEL = "__INSUFFICIENT_SOURCE__"
 ALT_MAX = 180
-EMOJI_RE = re.compile(r"[\U00010000-\U0010ffff]")
+EMOJI_RE = re.compile(
+    r"[\u203c\u2049\u20e3\u2122\u2139\u2194-\u21ff\u2300-\u23ff\u24c2\u25aa-\u27bf\ufe0f"
+    r"\U0001f1e6-\U0001f1ff\U0001f300-\U0001faff]"
+)
+BAD_AI_CASE_RE = re.compile(r"\b(?:ai|Ai)\b")
+HASHTAG_RE = re.compile(r"(?<!\w)#\w+")
+SWISS_NUMBER_RE = re.compile(r"\b\d{1,3}(?:['\u2019]\d{3})+\b")
+PLACEHOLDER_RE = re.compile(r"\{([A-Z][A-Z0-9_]*)\}")
+MARKDOWN_RE = re.compile(
+    r"(?:\*|`|__|~~|(?<!\w)_[^_\n]+_(?!\w)|!?\[[^\]\n]+\]\([^)]+\)|"
+    r"^(?:#{1,6}|>|[-+]|\d+\.)\s)"
+)
+WORD_RE = re.compile(r"\b[\w'-]+\b")
+DESCRIPTION_END_RE = re.compile(r'''[.?]["'\u2019\u201d)]*$''')
+SENTENCE_CANDIDATE_RE = re.compile(r'''[.?]["'\u2019\u201d)]*(?=\s|$)''')
+NON_TERMINAL_ABBREVIATIONS = frozenset(
+    {
+        "apr",
+        "approx",
+        "assn",
+        "aug",
+        "ave",
+        "bros",
+        "co",
+        "corp",
+        "dec",
+        "dept",
+        "dr",
+        "e.g",
+        "ed",
+        "est",
+        "etc",
+        "feb",
+        "fig",
+        "gen",
+        "gov",
+        "hon",
+        "i.e",
+        "inc",
+        "jan",
+        "jr",
+        "jul",
+        "jun",
+        "ltd",
+        "mar",
+        "mr",
+        "mrs",
+        "ms",
+        "nov",
+        "no",
+        "oct",
+        "p",
+        "pp",
+        "prof",
+        "rev",
+        "sec",
+        "sep",
+        "sept",
+        "sr",
+        "st",
+        "u.k",
+        "u.s",
+        "vol",
+        "vs",
+    }
+)
+SEO_OUTPUT_KEYS = frozenset({"headline", "description"})
+OFFICIAL_NAMES = (
+    "ChatGPT Pro",
+    "ChatGPT",
+    "OpenAI",
+    "YouTube",
+    "LinkedIn",
+    "Google Search",
+    "AI Overviews",
+    "airBaltic",
+    "eCommerce",
+)
+GENERIC_DESCRIPTION_OPENINGS = (
+    "discover",
+    "explore",
+    "learn",
+    "read more",
+    "find out",
+    "this post explains",
+    "everything you need to know",
+)
+GENERIC_DESCRIPTION_OPENING_RE = re.compile(
+    r"^(?:" + "|".join(re.escape(opening) for opening in GENERIC_DESCRIPTION_OPENINGS) + r")\b",
+    re.IGNORECASE,
+)
 IMAGE_CONTEXT_RE = re.compile(
     r"\b(in the (picture|photo|image)|pictured|the (picture|photo|image) shows|photo shows|image shows)\b",
     re.IGNORECASE,
 )
+
+
+class InsufficientSeoSourceError(RuntimeError):
+    pass
+
+
+def prompt_text(value: Any, key: str) -> str:
+    if isinstance(value, str) and value.strip():
+        return value
+    if isinstance(value, list) and value and all(isinstance(line, str) for line in value):
+        rendered = "\n".join(value)
+        if rendered.strip():
+            return rendered
+    raise RuntimeError(f"Selected enrichment prompt is missing {key}.")
 
 
 def load_prompts() -> dict[str, str]:
@@ -36,6 +149,7 @@ def load_prompts() -> dict[str, str]:
     if chosen is None:
         chosen = prompt_sets[0]
 
+    selected = dict(chosen)
     required = [
         "seo_system",
         "seo_user",
@@ -47,16 +161,74 @@ def load_prompts() -> dict[str, str]:
         "image_qa_user",
     ]
     for key in required:
-        if not isinstance(chosen.get(key), str):
-            raise RuntimeError(f"Selected enrichment prompt is missing {key}.")
-    return chosen
+        selected[key] = prompt_text(chosen.get(key), key)
+    return selected
 
 
 def fill_placeholders(template: str, mapping: dict[str, str]) -> str:
-    output = template
-    for key, value in mapping.items():
-        output = output.replace("{" + key + "}", value)
-    return output
+    return PLACEHOLDER_RE.sub(lambda match: mapping.get(match.group(1), match.group(0)), template)
+
+
+def seo_prompt_mapping(
+    content: str = "",
+    *,
+    image_context: str = "",
+    current_title: str = "",
+    current_description: str = "",
+    target_keyword: str = "",
+) -> dict[str, str]:
+    return {
+        "CONTENT": content,
+        "IMAGE_CONTEXT": image_context or "Not supplied.",
+        "CURRENT_TITLE": current_title or "Not supplied.",
+        "CURRENT_DESCRIPTION": current_description or "Not supplied.",
+        "TARGET_KEYWORD": target_keyword or "Not supplied.",
+        "TITLE_MIN": str(HEADLINE_MIN),
+        "TITLE_TARGET_MIN": str(HEADLINE_TARGET_MIN),
+        "TITLE_TARGET_MAX": str(HEADLINE_TARGET_MAX),
+        "HEADLINE_MAX": str(HEADLINE_MAX),
+        "TITLE_MAX": str(HEADLINE_MAX),
+        "DESC_TARGET_MIN": str(DESCRIPTION_TARGET_MIN),
+        "DESC_TARGET_MAX": str(DESCRIPTION_TARGET_MAX),
+        "DESC_MAX": str(DESCRIPTION_MAX),
+    }
+
+
+def first_post_text(post: dict[str, Any], *keys: str) -> str:
+    for key in keys:
+        value = post.get(key)
+        if isinstance(value, str):
+            text = strip_html_to_text(value)
+            if text:
+                return text
+    return ""
+
+
+def seo_context_from_post(post: dict[str, Any]) -> dict[str, str]:
+    image_context = first_post_text(post, "imageContext", "image_context")
+    if not image_context:
+        supplied_alts = [
+            strip_html_to_text(str(image.get("alt") or ""))
+            for image in post.get("images", []) or []
+            if isinstance(image, dict) and str(image.get("alt") or "").strip()
+        ]
+        image_context = "; ".join(alt for alt in supplied_alts if alt)
+
+    return {
+        "image_context": image_context,
+        "current_title": first_post_text(post, "currentTitle", "current_title", "headline", "title"),
+        "current_description": first_post_text(
+            post,
+            "currentDescription",
+            "current_description",
+            "description",
+        ),
+        "target_keyword": first_post_text(post, "targetKeyword", "target_keyword"),
+    }
+
+
+def render_seo_system_prompt(prompts: dict[str, str]) -> str:
+    return fill_placeholders(prompts["seo_system"], seo_prompt_mapping())
 
 
 def completion_kwargs(config: PipelineConfig, messages: list[dict[str, Any]]) -> dict[str, Any]:
@@ -85,10 +257,6 @@ def responses_text(response, label: str) -> str:
 
 def parse_json_response(response, label: str) -> dict[str, Any]:
     raw = response_text(response, label)
-    if raw.startswith("```"):
-        raw = raw.strip("`").strip()
-        if raw.lower().startswith("json"):
-            raw = raw[4:].strip()
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -96,6 +264,121 @@ def parse_json_response(response, label: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise RuntimeError(f"OpenAI returned {label} JSON that is not an object.")
     return data
+
+
+def normalise_metadata_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def letter_word_count(value: str) -> int:
+    return sum(any(character.isalpha() for character in token) for token in WORD_RE.findall(value))
+
+
+def seo_sentence_count(value: str) -> int:
+    count = 0
+    for match in SENTENCE_CANDIDATE_RE.finditer(value):
+        punctuation = value[match.start()]
+        is_final = not value[match.end() :].strip()
+        if punctuation == "." and not is_final:
+            token_match = re.search(r"([A-Za-z][A-Za-z.]*)$", value[: match.start()])
+            token = token_match.group(1) if token_match else ""
+            is_initialism = bool(re.fullmatch(r"(?:[A-Za-z]\.)+[A-Za-z]", token))
+            if token.casefold() in NON_TERMINAL_ABBREVIATIONS or is_initialism:
+                continue
+        count += 1
+    return count
+
+
+def wrong_official_capitalisation(value: str) -> list[str]:
+    wrong = []
+    for official_name in OFFICIAL_NAMES:
+        pattern = rf"(?<!\w){re.escape(official_name)}(?!\w)"
+        for match in re.finditer(pattern, value, flags=re.IGNORECASE):
+            if match.group(0) != official_name:
+                wrong.append(official_name)
+                break
+    return wrong
+
+
+def validate_seo_payload(data: dict[str, Any]) -> dict[str, str]:
+    keys = set(data)
+    if keys != SEO_OUTPUT_KEYS:
+        missing = sorted(SEO_OUTPUT_KEYS - keys)
+        unexpected = sorted(keys - SEO_OUTPUT_KEYS)
+        details = []
+        if missing:
+            details.append(f"missing keys: {', '.join(missing)}")
+        if unexpected:
+            details.append(f"unexpected keys: {', '.join(unexpected)}")
+        raise RuntimeError(f"SEO JSON must contain exactly headline and description ({'; '.join(details)}).")
+
+    for key in SEO_OUTPUT_KEYS:
+        if not isinstance(data[key], str):
+            raise RuntimeError(f"SEO JSON field {key} must be a string.")
+
+    headline = normalise_metadata_text(data["headline"])
+    description = normalise_metadata_text(data["description"])
+    if headline == INSUFFICIENT_SOURCE_SENTINEL or description == INSUFFICIENT_SOURCE_SENTINEL:
+        if headline == description == INSUFFICIENT_SOURCE_SENTINEL:
+            raise InsufficientSeoSourceError(
+                "The supplied material cannot support accurate SEO metadata. Supply a more complete post body."
+            )
+        raise RuntimeError("SEO JSON must use the insufficient-source signal for both fields.")
+    errors = []
+
+    if not headline:
+        errors.append("headline must be non-empty")
+    elif len(headline) < HEADLINE_MIN:
+        errors.append(f"headline must contain at least {HEADLINE_MIN} characters")
+    elif len(headline) > HEADLINE_MAX:
+        errors.append(f"headline must not exceed {HEADLINE_MAX} characters")
+
+    if not description:
+        errors.append("description must be non-empty")
+    elif len(description) > DESCRIPTION_MAX:
+        errors.append(f"description must not exceed {DESCRIPTION_MAX} characters")
+    elif letter_word_count(description) < DESCRIPTION_MIN_WORDS:
+        errors.append(f"description must contain at least {DESCRIPTION_MIN_WORDS} words")
+    elif not DESCRIPTION_END_RE.search(description):
+        errors.append("description must be a complete sentence ending with a full stop or question mark")
+    else:
+        sentence_count = seo_sentence_count(description)
+        if not 1 <= sentence_count <= 2:
+            errors.append("description must contain one or two complete sentences")
+
+    for field_name, value in (("headline", headline), ("description", description)):
+        if "\u2014" in value:
+            errors.append(f"{field_name} must not contain an em dash")
+        if "!" in value:
+            errors.append(f"{field_name} must not contain an exclamation mark")
+        if EMOJI_RE.search(value):
+            errors.append(f"{field_name} must not contain emoji")
+        if BAD_AI_CASE_RE.search(value):
+            errors.append(f'{field_name} must write artificial intelligence as "AI"')
+        if SWISS_NUMBER_RE.search(value):
+            errors.append(f"{field_name} must use international comma-separated numbers")
+        if MARKDOWN_RE.search(value):
+            errors.append(f"{field_name} must not contain Markdown")
+        wrong_names = wrong_official_capitalisation(value)
+        if wrong_names:
+            errors.append(f"{field_name} must preserve official capitalisation: {', '.join(wrong_names)}")
+
+    if headline:
+        letters = "".join(character for character in headline if character.isalpha())
+        if letters and letters == letters.upper():
+            errors.append("headline must not use all capital letters")
+
+    if description:
+        if HASHTAG_RE.search(description):
+            errors.append("description must not contain hashtags")
+        if "..." in description or "\u2026" in description:
+            errors.append("description must not contain unfinished ellipses")
+        if GENERIC_DESCRIPTION_OPENING_RE.match(description):
+            errors.append("description must not use a generic opening")
+
+    if errors:
+        raise RuntimeError("SEO metadata violated the publishing contract: " + "; ".join(errors) + ".")
+    return {"headline": headline, "description": description}
 
 
 def clean_alt(value: str) -> str:
@@ -139,31 +422,70 @@ def fallback_alt_text(plain_text: str) -> str:
     return "Visual accompanying LinkedIn post"
 
 
-def generate_seo(client: OpenAI, config: PipelineConfig, plain_text: str, prompts: dict[str, str]) -> dict[str, str]:
+def generate_seo(
+    client: OpenAI,
+    config: PipelineConfig,
+    plain_text: str,
+    prompts: dict[str, str],
+    *,
+    image_context: str = "",
+    current_title: str = "",
+    current_description: str = "",
+    target_keyword: str = "",
+) -> dict[str, str]:
+    source = plain_text.strip()
+    if not source:
+        raise RuntimeError("SEO source post body is empty.")
+    authoritative_source = f"{source} {image_context}".strip()
+    if letter_word_count(authoritative_source) < SEO_SOURCE_MIN_WORDS:
+        raise InsufficientSeoSourceError(
+            f"SEO source material must contain at least {SEO_SOURCE_MIN_WORDS} words. "
+            "Supply a more complete post body or image context."
+        )
+
+    system_msg = render_seo_system_prompt(prompts)
     user_msg = fill_placeholders(
         prompts["seo_user"],
-        {
-            "CONTENT": plain_text[:4000],
-            "HEADLINE_MAX": str(HEADLINE_MAX),
-            "TITLE_MAX": str(HEADLINE_MAX),
-            "DESC_MAX": str(DESCRIPTION_MAX),
-        },
+        seo_prompt_mapping(
+            source,
+            image_context=image_context,
+            current_title=current_title,
+            current_description=current_description,
+            target_keyword=target_keyword,
+        ),
     )
-    response = client.chat.completions.create(
-        **completion_kwargs(
-            config,
-            [
-                {"role": "system", "content": prompts["seo_system"]},
-                {"role": "user", "content": user_msg},
-            ],
+    last_error: RuntimeError | None = None
+
+    for attempt in range(1, SEO_MAX_ATTEMPTS + 1):
+        attempt_user_msg = user_msg
+        if last_error is not None:
+            attempt_user_msg += (
+                "\n\nCorrection required:\n"
+                f"The previous response was rejected because {last_error}\n"
+                "Rewrite both fields and return a new JSON object that follows every requirement."
+            )
+
+        response = client.chat.completions.create(
+            **completion_kwargs(
+                config,
+                [
+                    {"role": "system", "content": system_msg},
+                    {"role": "user", "content": attempt_user_msg},
+                ],
+            )
         )
-    )
-    data = parse_json_response(response, "SEO")
-    headline = soft_trim(sanitize_text(str(data.get("headline", ""))), HEADLINE_MAX)
-    description = soft_trim(sanitize_text(str(data.get("description", ""))), DESCRIPTION_MAX)
-    if not headline or not description:
-        raise RuntimeError(f"OpenAI returned incomplete SEO JSON: {data}")
-    return {"headline": headline, "description": description}
+        try:
+            return validate_seo_payload(parse_json_response(response, "SEO"))
+        except InsufficientSeoSourceError:
+            raise
+        except RuntimeError as exc:
+            last_error = exc
+            if attempt == SEO_MAX_ATTEMPTS:
+                break
+
+    raise RuntimeError(
+        f"OpenAI returned invalid SEO metadata after {SEO_MAX_ATTEMPTS} attempts. Last error: {last_error}"
+    ) from last_error
 
 
 def generate_alt_with_responses(
@@ -329,7 +651,7 @@ def enrich_post(post: dict[str, Any], config: PipelineConfig) -> dict[str, Any]:
     prompts = load_prompts()
     client = OpenAI(api_key=config.openai_api_key)
 
-    seo = generate_seo(client, config, plain_text, prompts)
+    seo = generate_seo(client, config, plain_text, prompts, **seo_context_from_post(post))
     enriched = dict(post)
     enriched["headline"] = seo["headline"]
     enriched["description"] = seo["description"]
