@@ -9,7 +9,7 @@ from typing import Any, Sequence
 from openai import OpenAI
 
 from .config import RAW_POST_PATH, PipelineConfig, load_config
-from .enrichment import DESCRIPTION_MAX, HEADLINE_MAX, generate_seo, load_prompts
+from .enrichment import DESCRIPTION_MAX, HEADLINE_MAX, generate_seo, load_prompts, seo_context_from_post
 from .utils import load_json, strip_html_to_text
 
 
@@ -46,7 +46,8 @@ def generate_previews(
     plain_text = strip_html_to_text(str(post.get("content") or ""))
     prompts = load_prompts()
     client = OpenAI(api_key=config.openai_api_key)
-    return [generate_seo(client, config, plain_text, prompts) for _ in range(runs)]
+    seo_context = seo_context_from_post(post)
+    return [generate_seo(client, config, plain_text, prompts, **seo_context) for _ in range(runs)]
 
 
 def print_previews(
@@ -60,7 +61,7 @@ def print_previews(
     print(f"Source post: {post.get('url') or 'URL not saved'}")
     print(f"Model: {model}")
     print("Network calls: OpenAI only.")
-    print("LinkedIn, Webflow and X calls: none.")
+    print("LinkedIn and Webflow calls: none.")
     print("Files written: none.")
 
     for index, preview in enumerate(previews, start=1):
@@ -77,7 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Generate SEO metadata from a saved post using OpenAI only. "
-            "This command never calls LinkedIn, Webflow or X and never writes files."
+            "This command never calls LinkedIn or Webflow and never writes files."
         )
     )
     parser.add_argument(

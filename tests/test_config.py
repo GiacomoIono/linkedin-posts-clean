@@ -14,6 +14,7 @@ class ConfigTests(unittest.TestCase):
 
         self.assertEqual(config.linkedin_access_token, "")
         self.assertEqual(config.openai_api_key, "")
+        self.assertEqual(DEFAULT_OPENAI_MODEL, "gpt-5.6")
         self.assertEqual(config.openai_model, DEFAULT_OPENAI_MODEL)
         self.assertEqual(config.webflow_api_token, "")
         self.assertEqual(config.webflow_collection_id, DEFAULT_WEBFLOW_COLLECTION_ID)

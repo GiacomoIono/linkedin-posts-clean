@@ -393,7 +393,7 @@ If the `code` command is unavailable, open `.env` from Visual Studio Code. Keep 
 | --- | --- | --- |
 | `LINKEDIN_ACCESS_TOKEN` | Yes | Secure copy of the old `.env` value, or a newly authorised token from the LinkedIn developer application. |
 | `OPENAI_API_KEY` | Yes | Secure copy of the old value, or a new key from the same OpenAI API project. Existing key values usually cannot be revealed again after creation. |
-| `OPENAI_MODEL` | No | Defaults to `gpt-5-nano`; change it only when the pipeline is intentionally updated. |
+| `OPENAI_MODEL` | No | Defaults to `gpt-5.6`; change it only when the pipeline is intentionally updated. |
 | `WEBFLOW_API_TOKEN` | Yes, unless the alternative is set | Secure copy of the old token, or a replacement token with access to read and write the Blog Posts collection. |
 | `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` | Alternative | Supported in place of `WEBFLOW_API_TOKEN`; leave it blank when the primary variable is set. |
 | `WEBFLOW_COLLECTION_ID` | No | Defaults to the Blog Posts collection ID shown in `.env.example`. |
@@ -776,7 +776,6 @@ The command reads the saved post in `data/last_linkedin_post.json` by default. I
 
 - call LinkedIn;
 - call Webflow;
-- call X;
 - generate image ALT text;
 - change or create any local file.
 
@@ -804,7 +803,7 @@ To test another saved post JSON file without changing the default data file, pas
 python -m pipeline.seo_preview --post /path/to/post.json
 ~~~
 
-The JSON file must contain a non-empty `content` field. A saved `url` field is optional and is displayed only for reference.
+The JSON file must contain a complete, non-empty `content` field. The body and any supplied `imageContext` must provide at least five words in total; thinner source material is rejected instead of being padded with invented claims. A saved `url` is optional and displayed only for reference. The preview also accepts `currentTitle`, `currentDescription`, and `targetKeyword` when that context is available.
 
 ## The Important Settings
 
@@ -976,7 +975,18 @@ pipeline/enrichment.py
 Current values:
 
 ```text
+HEADLINE_MIN = 45
+HEADLINE_TARGET_MIN = 48
+HEADLINE_TARGET_MAX = 58
 HEADLINE_MAX = 60
+DESCRIPTION_TARGET_MIN = 145
+DESCRIPTION_TARGET_MAX = 155
 DESCRIPTION_MAX = 160
 ALT_MAX = 180
 ```
+
+The pipeline asks OpenAI to regenerate metadata that breaks selected machine-checkable publishing rules, up to two attempts. It fails instead of silently cutting an overlong title or description into a fragment.
+
+If the supplied material cannot support accurate metadata, the model can return the pipeline's insufficient-source signal. The run then stops with a request for more source content instead of publishing an invented hook.
+
+The runtime processes one post at a time and keeps the repository's internal `headline` and `description` keys. Webflow maps `headline` to the visible title; this adapter changes only the data envelope, not the SEO policy.

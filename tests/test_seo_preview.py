@@ -38,8 +38,14 @@ class SeoPreviewTests(unittest.TestCase):
         self.assertEqual(post["url"], "https://www.linkedin.com/feed/update/example")
 
     def test_generate_previews_calls_only_the_seo_generator(self) -> None:
-        post = {"content": "<p>A saved post about AI measurement.</p>"}
-        config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5-nano")
+        post = {
+            "content": "<p>A saved post about AI measurement.</p>",
+            "imageContext": "A journey map showing new paths to purchase.",
+            "currentTitle": "A current title",
+            "currentDescription": "A current description.",
+            "targetKeyword": "AI customer journey",
+        }
+        config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5.6")
         fake_client = object()
         generated = {
             "headline": "Can marketers still measure the AI customer journey?",
@@ -60,6 +66,15 @@ class SeoPreviewTests(unittest.TestCase):
             self.assertEqual(call.args[0], fake_client)
             self.assertEqual(call.args[1], config)
             self.assertEqual(call.args[2], "A saved post about AI measurement.")
+            self.assertEqual(
+                call.kwargs,
+                {
+                    "image_context": "A journey map showing new paths to purchase.",
+                    "current_title": "A current title",
+                    "current_description": "A current description.",
+                    "target_keyword": "AI customer journey",
+                },
+            )
 
     def test_main_prints_results_without_writing_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -68,7 +83,7 @@ class SeoPreviewTests(unittest.TestCase):
                 json.dumps({"content": "<p>Saved content.</p>", "url": "https://example.com/post"}),
                 encoding="utf-8",
             )
-            config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5-nano")
+            config = SimpleNamespace(openai_api_key="test-key", openai_model="gpt-5.6")
             preview = {
                 "headline": "A sentence case title about AI measurement",
                 "description": "A complete description based on the supplied post.",
@@ -86,11 +101,11 @@ class SeoPreviewTests(unittest.TestCase):
         self.assertEqual(status, 0)
         write_text.assert_not_called()
         self.assertIn("Network calls: OpenAI only.", output.getvalue())
-        self.assertIn("LinkedIn, Webflow and X calls: none.", output.getvalue())
+        self.assertIn("LinkedIn and Webflow calls: none.", output.getvalue())
         self.assertIn(preview["headline"], output.getvalue())
 
     def test_missing_openai_key_fails_before_creating_a_client(self) -> None:
-        config = SimpleNamespace(openai_api_key="", openai_model="gpt-5-nano")
+        config = SimpleNamespace(openai_api_key="", openai_model="gpt-5.6")
 
         with (
             patch("pipeline.seo_preview.OpenAI") as openai,
