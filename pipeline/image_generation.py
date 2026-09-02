@@ -24,6 +24,7 @@ from .generated_images import (
     validate_registered_generated_image,
 )
 from .image_processing import (
+    MAX_GENERATED_IMAGE_BYTES,
     is_valid_prepared_png_bytes,
     is_valid_prepared_png_file,
     inspect_raw_image,
@@ -430,7 +431,10 @@ def generate_missing_main_image(
     registration = ensure_generated_filename_available(target, post)
     if registration is not None:
         if not is_valid_prepared_png_file(target):
-            raise RuntimeError("The registered generated fallback is not a valid 16:9 PNG under 200,000 bytes.")
+            raise RuntimeError(
+                "The registered generated fallback is not a valid 16:9 PNG under "
+                f"{MAX_GENERATED_IMAGE_BYTES:,} bytes."
+            )
         return {
             "action": "reused",
             "path": str(target),
@@ -458,7 +462,10 @@ def generate_missing_main_image(
     )
     prepared_bytes, dimensions = prepare_blog_main_png(raw_image_bytes)
     if not is_valid_prepared_png_bytes(prepared_bytes):
-        raise RuntimeError("Prepared output is not a valid exact-16:9 PNG under 200,000 bytes.")
+        raise RuntimeError(
+            "Prepared output is not a valid exact-16:9 PNG under "
+            f"{MAX_GENERATED_IMAGE_BYTES:,} bytes."
+        )
     _save_generated_image(
         target,
         prepared_bytes,
@@ -501,7 +508,7 @@ def attach_generated_main_image(
     if not is_valid_prepared_png_file(target):
         raise RuntimeError(
             "The registered generated fallback is not a valid exact-16:9 PNG under "
-            "200,000 bytes. Stopping before Webflow."
+            f"{MAX_GENERATED_IMAGE_BYTES:,} bytes. Stopping before Webflow."
         )
 
     alt = soft_trim(sanitize_text(str(registration.get("alt") or "")), GENERATED_IMAGE_ALT_MAX)

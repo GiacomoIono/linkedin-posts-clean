@@ -840,7 +840,7 @@ When LinkedIn reports that the post has no image and there is no matching source
 2. Uses `gpt-5.6-sol` to commit to exactly one article-specific concept and select exactly three distinct bundled style references. At least one chosen reference is human-centered.
 3. Makes exactly one `gpt-image-2` image call requesting one exact `1536 x 864` PNG, with automatic SDK retries disabled.
 4. Rejects any sole raw result that is not a decodable exact-16:9 PNG, then uses `gpt-5.6-sol` for semantic review before resizing or compression. Preparation preserves the reviewed composition and never crops it. A failed review saves nothing and does not generate a replacement in the same run.
-5. Prepares exactly one full-bleed PNG at an exact 16:9 ratio, preferring `1200 x 675`, and enforces a maximum size of 200,000 bytes.
+5. Prepares exactly one full-bleed PNG at an exact 16:9 ratio, preferring `1200 x 675`, and enforces a maximum size of 800,000 bytes.
 6. Saves it only under `images/generated/` with a stable filename containing the publication date, a descriptive slug, and a LinkedIn URL hash.
 7. Records its checksum, models, concept, quality review, references, prompt, dimensions, byte count, and ALT text in `data/generated_main_images.json`.
 8. Commits and pushes only `images/generated/` and the manifest before the CMS step, verifies the public PNG and checksum at a URL pinned to that exact Git commit, then runs Webflow.
@@ -936,7 +936,7 @@ images/
 | `pipeline/linkedin.py` | Fetches the latest LinkedIn post from the last 48 hours. |
 | `pipeline/enrichment.py` | Creates headline, summary, and ALT text. |
 | `pipeline/image_generation.py` | Plans, generates once, reviews, reuses, and attaches a generated fallback PNG. |
-| `pipeline/image_processing.py` | Validates the raw result and prepares an exact-16:9 PNG under 200,000 bytes. |
+| `pipeline/image_processing.py` | Validates the raw result and prepares an exact-16:9 PNG under 800,000 bytes. |
 | `pipeline/image_references.py` | Validates and resolves the eleven bundled style references. |
 | `pipeline/prepare_image.py` | Runs the pre-Webflow missing-image preparation stage. |
 | `pipeline/webflow.py` | Builds the exact Webflow payload and syncs the CMS item. |

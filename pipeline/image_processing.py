@@ -9,7 +9,7 @@ from PIL import Image, UnidentifiedImageError
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PREFERRED_IMAGE_DIMENSIONS = (1200, 675)
 FALLBACK_IMAGE_DIMENSIONS = ((1024, 576), (960, 540), (800, 450))
-MAX_GENERATED_IMAGE_BYTES = 200_000
+MAX_GENERATED_IMAGE_BYTES = 800_000
 MAX_RAW_IMAGE_BYTES = 30_000_000
 
 
@@ -82,7 +82,10 @@ def prepare_blog_main_png(image_bytes: bytes) -> tuple[bytes, dict[str, int]]:
                     "height": height,
                     "bytes": len(png_bytes),
                 }
-    raise RuntimeError("The reviewed image could not be compressed below 200,000 bytes as a 16:9 PNG.")
+    raise RuntimeError(
+        "The reviewed image could not be compressed below "
+        f"{MAX_GENERATED_IMAGE_BYTES:,} bytes as a 16:9 PNG."
+    )
 
 
 def png_dimensions(image_bytes: bytes) -> tuple[int, int] | None:
