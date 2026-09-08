@@ -403,7 +403,7 @@ If the `code` command is unavailable, open `.env` from Visual Studio Code. Keep 
 | `OPENAI_IMAGE_MODEL` | No | Defaults to `gpt-image-2`; change it only when the fallback-image pipeline is intentionally updated. |
 | `WEBFLOW_API_TOKEN` | Yes, unless the alternative is set | A Webflow token with CMS read/write and Assets read/write access to the target site. Site settings access is not required. |
 | `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` | Alternative | Supported in place of `WEBFLOW_API_TOKEN`; leave it blank when the primary variable is set. |
-| `WEBFLOW_SITE_ID` | Yes for image uploads | The Webflow site that owns the Blog Posts collection and should receive the images. This ID is configuration, not a secret. |
+| `WEBFLOW_SITE_ID` | Yes for image uploads | The Webflow site that owns the Blog Posts collection and should receive the images. The ID is not sensitive, but this workflow stores it as a GitHub Actions secret. |
 | `WEBFLOW_COLLECTION_ID` | No | Defaults to the Blog Posts collection ID shown in `.env.example`. |
 | `WEBFLOW_PUBLISH` | No | Defaults to `true`. Read the live-run warning below before changing or running it. |
 | `LINKEDIN_PROMPT_PROFILE` | No | Leave blank to use the first enrichment profile in `config/prompts.json`. |
@@ -418,11 +418,11 @@ The scheduled GitHub Action currently reads:
 - `LINKEDIN_ACCESS_TOKEN` from a GitHub Actions secret.
 - `OPENAI_API_KEY` from a GitHub Actions secret.
 - `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` from a GitHub Actions secret only.
-- `WEBFLOW_SITE_ID` from a GitHub Actions repository variable.
+- `WEBFLOW_SITE_ID` from a GitHub Actions secret.
 
-The workflow keeps the existing Blog Posts collection ID, `63250855178122098387d7ef`. The site variable must identify the site that owns that collection. The production preflight stops before image generation if a required secret or site variable is missing; it prints names only, never credential values.
+The workflow keeps the existing Blog Posts collection ID, `63250855178122098387d7ef`. The site ID must identify the site that owns that collection. The production preflight stops before image generation if a required secret is missing; it prints names only, never secret values.
 
-Changing `.env` does not update GitHub. Before the first GitHub run with asset uploads, update the `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` secret with the token that has CMS and Assets read/write access, and add `WEBFLOW_SITE_ID` under the repository's **Settings → Secrets and variables → Actions → Variables**. Tokens belong under **Secrets**, not **Variables**. Remove any old repository variable containing the Webflow token once the secret is configured. Site settings permission is unnecessary because the pipeline uploads assets and publishes CMS items without publishing the entire site. See [Webflow's asset upload API](https://developers.webflow.com/data/reference/assets/assets/create).
+Changing `.env` does not update GitHub. Before the first GitHub run with asset uploads, update the `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` secret with the token that has CMS and Assets read/write access, and add `WEBFLOW_SITE_ID` under the repository's **Settings → Secrets and variables → Actions → Secrets**. Both values are read from **Secrets** by this workflow. Remove any old repository variable containing the Webflow token once the secret is configured. Site settings permission is unnecessary because the pipeline uploads assets and publishes CMS items without publishing the entire site. See [Webflow's asset upload API](https://developers.webflow.com/data/reference/assets/assets/create).
 
 Those remote values remain in GitHub when you change MacBook. You do not need to recreate them merely because you cloned the repository elsewhere. GitHub intentionally hides saved secret values; it will not let you copy them back out for the local `.env` file.
 
@@ -720,7 +720,7 @@ Check that:
 - the token belongs to the correct LinkedIn, OpenAI, or Webflow account;
 - the Webflow token can read and write CMS items and Assets on the configured site;
 - `WEBFLOW_SITE_ID` identifies the site that owns the configured Blog Posts collection;
-- for GitHub runs, the updated token is saved as the `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` Actions secret and the site ID as the `WEBFLOW_SITE_ID` repository variable.
+- for GitHub runs, the updated token is saved as the `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` Actions secret and the site ID as the `WEBFLOW_SITE_ID` Actions secret.
 
 Do not print the full token in Terminal screenshots or support messages.
 
@@ -1009,7 +1009,7 @@ You can also start the workflow manually from GitHub Actions.
 
 The mutating production job is guarded to `main`. Selecting a feature branch manually cannot publish Webflow or push that feature branch into `main`.
 
-The workflow first checks that its required GitHub secrets and site variable are present. For an image-less post, it then runs `pipeline.prepare_image`, commits the generated PNG and manifest for recovery, and runs `pipeline.main`. The image upload uses local bytes from the runner; the commit is a backup of the reviewed result and is not image hosting.
+The workflow first checks that its required GitHub secrets, including `WEBFLOW_SITE_ID`, are present. For an image-less post, it then runs `pipeline.prepare_image`, commits the generated PNG and manifest for recovery, and runs `pipeline.main`. The image upload uses local bytes from the runner; the commit is a backup of the reviewed result and is not image hosting.
 
 After a successful run, the workflow commits updates under:
 
@@ -1026,7 +1026,7 @@ GitHub's normal `GITHUB_TOKEN` authenticates the checkout and the bot's pushes u
 
 Change visibility only after the image-upload implementation has passed its tests and a controlled live check. The code no longer uses public GitHub image URLs, but older Webflow posts must be audited separately.
 
-1. Update the GitHub `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` secret and add the `WEBFLOW_SITE_ID` repository variable. Keep CMS and Assets read/write permissions on the token; site settings permission is not needed.
+1. Update the GitHub `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` secret and add the `WEBFLOW_SITE_ID` Actions secret. Keep CMS and Assets read/write permissions on the token; site settings permission is not needed.
 2. Run `python -m unittest discover -s tests -v`. The suite includes source and generated image uploads, reuse, failure handling and workflow cache recovery without real API calls.
 3. Audit every staged and live Webflow item, including `main-image`, `thumbnail-image`, `post-images` and embedded body images, for this repository's GitHub image URLs. Migrate any remaining references to verified Webflow-hosted assets before making the repository private. Preserve body words, image order, ALT text and existing publish state.
 4. Use a dedicated Webflow test item or collection for the controlled image-upload and CMS read-back check. Check a source-image gallery and a reviewed generated fallback. Confirm public image loading and a repeated run's cached reuse. `WEBFLOW_PUBLISH=false` still writes drafts and uploads public assets, so it is not a harmless preview setting.

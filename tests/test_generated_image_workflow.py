@@ -50,8 +50,9 @@ class GeneratedImageWorkflowTests(unittest.TestCase):
     def test_webflow_credentials_only_come_from_secrets(self) -> None:
         workflow = PRODUCTION_WORKFLOW.read_text(encoding="utf-8")
         self.assertNotIn("vars.WEBFLOW_READ_AND_WRITE_BLOG_POSTS", workflow)
+        self.assertNotIn("vars.WEBFLOW_SITE_ID", workflow)
         self.assertEqual(workflow.count("WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}"), 3)
-        self.assertEqual(workflow.count("WEBFLOW_SITE_ID: ${{ vars.WEBFLOW_SITE_ID }}"), 3)
+        self.assertEqual(workflow.count("WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}"), 3)
 
     def test_preflight_rejects_missing_config_without_printing_credentials(self) -> None:
         environment = dict(os.environ, LINKEDIN_ACCESS_TOKEN="secret-linkedin-value",
