@@ -1,0 +1,41 @@
+{
+  "assets": {
+    "62b86a85e328a07bb3ff31b1:471468e31f60f6e87e620734710911d6cd6bf06674d09bca4536b2c866843b8b": {
+      "asset_id": "6a9fd7d0644bc665bcddb1a4",
+      "filename": "2026-08-16_2.png",
+      "sha256": "471468e31f60f6e87e620734710911d6cd6bf06674d09bca4536b2c866843b8b",
+      "site_id": "62b86a85e328a07bb3ff31b1",
+      "status": "ready",
+      "upload_filename": "2026-08-16_2-471468e31f60f6e8.png",
+      "url": "https://s3.amazonaws.com/webflow-prod-assets/62b86a85e328a07bb3ff31b1/6a9fd7d0644bc665bcddb1a4_2026-08-16_2-471468e31f60f6e8.png"
+    },
+    "62b86a85e328a07bb3ff31b1:7920d2cb98ec429981fd0ecf2a4b9b52bf22516247d42a5a571d19ec2b18ec16": {
+      "asset_id": "6a9fd7d4340a19768be5a37e",
+      "filename": "2026-08-16_1.png",
+      "sha256": "7920d2cb98ec429981fd0ecf2a4b9b52bf22516247d42a5a571d19ec2b18ec16",
+      "site_id": "62b86a85e328a07bb3ff31b1",
+      "status": "ready",
+      "upload_filename": "2026-08-16_1-7920d2cb98ec4299.png",
+      "url": "https://s3.amazonaws.com/webflow-prod-assets/62b86a85e328a07bb3ff31b1/6a9fd7d4340a19768be5a37e_2026-08-16_1-7920d2cb98ec4299.png"
+    },
+    "62b86a85e328a07bb3ff31b1:ae273b918c99cc8ce40e01049fff69a5da6d458b2706ffe857024823ec19d69a": {
+      "asset_id": "6a9fd7dcd211e18362289501",
+      "filename": "2026-09-02-marketing-has-tolerated-bluffing-for-too-long-now-e67822fd18.png",
+      "sha256": "ae273b918c99cc8ce40e01049fff69a5da6d458b2706ffe857024823ec19d69a",
+      "site_id": "62b86a85e328a07bb3ff31b1",
+      "status": "ready",
+      "upload_filename": "2026-09-02-marketing-has-tolerated-bluffing-for-too-long-now-e67822fd1-ae273b918c99cc8c.png",
+      "url": "https://s3.amazonaws.com/webflow-prod-assets/62b86a85e328a07bb3ff31b1/6a9fd7dcd211e18362289501_2026-09-02-marketing-has-tolerated-bluffing-for-too-long-now-e67822fd1-ae273b918c99cc8c.png"
+    },
+    "62b86a85e328a07bb3ff31b1:f834dd23e6e262b50250c85b4196e20338016279aeba48579819fc7c565a8e58": {
+      "asset_id": "6a9fd7ca340a19768be59e57",
+      "filename": "2026-06-17_1.jpg",
+      "sha256": "f834dd23e6e262b50250c85b4196e20338016279aeba48579819fc7c565a8e58",
+      "site_id": "62b86a85e328a07bb3ff31b1",
+      "status": "ready",
+      "upload_filename": "2026-06-17_1-f834dd23e6e262b5.png",
+      "url": "https://s3.amazonaws.com/webflow-prod-assets/62b86a85e328a07bb3ff31b1/6a9fd7ca340a19768be59e57_2026-06-17_1-f834dd23e6e262b5.png"
+    }
+  },
+  "version": 1
+}

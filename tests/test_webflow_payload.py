@@ -33,15 +33,15 @@ MULTI_IMAGE_POST = {
     **POST,
     "images": [
         {
-            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_10.jpg",
+            "url": "https://cdn.prod.website-files.com/site/2026-06-01_10.jpg",
             "alt": "Tenth image alt text",
         },
         {
-            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_2.jpg",
+            "url": "https://cdn.prod.website-files.com/site/2026-06-01_2.jpg",
             "alt": "Second image alt text",
         },
         {
-            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_1.jpg",
+            "url": "https://cdn.prod.website-files.com/site/2026-06-01_1.jpg",
             "alt": "First image alt text",
         },
     ],
@@ -51,7 +51,7 @@ SINGLE_DATE_IMAGE_POST = {
     **POST,
     "images": [
         {
-            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01.jpg",
+            "url": "https://cdn.prod.website-files.com/site/2026-06-01.jpg",
             "alt": "Single image alt text",
         },
     ],
@@ -61,14 +61,28 @@ GENERATED_MAIN_IMAGE_POST = {
     **POST,
     "images": [],
     "generated_main_image": {
-        "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/abc123/"
-        "images/generated/2026-05-31-hello-from-linkedin-a1b2c3d4e5.png",
+        "url": "https://cdn.prod.website-files.com/site/2026-05-31-hello-from-linkedin-a1b2c3d4e5.png",
         "alt": "Editorial illustration representing Hello from LinkedIn",
     },
 }
 
 
 class WebflowPayloadTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # Every sync test is isolated even when it raises before its final state write.
+        state_load = patch("pipeline.webflow.load_webflow_state", return_value={"items": {}})
+        state_save = patch("pipeline.webflow.save_webflow_state")
+        state_load.start()
+        state_save.start()
+        self.addCleanup(state_load.stop)
+        self.addCleanup(state_save.stop)
+        fingerprint = patch(
+            "pipeline.webflow.download_image_fingerprint",
+            return_value=("a" * 64, "b" * 64),
+        )
+        self.download_image = fingerprint.start()
+        self.addCleanup(fingerprint.stop)
+
     def test_author_ids_match_webflow_author_collection(self) -> None:
         self.assertEqual(AUTHOR_COLLECTION_ID, "63250855178122e0e087d804")
         self.assertEqual(AUTHOR_ITEM_ID, "632508551781225a7587d893")
@@ -107,15 +121,15 @@ class WebflowPayloadTests(unittest.TestCase):
 
         expected_images = [
             {
-                "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_1.jpg",
+                "url": "https://cdn.prod.website-files.com/site/2026-06-01_1.jpg",
                 "alt": "First image alt text",
             },
             {
-                "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_2.jpg",
+                "url": "https://cdn.prod.website-files.com/site/2026-06-01_2.jpg",
                 "alt": "Second image alt text",
             },
             {
-                "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01_10.jpg",
+                "url": "https://cdn.prod.website-files.com/site/2026-06-01_10.jpg",
                 "alt": "Tenth image alt text",
             },
         ]
@@ -129,7 +143,7 @@ class WebflowPayloadTests(unittest.TestCase):
         field_data = build_field_data(SINGLE_DATE_IMAGE_POST)
 
         expected_image = {
-            "url": "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/2026-06-01.jpg",
+            "url": "https://cdn.prod.website-files.com/site/2026-06-01.jpg",
             "alt": "Single image alt text",
         }
         self.assertEqual(field_data["post-images"], [expected_image])
@@ -163,14 +177,14 @@ class WebflowPayloadTests(unittest.TestCase):
             )
         )
 
-    def test_source_images_keep_existing_lenient_file_handling(self) -> None:
+    def test_source_images_must_not_be_silently_skipped(self) -> None:
         field_data = build_field_data(POST)
         client = WebflowClient("token", "collection")
 
         with patch.object(client, "request", return_value={}) as request:
             client.create_item(field_data)
 
-        self.assertEqual(request.call_args.kwargs["params"]["skipInvalidFiles"], "true")
+        self.assertEqual(request.call_args.kwargs["params"]["skipInvalidFiles"], "false")
 
     def test_read_back_uses_the_staged_and_live_item_endpoints(self) -> None:
         client = WebflowClient("token", "collection")
@@ -213,7 +227,7 @@ class WebflowPayloadTests(unittest.TestCase):
             ["2026-06-01_1.jpg", "2026-06-01_2.jpg", "2026-06-01.jpg"],
         )
 
-    def test_sync_skips_existing_live_item_without_using_local_state(self) -> None:
+    def test_sync_skips_existing_live_item_after_checking_for_pending_verification(self) -> None:
         class FakeClient:
             def __init__(self, _token, _collection_id):
                 self.created = []
@@ -241,10 +255,10 @@ class WebflowPayloadTests(unittest.TestCase):
                 return {"id": item_id}
 
             def get_item(self, item_id):
-                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+                return {"id": item_id, "fieldData": build_field_data(POST)}
 
             def get_live_item(self, item_id):
-                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+                return {"id": item_id, "fieldData": build_field_data(POST)}
 
             def create_item(self, field_data):
                 self.created.append(field_data)
@@ -268,7 +282,7 @@ class WebflowPayloadTests(unittest.TestCase):
 
         with (
             patch("pipeline.webflow.WebflowClient", return_value=fake_client),
-            patch("pipeline.webflow.load_webflow_state") as load_webflow_state,
+            patch("pipeline.webflow.load_webflow_state", return_value={"items": {}}) as load_webflow_state,
             patch(
                 "pipeline.webflow.save_webflow_state", side_effect=saved_states.append
             ),
@@ -283,7 +297,7 @@ class WebflowPayloadTests(unittest.TestCase):
                 "published": True,
             },
         )
-        load_webflow_state.assert_not_called()
+        load_webflow_state.assert_called_once_with()
         self.assertEqual(fake_client.updated, [])
         self.assertEqual(fake_client.updated_live, [])
         self.assertEqual(fake_client.created, [])
@@ -312,11 +326,11 @@ class WebflowPayloadTests(unittest.TestCase):
 
             def get_item(self, item_id):
                 self.staged_reads += 1
-                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+                return {"id": item_id, "fieldData": build_field_data(POST)}
 
             def get_live_item(self, item_id):
                 self.live_reads += 1
-                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+                return {"id": item_id, "fieldData": build_field_data(POST)}
 
             def publish_item(self, item_id):
                 self.published.append(item_id)
@@ -397,10 +411,10 @@ class WebflowPayloadTests(unittest.TestCase):
                 self.published.append(item_id)
 
             def get_item(self, item_id):
-                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+                return {"id": item_id, "fieldData": build_field_data(POST)}
 
             def get_live_item(self, item_id):
-                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+                return {"id": item_id, "fieldData": build_field_data(POST)}
 
         config = type(
             "Config",
@@ -492,7 +506,10 @@ class WebflowPayloadTests(unittest.TestCase):
             sync_post_to_webflow(POST, config)
 
         self.assertEqual(fake_client.published, [])
-        save_state.assert_not_called()
+        save_state.assert_called_once()
+        entry = save_state.call_args.args[0]["items"][POST["url"]]
+        self.assertEqual(entry["verification_pending"]["location"], "staged")
+        self.assertNotIn("signature", entry)
 
     def test_sync_retries_live_read_back_after_publish(self) -> None:
         class FakeClient:
@@ -509,7 +526,7 @@ class WebflowPayloadTests(unittest.TestCase):
                 return {"id": "new-item"}
 
             def get_item(self, item_id):
-                return {"id": item_id, "fieldData": {"post-body": POST["content"]}}
+                return {"id": item_id, "fieldData": build_field_data(POST)}
 
             def publish_item(self, _item_id):
                 return {}
@@ -521,7 +538,7 @@ class WebflowPayloadTests(unittest.TestCase):
                     if self.live_reads == 1
                     else POST["content"]
                 )
-                return {"id": item_id, "fieldData": {"post-body": body}}
+                return {"id": item_id, "fieldData": {**build_field_data(POST), "post-body": body}}
 
         config = type(
             "Config",
@@ -599,9 +616,14 @@ class WebflowPayloadTests(unittest.TestCase):
                 return_value=FakeClient("token", "collection"),
             ),
             patch("pipeline.webflow.load_webflow_state", return_value=state),
+            patch("pipeline.webflow.save_webflow_state") as save_state,
             self.assertRaisesRegex(WebflowError, "Publish the deletion in Webflow"),
         ):
             sync_post_to_webflow(POST, config)
+
+        save_state.assert_called_once()
+        pending = save_state.call_args.args[0]["items"][POST["url"]]["verification_pending"]
+        self.assertEqual(pending["item_id"], "live-item")
 
 
 if __name__ == "__main__":

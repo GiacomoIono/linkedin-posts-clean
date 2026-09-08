@@ -9,16 +9,12 @@ import time
 import unicodedata
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
-
-import requests
 from openai import APIConnectionError, OpenAI
 
 from .config import GENERATED_IMAGE_DIR, PipelineConfig
 from .enrichment import load_prompts, response_text
 from .generated_images import (
     ensure_generated_filename_available,
-    image_sha256,
     record_generated_image,
     validate_registered_generated_image,
 )
@@ -47,9 +43,6 @@ BACKGROUND_IMAGE_MAX_SECONDS = 480.0
 BACKGROUND_STATUS_TIMEOUT_SECONDS = 30.0
 GENERATED_IMAGE_ALT_MAX = 180
 MAX_IMAGE_PROMPT_CONTENT = 6000
-PUBLIC_IMAGE_MAX_ATTEMPTS = 10
-PUBLIC_IMAGE_RETRY_SECONDS = 5
-RAW_REPOSITORY_URL = "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean"
 POST_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 FORBIDDEN_VISUAL_MOTIF_RE = re.compile(
     r"\b(?:(?:speech|dialogue|word)[- ](?:bubbles?|balloons?)|"
@@ -159,7 +152,8 @@ def source_images(post: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         image
         for image in post.get("images", []) or []
-        if isinstance(image, dict) and str(image.get("url") or "").strip()
+        if isinstance(image, dict)
+        and str(image.get("local_path") or image.get("url") or "").strip()
     ]
 
 
@@ -201,12 +195,6 @@ def generated_image_filename(post: dict[str, Any]) -> str:
 
 def generated_image_path(post: dict[str, Any]) -> Path:
     return GENERATED_IMAGE_DIR / generated_image_filename(post)
-
-
-def generated_image_url(post: dict[str, Any], public_ref: str) -> str:
-    safe_ref = quote((public_ref or "main").strip() or "main", safe="/")
-    filename = quote(generated_image_filename(post), safe="")
-    return f"{RAW_REPOSITORY_URL}/{safe_ref}/images/generated/{filename}"
 
 
 def _structured_response_format(name: str, schema: dict[str, Any]) -> dict[str, Any]:
@@ -573,7 +561,6 @@ def generate_missing_main_image(
         return {
             "action": "reused",
             "path": str(target),
-            "url": generated_image_url(post, config.image_public_ref),
         }
 
     if not config.openai_api_key:
@@ -619,7 +606,6 @@ def generate_missing_main_image(
     return {
         "action": "generated",
         "path": str(target),
-        "url": generated_image_url(post, config.image_public_ref),
     }
 
 
@@ -648,50 +634,8 @@ def attach_generated_main_image(
     if not alt:
         raise RuntimeError("The registered generated fallback has no ALT text. Stopping before Webflow.")
     enriched["generated_main_image"] = {
-        "url": generated_image_url(post, config.image_public_ref),
+        "local_path": f"images/generated/{target.name}",
+        "filename": target.name,
         "alt": alt,
     }
     return enriched
-
-
-def wait_for_generated_image_public(
-    post: dict[str, Any],
-    config: PipelineConfig,
-    request_get: Any | None = None,
-    sleep_fn: Any | None = None,
-) -> str:
-    if source_images(post):
-        return ""
-
-    target = generated_image_path(post)
-    registration = validate_registered_generated_image(target, post_identity(post))
-    expected_hash = str(registration.get("sha256") or "")
-    request_get = request_get or requests.get
-    sleep_fn = sleep_fn or time.sleep
-    url = generated_image_url(post, config.image_public_ref)
-    last_problem = "unknown error"
-    for attempt in range(1, PUBLIC_IMAGE_MAX_ATTEMPTS + 1):
-        try:
-            response = request_get(url, timeout=30)
-            if (
-                response.status_code == 200
-                and is_valid_prepared_png_bytes(response.content)
-                and image_sha256(response.content) == expected_hash
-            ):
-                print(f"Generated fallback image is publicly available: {url}")
-                return url
-            last_problem = f"HTTP {response.status_code} or invalid PNG/checksum response"
-        except requests.RequestException as exc:
-            last_problem = str(exc)
-
-        if attempt < PUBLIC_IMAGE_MAX_ATTEMPTS:
-            print(
-                "Generated fallback image is not public yet "
-                f"({last_problem}). Retrying in {PUBLIC_IMAGE_RETRY_SECONDS} seconds."
-            )
-            sleep_fn(PUBLIC_IMAGE_RETRY_SECONDS)
-
-    raise RuntimeError(
-        "The generated fallback PNG was committed but is not available from its public "
-        f"GitHub URL: {last_problem}. Stopping before Webflow."
-    )

@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from pipeline.config import NO_POSTS_FOUND_EXIT_CODE
-from pipeline.prepare_image import prepare_latest_post_image, verify_latest_post_image
+from pipeline.prepare_image import prepare_latest_post_image
 
 POST = {
     "content": "<p>A LinkedIn post without an image.</p>",
@@ -23,6 +23,22 @@ def config(force_webflow_sync: bool = False):
 
 
 class PrepareImageTests(unittest.TestCase):
+    def setUp(self) -> None:
+        pending_check = patch("pipeline.prepare_image.has_pending_verification", return_value=False)
+        self.has_pending_verification = pending_check.start()
+        self.addCleanup(pending_check.stop)
+
+    def test_pending_verification_skips_paid_generation_and_live_lookup(self) -> None:
+        self.has_pending_verification.return_value = True
+        with (
+            patch("pipeline.prepare_image.fetch_latest_linkedin_post", return_value=POST),
+            patch("pipeline.prepare_image.find_live_webflow_item") as find_live,
+            patch("pipeline.prepare_image.generate_missing_main_image") as generate,
+        ):
+            self.assertEqual(prepare_latest_post_image(config()), 0)
+        find_live.assert_not_called()
+        generate.assert_not_called()
+
     def test_no_recent_post_exits_without_generation(self) -> None:
         with (
             patch(
@@ -38,7 +54,7 @@ class PrepareImageTests(unittest.TestCase):
     def test_source_image_skips_webflow_lookup_and_generation(self) -> None:
         post = {
             **POST,
-            "images": [{"url": "https://example.com/source.jpg", "alt": ""}],
+            "images": [{"local_path": "images/2026-08-25.jpg", "filename": "2026-08-25.jpg", "alt": ""}],
         }
         with (
             patch(
@@ -105,64 +121,6 @@ class PrepareImageTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         generate.assert_called_once_with(post, config())
-
-
-class VerifyImageTests(unittest.TestCase):
-    def test_no_recent_post_exits_without_verification(self) -> None:
-        with (
-            patch(
-                "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=None
-            ),
-            patch("pipeline.prepare_image.wait_for_generated_image_public") as verify,
-        ):
-            exit_code = verify_latest_post_image(config())
-
-        self.assertEqual(exit_code, NO_POSTS_FOUND_EXIT_CODE)
-        verify.assert_not_called()
-
-    def test_source_image_skips_generated_url_verification(self) -> None:
-        post = {
-            **POST,
-            "images": [{"url": "https://example.com/source.jpg", "alt": ""}],
-        }
-        with (
-            patch(
-                "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=post
-            ),
-            patch("pipeline.prepare_image.wait_for_generated_image_public") as verify,
-        ):
-            exit_code = verify_latest_post_image(config())
-
-        self.assertEqual(exit_code, 0)
-        verify.assert_not_called()
-
-    def test_missing_local_generated_image_skips_public_verification(self) -> None:
-        with (
-            patch(
-                "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=POST
-            ),
-            patch("pipeline.prepare_image.is_valid_prepared_png_file", return_value=False),
-            patch("pipeline.prepare_image.wait_for_generated_image_public") as verify,
-        ):
-            exit_code = verify_latest_post_image(config())
-
-        self.assertEqual(exit_code, 0)
-        verify.assert_not_called()
-
-    def test_prepared_generated_image_is_verified(self) -> None:
-        image_config = config()
-        post = {**POST, "linkedin_has_image": True}
-        with (
-            patch(
-                "pipeline.prepare_image.fetch_latest_linkedin_post", return_value=post
-            ),
-            patch("pipeline.prepare_image.is_valid_prepared_png_file", return_value=True),
-            patch("pipeline.prepare_image.wait_for_generated_image_public") as verify,
-        ):
-            exit_code = verify_latest_post_image(image_config)
-
-        self.assertEqual(exit_code, 0)
-        verify.assert_called_once_with(post, image_config)
 
 
 if __name__ == "__main__":

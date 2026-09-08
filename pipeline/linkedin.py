@@ -15,7 +15,6 @@ LINKEDIN_PAGE_SIZE = 50
 LINKEDIN_MAX_ATTEMPTS = 3
 LINKEDIN_RETRY_BACKOFF_SECONDS = 1
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
-RAW_IMAGE_BASE_URL = "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/refs/heads/main/images/"
 IMAGE_SEQUENCE_RE = re.compile(r"_(\d+)(?=\.[^.]+$)")
 IMAGE_MEDIA_CATEGORIES = {"IMAGE", "CAROUSEL", "MULTI_IMAGE"}
 NON_IMAGE_MEDIA_CATEGORIES = {"NONE", "VIDEO"}
@@ -44,7 +43,10 @@ def find_images_for_date(post_date: str) -> list[dict[str, str]]:
         filenames.append(item.name)
     filenames.sort(key=image_filename_sort_key)
 
-    return [{"url": RAW_IMAGE_BASE_URL + filename, "alt": ""} for filename in filenames]
+    return [
+        {"local_path": f"images/{filename}", "filename": filename, "alt": ""}
+        for filename in filenames
+    ]
 
 
 def paragraph_html(raw_text: str) -> str:
