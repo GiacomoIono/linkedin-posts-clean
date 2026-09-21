@@ -73,6 +73,79 @@
       },
       "bytes": 676941,
       "alt": "An experienced marketer reconnects a complex console in a dim corporate corridor while a wall of hollow masks blocks the amber-lit executive room and its occupied senior chairs."
+    },
+    "2026-09-20-welcome-to-the-future-of-google-ads-i-had-the-67c88bb566.png": {
+      "post_url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7507476899216916480",
+      "published_at": "2026-09-20T16:33:08.435000",
+      "sha256": "5180ced990c1cfd4913ca44d122d880f15b6fba875f9ef147c4b4ca61930c56c",
+      "renderer_model": "gpt-image-2",
+      "planner": {
+        "model": "gpt-5.6-sol",
+        "concept": {
+          "use_case": "illustration-story",
+          "central_claim": "MCP-connected AI assistants can make campaign data easier to query and analyse, but their value—and safety—depends on solid advertising expertise rather than blind reliance.",
+          "tension": "Convenient AI guidance versus the human judgment needed to understand campaign fundamentals and retain control.",
+          "audience": "Digital advertising professionals, especially junior campaign managers adopting AI-assisted workflows.",
+          "emotional_register": "Cautious curiosity with restrained optimism and an undercurrent of risk.",
+          "motifs": [
+            "A small friendly robot projecting campaign charts",
+            "A tactile paper campaign map covered with handwritten calculations",
+            "An unpressed amber control button beside the robot"
+          ],
+          "scene": "A junior advertising analyst sits at a dim desk, studying a paper campaign map with one hand while using the other to hold back a small friendly robot that projects simplified campaign charts; beside the robot, an amber control button remains deliberately untouched, making human understanding the barrier between useful analysis and autonomous action.",
+          "backdrop": "A smoky charcoal office with a barely visible digital advertising dashboard receding into shadow, warmed by one muted amber task lamp and restrained slate-blue screen light.",
+          "subject": "One unmistakable junior analyst actively checking the robot’s projected analysis against handwritten campaign fundamentals instead of surrendering control.",
+          "mood": "Muted, tactile noir editorial illustration with believable human concentration, quiet technological allure, and controlled unease.",
+          "reference_ids": [
+            "03",
+            "01",
+            "10"
+          ],
+          "alt": "A junior analyst checks handwritten campaign fundamentals while holding back a friendly robot projecting data beside an untouched amber control button."
+        }
+      },
+      "quality_review": {
+        "model": "gpt-5.6-sol",
+        "result": {
+          "article_fit": 98,
+          "human_editorial_resonance": 97,
+          "thumbnail_clarity": 91,
+          "house_style_match": 94,
+          "technical_cleanliness": 96,
+          "material_defect": false,
+          "issues": [
+            "Fine desk and background details may soften at very small thumbnail sizes, but the analyst, robot, projected charts, and untouched control remain clear."
+          ],
+          "passed": true,
+          "rationale": "The image closely realizes the central tension: a focused human analyst studies campaign fundamentals while physically restraining an AI assistant that offers simplified visual analysis, with the untouched amber control reinforcing retained human authority. The analyst provides a strong editorial and emotional anchor, and the restrained palette, deep atmosphere, expressive ink-like linework, and selective amber-blue illumination fit the mature noir ink-and-wash house style. Despite abundant secondary detail, the core metaphor remains readable and technically clean, with no material defects.",
+          "alt": "A focused advertising analyst marks a paper campaign map while holding back a friendly chart-projecting robot beside an untouched amber control button.",
+          "weighted_score": 95.55
+        }
+      },
+      "references": [
+        {
+          "id": "03",
+          "filename": "03-human-craft-paper-automation.png",
+          "sha256": "4b4e044ba9b211dc5b6c16f998adfe1eea4ea7ef74e2eacbc8d8db59a2842b0a"
+        },
+        {
+          "id": "01",
+          "filename": "01-market-bubble-industrial-system.png",
+          "sha256": "9514e23896f9d1b0d013eed25ad83d5e45b5e30b5c779f667fb03715b9abcd93"
+        },
+        {
+          "id": "10",
+          "filename": "10-guided-path-versus-maze.png",
+          "sha256": "d8078936ca8ba2deb8e61b18c50ee04177b7ccbf693ec4a4733fa3dbdfb01f9c"
+        }
+      ],
+      "prompt": "Use case: illustration-story\nAsset type: borderless blog main image\nPrimary request: A junior advertising analyst sits at a dim desk, studying a paper campaign map with one hand while using the other to hold back a small friendly robot that projects simplified campaign charts; beside the robot, an amber control button remains deliberately untouched, making human understanding the barrier between useful analysis and autonomous action.\nInput images: Image 1: style reference for human narrative - close human craft, believable hands, tactile paper, and automation held in the background; Image 2: style reference for medium and palette - industrial scale, smoky charcoal atmosphere, transparent fragility, and fine amber accents; Image 3: style reference for composition or metaphor - luminous route versus smoky maze with restrained blue accents\nScene/backdrop: A smoky charcoal office with a barely visible digital advertising dashboard receding into shadow, warmed by one muted amber task lamp and restrained slate-blue screen light.\nSubject: One unmistakable junior analyst actively checking the robot’s projected analysis against handwritten campaign fundamentals instead of surrendering control.\nStyle/medium: muted, human-centered noir editorial illustration; graphic-novel ink linework; charcoal, graphite, and restrained watercolor/gouache washes; tactile paper grain; sophisticated rather than superhero-comic styling\nComposition/framing: cinematic 16:9 landscape; full bleed; readable focal hierarchy at thumbnail size; no ornamental frame\nLighting/mood: Muted, tactile noir editorial illustration with believable human concentration, quiet technological allure, and controlled unease.; shadows retain detail and are never crushed to pure black\nColor palette: greyscale-led, low-saturation stone and charcoal midtones with one or two restrained blue, rust, amber, burgundy, or forest accents\nText: none\nConstraints: concept must communicate the article's central thesis; synthesize the references' visual family without copying their literal subjects or layouts; prefer a clear human emotional anchor; non-photorealistic; no title, caption, lettering, logo, watermark, or visible brand mark\nAvoid: neon or flashy colors, pitch-black areas, glossy 3D, flat corporate vector art, generic stock imagery, visual clutter, ornate mechanical spectacle, speech bubbles, dialogue or word balloons, speed lines, panel grids, comic panels, superhero-comic exaggeration, and comic-panel borders",
+      "dimensions": {
+        "width": 1200,
+        "height": 675
+      },
+      "bytes": 599093,
+      "alt": "A focused advertising analyst marks a paper campaign map while holding back a friendly chart-projecting robot beside an untouched amber control button."
     }
   }
 }
