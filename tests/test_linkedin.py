@@ -135,10 +135,12 @@ class LinkedInTests(unittest.TestCase):
                 images = find_images_for_date("2026-08-25")
 
         self.assertEqual(
-            [image["url"].rsplit("/", 1)[-1] for image in images],
+            [image["filename"] for image in images],
             ["2026-08-25_1.webp", "2026-08-25_2.png", "2026-08-25_10.jpg"],
         )
         self.assertTrue(all(image["alt"] == "" for image in images))
+        self.assertTrue(all(image["local_path"] == "images/" + image["filename"] for image in images))
+        self.assertTrue(all("url" not in image for image in images))
 
     def test_paginates_until_every_record_in_window_has_been_checked(self) -> None:
         page_one = [ugc_post(self.cutoff + 2_000, "urn:li:ugcPost:older")] + [

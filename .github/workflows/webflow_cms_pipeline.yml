@@ -27,6 +27,27 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
 
+      - name: Check required GitHub configuration before paid work
+        env:
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in LINKEDIN_ACCESS_TOKEN OPENAI_API_KEY WEBFLOW_API_TOKEN WEBFLOW_SITE_ID; do
+            value="${!name:-}"
+            if [ -z "${value//[[:space:]]/}" ]; then
+              echo "::error::Required GitHub configuration is missing: $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Set the four Actions secrets: LINKEDIN_ACCESS_TOKEN, OPENAI_API_KEY, WEBFLOW_READ_AND_WRITE_BLOG_POSTS and WEBFLOW_SITE_ID."
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -41,7 +62,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: gpt-5.6-sol
           OPENAI_IMAGE_MODEL: gpt-image-2
-          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS || vars.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
           WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'
           FORCE_WEBFLOW_SYNC: 'false'
         run: |
@@ -86,32 +108,15 @@ jobs:
           git rebase origin/main
           git push origin HEAD:main
 
-      - name: Pin generated image URL to the committed revision
-        run: echo "IMAGE_PUBLIC_REF=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-
-      - name: Verify generated fallback image before Webflow sync
-        env:
-          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
-        run: |
-          set +e
-          python -m pipeline.prepare_image --verify-public
-          status=$?
-          set -e
-
-          if [ "$status" -eq 2 ]; then
-            echo "No recent LinkedIn posts found. No fallback image URL needs verification."
-            exit 0
-          fi
-
-          exit "$status"
-
       - name: Run Webflow CMS pipeline
+        id: pipeline
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_MODEL: gpt-5.6-sol
           OPENAI_IMAGE_MODEL: gpt-image-2
-          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS || vars.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
+          WEBFLOW_API_TOKEN: ${{ secrets.WEBFLOW_READ_AND_WRITE_BLOG_POSTS }}
+          WEBFLOW_SITE_ID: ${{ secrets.WEBFLOW_SITE_ID }}
           WEBFLOW_COLLECTION_ID: '63250855178122098387d7ef'
           WEBFLOW_PUBLISH: 'true'
           FORCE_WEBFLOW_SYNC: 'false'
@@ -128,7 +133,42 @@ jobs:
 
           exit "$status"
 
+      # Preserve uploads and verification intent even when a later pipeline step fails.
+      # The failed pipeline step remains failed; partial post outputs are excluded.
+      - name: Save Webflow recovery state after a pipeline failure
+        if: ${{ !cancelled() && steps.pipeline.outcome == 'failure' }}
+        run: |
+          set -euo pipefail
+          recovery_files=()
+          for candidate in data/webflow_assets.json data/webflow_items.json; do
+            if [ -f "$candidate" ]; then
+              recovery_files+=("$candidate")
+            fi
+          done
+          if [ "${#recovery_files[@]}" -eq 0 ]; then
+            echo "No Webflow recovery files to save."
+            exit 0
+          fi
+          if [ -z "$(git status --porcelain -- "${recovery_files[@]}")" ]; then
+            echo "No Webflow recovery state changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config rebase.autoStash true
+          git add -- "${recovery_files[@]}"
+          git commit -m "chore(bot): preserve Webflow upload and verification progress"
+          git fetch origin main
+          if ! git rebase origin/main; then
+            echo "::error::Webflow recovery state rebase failed. Resolve the conflict before retrying."
+            git rebase --abort || true
+            exit 1
+          fi
+          git push origin HEAD:main
+
       - name: Commit and push pipeline outputs
+        if: ${{ success() && steps.pipeline.outcome == 'success' }}
         run: |
           set -e
           git config user.name "github-actions[bot]"
@@ -156,9 +196,9 @@ jobs:
 
           git fetch origin main
           if ! git rebase origin/main; then
-            echo "Rebase conflict; aborting and skipping push this run."
+            echo "::error::Pipeline output rebase failed. Resolve the conflict before retrying."
             git rebase --abort || true
-            exit 0
+            exit 1
           fi
 
           if git diff --quiet HEAD origin/main; then
@@ -167,3 +207,14 @@ jobs:
           fi
 
           git push origin HEAD:main
+
+      - name: Keep Webflow recovery state as a failed-run artifact
+        if: ${{ failure() && (steps.pipeline.outcome == 'failure' || steps.pipeline.outcome == 'success') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: webflow-recovery-state
+          path: |
+            data/webflow_assets.json
+            data/webflow_items.json
+          if-no-files-found: ignore
+          retention-days: 7

@@ -5,7 +5,6 @@ import unittest
 from unittest.mock import patch
 
 from pipeline.config import (
-    DEFAULT_IMAGE_PUBLIC_REF,
     DEFAULT_OPENAI_IMAGE_MODEL,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_WEBFLOW_COLLECTION_ID,
@@ -29,7 +28,7 @@ class ConfigTests(unittest.TestCase):
         self.assertTrue(config.webflow_publish)
         self.assertFalse(config.force_webflow_sync)
         self.assertEqual(config.openai_image_model, DEFAULT_OPENAI_IMAGE_MODEL)
-        self.assertEqual(config.image_public_ref, DEFAULT_IMAGE_PUBLIC_REF)
+        self.assertEqual(config.webflow_site_id, "")
         self.assertEqual(GENERATED_IMAGE_DIR, IMAGE_DIR / "generated")
 
     def test_loads_active_settings_from_environment(self) -> None:
@@ -39,6 +38,7 @@ class ConfigTests(unittest.TestCase):
             "OPENAI_MODEL": "gpt-test",
             "WEBFLOW_API_TOKEN": " webflow-token ",
             "WEBFLOW_COLLECTION_ID": "collection-id",
+            "WEBFLOW_SITE_ID": "site-id",
             "WEBFLOW_PUBLISH": "false",
             "FORCE_WEBFLOW_SYNC": "yes",
         }
@@ -50,6 +50,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.openai_model, "gpt-test")
         self.assertEqual(config.webflow_api_token, "webflow-token")
         self.assertEqual(config.webflow_collection_id, "collection-id")
+        self.assertEqual(config.webflow_site_id, "site-id")
         self.assertFalse(config.webflow_publish)
         self.assertTrue(config.force_webflow_sync)
 
@@ -68,18 +69,16 @@ class ConfigTests(unittest.TestCase):
 
         self.assertEqual(config.openai_api_key, "existing-key")
         self.assertEqual(config.openai_image_model, DEFAULT_OPENAI_IMAGE_MODEL)
-        self.assertEqual(config.image_public_ref, DEFAULT_IMAGE_PUBLIC_REF)
+        self.assertEqual(config.webflow_site_id, "")
 
-    def test_image_model_and_public_ref_can_be_overridden(self) -> None:
+    def test_image_model_can_be_overridden(self) -> None:
         environment = {
             "OPENAI_IMAGE_MODEL": "gpt-image-test",
-            "IMAGE_PUBLIC_REF": "commit-sha",
         }
         with patch.dict(os.environ, environment, clear=True), patch("pipeline.config.load_dotenv"):
             config = load_config()
 
         self.assertEqual(config.openai_image_model, "gpt-image-test")
-        self.assertEqual(config.image_public_ref, "commit-sha")
 
 
 if __name__ == "__main__":

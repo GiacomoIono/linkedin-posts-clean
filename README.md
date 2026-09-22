@@ -2,16 +2,19 @@
 
 This project takes your latest LinkedIn post and turns it into a Webflow blog post.
 
-In plain English, the pipeline does this:
+The main publishing command first resumes every unfinished Webflow verification checkpoint, including posts that are no longer in LinkedIn's 48-hour window. Its normal flow does this:
 
 1. Looks for your newest LinkedIn post from the last 48 hours.
 2. Turns the post text into simple blog-post HTML.
 3. Finds matching source images directly inside the top-level `images/` folder.
 4. If no date-matched top-level source file exists, uses OpenAI to create one reviewed 16:9 PNG fallback under `images/generated/`.
-5. Uses OpenAI to create the headline, summary, and missing image ALT text.
-6. Researches whether the body needs authoritative evidence links and safely adds zero or more.
-7. Sends the post to the Webflow Blog Posts collection.
-8. Saves a record of what happened in the `data/` folder.
+5. Uploads local image files through Webflow's Assets API and verifies the public Webflow URLs.
+6. Uses OpenAI to create the headline, summary, and missing image ALT text from those Webflow URLs.
+7. Researches whether the body needs authoritative evidence links and safely adds zero or more.
+8. Sends the post to the Webflow Blog Posts collection and verifies the saved body and image fields.
+9. Saves a record of what happened in the `data/` folder, including a reusable Webflow asset cache.
+
+The repository can be private. GitHub stores the source files and runs the automation; Webflow hosts the images that readers and OpenAI need to access. Uploaded Webflow images remain public even when the repository is private.
 
 ## Set up this project on a MacBook Pro
 
@@ -230,7 +233,7 @@ Official references:
 
 ### Part 2: authenticate the new MacBook Pro with GitHub
 
-Cloning this public repository does not require authentication, but pushing changes does. GitHub account passwords cannot be used as Git passwords. GitHub CLI will configure secure HTTPS authentication.
+A private repository requires authentication for cloning, pulling, and pushing. Complete this login before cloning, using an account that has access to the repository. GitHub account passwords cannot be used as Git passwords. GitHub CLI will configure secure HTTPS authentication.
 
 1. Start the login:
 
@@ -388,7 +391,7 @@ cp .env.example .env
 code .env
 ~~~
 
-If the `code` command is unavailable, open `.env` from Visual Studio Code. Keep `.env.example` unchanged; it is the public template and must never contain real credentials.
+If the `code` command is unavailable, open `.env` from Visual Studio Code. Keep `.env.example` unchanged; it is the tracked template and must never contain real credentials, including in a private repository.
 
 2. Add the real values after each required equals sign:
 
@@ -398,9 +401,9 @@ If the `code` command is unavailable, open `.env` from Visual Studio Code. Keep 
 | `OPENAI_API_KEY` | Yes | Secure copy of the old value, or a new key from the same OpenAI API project. Existing key values usually cannot be revealed again after creation. |
 | `OPENAI_MODEL` | No | Defaults to `gpt-5.6-sol` for concept planning, semantic image review, SEO metadata, evidence-link research, and ALT text. |
 | `OPENAI_IMAGE_MODEL` | No | Defaults to `gpt-image-2`; change it only when the fallback-image pipeline is intentionally updated. |
-| `IMAGE_PUBLIC_REF` | No | Defaults to `main`; GitHub Actions pins generated-image URLs to the exact committed revision automatically. |
-| `WEBFLOW_API_TOKEN` | Yes, unless the alternative is set | Secure copy of the old token, or a replacement token with access to read and write the Blog Posts collection. |
+| `WEBFLOW_API_TOKEN` | Yes, unless the alternative is set | A Webflow token with CMS read/write and Assets read/write access to the target site. Site settings access is not required. |
 | `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` | Alternative | Supported in place of `WEBFLOW_API_TOKEN`; leave it blank when the primary variable is set. |
+| `WEBFLOW_SITE_ID` | Yes for image uploads | The Webflow site that owns the Blog Posts collection and should receive the images. The ID is not sensitive, but this workflow stores it as a GitHub Actions secret. |
 | `WEBFLOW_COLLECTION_ID` | No | Defaults to the Blog Posts collection ID shown in `.env.example`. |
 | `WEBFLOW_PUBLISH` | No | Defaults to `true`. Read the live-run warning below before changing or running it. |
 | `LINKEDIN_PROMPT_PROFILE` | No | Leave blank to use the first enrichment profile in `config/prompts.json`. |
@@ -414,7 +417,12 @@ The scheduled GitHub Action currently reads:
 
 - `LINKEDIN_ACCESS_TOKEN` from a GitHub Actions secret.
 - `OPENAI_API_KEY` from a GitHub Actions secret.
-- `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` from a GitHub Actions secret or repository variable.
+- `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` from a GitHub Actions secret only.
+- `WEBFLOW_SITE_ID` from a GitHub Actions secret.
+
+The workflow keeps the existing Blog Posts collection ID, `63250855178122098387d7ef`. The site ID must identify the site that owns that collection. The production preflight stops before image generation if a required secret is missing; it prints names only, never secret values.
+
+Changing `.env` does not update GitHub. Before the first GitHub run with asset uploads, update the `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` secret with the token that has CMS and Assets read/write access, and add `WEBFLOW_SITE_ID` under the repository's **Settings → Secrets and variables → Actions → Secrets**. Both values are read from **Secrets** by this workflow. Remove any old repository variable containing the Webflow token once the secret is configured. Site settings permission is unnecessary because the pipeline uploads assets and publishes CMS items without publishing the entire site. See [Webflow's asset upload API](https://developers.webflow.com/data/reference/assets/assets/create).
 
 Those remote values remain in GitHub when you change MacBook. You do not need to recreate them merely because you cloned the repository elsewhere. GitHub intentionally hides saved secret values; it will not let you copy them back out for the local `.env` file.
 
@@ -433,7 +441,7 @@ The first two commands should show an ignore rule. The final command should not 
 4. Confirm that the application can see the required settings without printing the secret values:
 
 ~~~bash
-python -c "from pipeline.config import load_config; c=load_config(); print('LinkedIn configured:', bool(c.linkedin_access_token)); print('OpenAI configured:', bool(c.openai_api_key)); print('Webflow configured:', bool(c.webflow_api_token))"
+python -c "from pipeline.config import load_config; c=load_config(); print('LinkedIn configured:', bool(c.linkedin_access_token)); print('OpenAI configured:', bool(c.openai_api_key)); print('Webflow configured:', bool(c.webflow_api_token)); print('Webflow site configured:', bool(c.webflow_site_id))"
 ~~~
 
 Expected results for the normal configuration:
@@ -442,6 +450,7 @@ Expected results for the normal configuration:
 LinkedIn configured: True
 OpenAI configured: True
 Webflow configured: True
+Webflow site configured: True
 ~~~
 
 ### Part 8: run the safe local verification
@@ -486,12 +495,12 @@ It is a live end-to-end command. With valid credentials, it can:
 
 - read recent LinkedIn activity;
 - call the OpenAI API and incur API usage;
-- require a generated fallback PNG to be committed before Webflow can fetch it when the post has no source image;
+- upload local source images or a prepared generated fallback to Webflow Assets;
 - create or update a Webflow CMS item;
 - publish that item when `WEBFLOW_PUBLISH=true`;
 - write output files under `data/`.
 
-Important: `WEBFLOW_PUBLISH=false` is not a complete dry-run mode. It prevents the final publish step, but the pipeline can still create or update a Webflow draft item.
+Important: `WEBFLOW_PUBLISH=false` is not a complete dry-run mode. It prevents the final publish step, but the pipeline can still upload public Webflow assets and create or update a Webflow draft item.
 
 The normal scheduled GitHub Action already runs the production pipeline. A local live run is optional and should be used only when you intentionally want to process a real LinkedIn post.
 
@@ -503,9 +512,10 @@ Only do this when all of the following are true:
 - The local `.env` values are configured.
 - `FORCE_WEBFLOW_SYNC=false` unless a maintenance override is deliberately required.
 - Any matching image has the correct date-based filename.
-- Any new image is already committed and available on GitHub's `main` branch.
+- Any matching image is available in this local checkout's top-level `images/` folder.
+- For a post without matching source files, `python -m pipeline.prepare_image` has prepared or reused a reviewed generated fallback locally.
 
-That last point is essential: image URLs are built from the repository's raw `main` branch. A brand-new image that exists only on the laptop or only on an unmerged branch cannot be fetched by Webflow or OpenAI.
+Local runs upload the file bytes directly from this checkout; a local source image does not need to be public or already committed. GitHub Actions can only use files available in its checkout, so commit and push source images to `main` before a scheduled run. The generated-image preparation command can call paid OpenAI APIs; it creates the reviewed PNG and manifest without uploading an image or writing a CMS item.
 
 Activate the environment if needed:
 
@@ -523,7 +533,7 @@ python -m pipeline.main
 Normal outcomes:
 
 - If Webflow already contains the same live LinkedIn URL, the pipeline stops before enrichment or Webflow writes.
-- If no qualifying LinkedIn post exists within 48 hours, it prints `No recent LinkedIn posts found` and exits with code `2`. The scheduled GitHub Action deliberately treats that as “nothing to do.”
+- If no qualifying LinkedIn post exists within 48 hours, it prints `No recent LinkedIn posts found`. It exits with code `2` when there was no pending recovery, or `0` if it successfully recovered an older pending item first. GitHub Actions treats both as successful runs.
 - If a new post exists, the pipeline can enrich it and write it to Webflow according to the `.env` settings.
 
 After any intentional local run, inspect what changed:
@@ -708,7 +718,9 @@ Check that:
 - there are no spaces around the equals sign;
 - the token has not expired or been revoked;
 - the token belongs to the correct LinkedIn, OpenAI, or Webflow account;
-- the Webflow token can read and write the configured Blog Posts collection.
+- the Webflow token can read and write CMS items and Assets on the configured site;
+- `WEBFLOW_SITE_ID` identifies the site that owns the configured Blog Posts collection;
+- for GitHub runs, the updated token is saved as the `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` Actions secret and the site ID as the `WEBFLOW_SITE_ID` Actions secret.
 
 Do not print the full token in Terminal screenshots or support messages.
 
@@ -718,11 +730,13 @@ The repository hook is protecting GitHub from a large binary. Do not bypass it c
 
 #### An image exists locally but is missing from Webflow
 
-Check all three conditions:
+Check these conditions:
 
 1. Its filename begins with the LinkedIn publication date in `YYYY-MM-DD` format.
 2. Its extension is `.jpg`, `.jpeg`, `.png`, or `.webp`.
-3. The file is committed and visible in the `images/` folder on GitHub's `main` branch before the pipeline runs.
+3. The file is directly inside `images/` in the checkout running the command. For a scheduled GitHub run, it must be committed on `main`.
+4. The Webflow token has Assets read/write permissions and `WEBFLOW_SITE_ID` is configured for the correct site.
+5. The asset upload and public Webflow URL validation succeeded. Check the failure message; a missing or invalid image stops the post instead of silently removing it from the gallery.
 
 #### The pipeline says no recent LinkedIn post exists
 
@@ -743,7 +757,7 @@ The lookup window is a rolling 48 hours, not two calendar days. If the post is o
 - [ ] `requirements.txt` is installed.
 - [ ] The local `.env` exists and contains the required credentials.
 - [ ] `.env` and `.venv` are ignored by Git.
-- [ ] The configuration check reports the three required services as configured.
+- [ ] The configuration check reports the three required services and the Webflow site as configured.
 - [ ] The unit tests finish with `OK`.
 - [ ] The scheduled GitHub Action is still enabled.
 - [ ] You understand that `python -m pipeline.main` is a live command, not a harmless setup test.
@@ -823,7 +837,8 @@ Most days, these are the only settings you need to care about:
 | `OPENAI_API_KEY` | Lets the script write metadata, research evidence links, create ALT text, and produce a missing-image fallback. |
 | `OPENAI_MODEL` | Uses `gpt-5.6-sol` for image concept planning and review, SEO metadata, evidence-link research, and ALT text. |
 | `OPENAI_IMAGE_MODEL` | Selects the image model; the default is `gpt-image-2`. |
-| `WEBFLOW_API_TOKEN` | Lets the script create, update, and publish Webflow posts. |
+| `WEBFLOW_API_TOKEN` | Lets the script upload/read Webflow assets and create, update, and publish CMS posts. Requires CMS and Assets read/write access. |
+| `WEBFLOW_SITE_ID` | Identifies the site that receives image uploads; must own the configured collection. |
 | `WEBFLOW_PUBLISH` | When `true`, Webflow items are published after they are written. |
 
 `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` can also be used instead of `WEBFLOW_API_TOKEN`.
@@ -836,7 +851,7 @@ That means it is a rolling time window, not "today and yesterday" as calendar da
 
 LinkedIn is queried in pages of 50 changelog records. The scraper follows every page until it reaches the end of the 48-hour window, and it stops if a page contains only older records. A temporary LinkedIn `500` response is retried twice with a short backoff before the run fails.
 
-If no LinkedIn post is found in that window, the script exits cleanly with code `2`. The GitHub Action treats that as "nothing to do", not as a failure.
+If no LinkedIn post is found in that window and there was no pending recovery work, the script exits cleanly with code `2`. The GitHub Action treats that as "nothing to do", not as a failure. If it successfully recovers an older pending Webflow item before finding no recent post, it exits with code `0` and keeps the completed recovery state.
 
 ## Images
 
@@ -858,6 +873,8 @@ images/2026-06-01_3.jpg
 
 Supported formats are `.jpg`, `.jpeg`, `.png`, and `.webp`.
 
+The uploader inspects the actual file contents. A PNG accidentally named `.jpg` is uploaded with a `.png` filename and the correct content type; the local filename, original bytes and gallery order stay unchanged. Multi-picture JPEG files (MPO) stored as `.jpg` or `.jpeg` are supported too. Files must decode successfully and fit Webflow's 4 MB image-upload limit.
+
 Important: the current pipeline does not download media directly from LinkedIn. In this project, a "source image" means a date-matched file already present directly at the top level of `images/`. Discovery is deliberately non-recursive, so files inside `images/generated/` are never mistaken for LinkedIn source media. This folder is the sole image source of truth: when no matching top-level file exists, the pipeline generates a fallback even if LinkedIn's metadata reports media.
 
 When there are multiple images, the number decides the order. `_1` is first, `_2` is second, and so on. When there is only one image, the filename can just be the date.
@@ -869,7 +886,17 @@ The pipeline sends:
 - the first image to `thumbnail-image`;
 - an `alt` value for every image.
 
-Important: image URLs are built from the GitHub `main` branch. So if you run the pipeline locally with brand-new local images, Webflow can only fetch them after those images exist on GitHub.
+The pipeline uploads the local file bytes to Webflow before OpenAI enrichment or the CMS write. Neither Webflow nor OpenAI needs access to this repository. GitHub Actions still needs source files committed on `main` so its authenticated checkout contains them; local runs can use local files directly.
+
+### Webflow asset uploads and recovery
+
+For each source image or generated fallback, the pipeline checks the local file, calculates a content fingerprint, and consults `data/webflow_assets.json`. A usable cached asset is reused after checking that its public Webflow URL serves the expected image. New uploads use the Assets API to request upload details, then send the image bytes to Webflow's storage. An asset entry alone is not proof that the image was uploaded. See [Webflow's asset upload API](https://developers.webflow.com/data/reference/assets/assets/create).
+
+The cache records the site, file fingerprint, original and upload filenames, Webflow asset ID and hosted URL when available, and upload status. It saves a `creating` record before requesting an asset entry, a `pending` record after receiving the asset ID, and a `ready` record only after verifying the public bytes. An explicitly rejected creation is recorded as `create_rejected` and can be retried. Keep this file alongside the source files and generated-image manifest. Tokens and temporary upload credentials are never stored in it. Identical files reuse the verified cached asset for the same site; changed content requires a new upload.
+
+If an asset-creation response is lost, the next run lists the site's assets and matches the saved upload filename before considering another creation. It verifies any recovered asset's public bytes. Existing metadata with a missing, incomplete or changed public file stops the run instead of creating another asset automatically. Inspect that specific asset and restore its file, or explicitly remove confirmed incomplete metadata and its matching cache entry before retrying. Do not clear the cache just to bypass an uncertain upload; it is the record that prevents duplicate creation.
+
+For source images, the original gallery order and ALT text remain attached to their corresponding images. For a generated fallback, the reviewed PNG and its reviewed ALT text remain the main image only. Upload errors, invalid files, unavailable hosted images and missing image ALT text stop the pipeline before it can publish an incomplete replacement.
 
 ### OpenAI fallback for a post without a source image
 
@@ -882,7 +909,7 @@ When there is no date-matched top-level source file, the production workflow:
 5. Prepares exactly one full-bleed PNG at an exact 16:9 ratio, preferring `1200 x 675`, and enforces a maximum size of 800,000 bytes.
 6. Saves it only under `images/generated/` with a stable filename containing the publication date, a descriptive slug, and a LinkedIn URL hash.
 7. Records its checksum, models, concept, quality review, references, prompt, dimensions, byte count, and ALT text in `data/generated_main_images.json`.
-8. Commits and pushes only `images/generated/` and the manifest before the CMS step, verifies the public PNG and checksum at a URL pinned to that exact Git commit, then runs Webflow.
+8. Commits and pushes only `images/generated/` and the manifest before the CMS step, preserving the reviewed result for a later retry. `pipeline.main` uploads that local PNG through Webflow Assets and checks the hosted file before the CMS write.
 
 For example, a generated file can be named `images/generated/2026-08-25-ai-changes-product-discovery-a1b2c3d4e5.png`. The URL hash prevents two image-less posts published on the same date from colliding.
 
@@ -892,7 +919,7 @@ For a generated fallback, Webflow receives:
 - no value in `post-images`;
 - no value in `thumbnail-image`.
 
-If a LinkedIn image is missing locally, or if image generation, validation, public-URL verification, or the pre-Webflow Git push fails, the workflow stops. It does not publish an image-less replacement post.
+If a discovered source image cannot be read, or if image generation, validation, asset upload, hosted-image verification, or the pre-Webflow Git push fails, the workflow stops. It does not publish an image-less replacement post.
 
 ## Evidence Links
 
@@ -906,7 +933,7 @@ The stage:
 4. Locally inserts only `<a href="...">` and `</a>` around one exact, unique substring in an existing text node.
 5. Rejects nested, overlapping, ambiguous, non-HTTPS, unopened, generic, search-result, or tracking URLs. After one correction attempt, an unsafe individual proposal is skipped without discarding other valid proposals.
 6. Proves that removing only the new wrappers restores the original body byte for byte. Structurally invalid model responses fail the run before the enriched JSON or Webflow write.
-7. Reads every staged write back before any configured publish step and reads every live update or publish back too. A body mismatch stops the run and is not recorded as a successful sync.
+7. Reads every staged write back before any configured publish step and reads every live update or publish back too. The CMS verification checks the body as well as image count, gallery order, ALT text and hosted accessibility. A mismatch stops the run and is not recorded as a successful sync.
 
 There is no fixed one-link or two-link limit. The result is the minimum useful number for the post, which can be zero, one, two, or more.
 
@@ -958,7 +985,11 @@ The pipeline does not send `slug` at all. Webflow is left to handle that field.
 
 To avoid duplicates, the pipeline checks live Webflow items by LinkedIn URL before enrichment starts.
 
-If Webflow already has a live item with the same LinkedIn URL, the pipeline stops before writing local output files, calling OpenAI, or updating Webflow. Local files in `data/` are not used to decide whether a post already exists.
+If Webflow already has a live item with the same LinkedIn URL and no unfinished verification checkpoint, the pipeline stops before writing local output files, uploading assets, calling OpenAI, or updating Webflow. Live Webflow data determines whether the post exists; a saved verification checkpoint records work from an interrupted run that still needs checking.
+
+Before changing an existing item, after receiving a newly created item's ID, and before publishing, the pipeline saves a `verification_pending` checkpoint inside `data/webflow_items.json`. It records the expected body, image fields, image fingerprints, item ID and publication intent. Success replaces that checkpoint with the normal completed item state.
+
+On retry, `pipeline.main` processes every pending checkpoint before fetching the latest LinkedIn post. An older item still gets verified even if a newer post has appeared or the older one has left the 48-hour lookup window. An already-published item can finish through read-back alone. A verified staged item can finish its intended publish. Confirmed content mismatches are repaired on the same item from the saved fields, then checked again. Network, authentication or image-download failures retain the checkpoint without triggering a needless content rewrite. Recovery uses saved content and hosted images without another enrichment or image-generation request. This prevents a successful publish followed by a failed read-back from being mistaken for a completed sync on the next run.
 
 `FORCE_WEBFLOW_SYNC=true` is the intentional override for maintenance runs where you really do want to enrich and sync a matching live Webflow item again.
 
@@ -978,7 +1009,7 @@ You can also start the workflow manually from GitHub Actions.
 
 The mutating production job is guarded to `main`. Selecting a feature branch manually cannot publish Webflow or push that feature branch into `main`.
 
-For an image-less post, the workflow first runs `pipeline.prepare_image`, commits the generated PNG and manifest, and only then runs `pipeline.main`. This order is required because Webflow must be able to fetch the public image URL during the CMS write.
+The workflow first checks that its required GitHub secrets, including `WEBFLOW_SITE_ID`, are present. For an image-less post, it then runs `pipeline.prepare_image`, commits the generated PNG and manifest for recovery, and runs `pipeline.main`. The image upload uses local bytes from the runner; the commit is a backup of the reviewed result and is not image hosting.
 
 After a successful run, the workflow commits updates under:
 
@@ -986,6 +1017,31 @@ After a successful run, the workflow commits updates under:
 data/
 images/
 ```
+
+If `pipeline.main` fails, a separate recovery step commits changes only in `data/webflow_assets.json` and `data/webflow_items.json`, when those files exist. This preserves upload progress and unfinished CMS verification. The original run remains failed; raw posts, enriched posts, pipeline success state and image changes are left out of that recovery commit. Rebase conflicts and rejected pushes are failures, including recovery-persistence failures; inspect and resolve them before retrying. A failed run also retains the two available recovery files as a seven-day `webflow-recovery-state` Actions artifact, for recovery if Git persistence failed.
+
+GitHub's normal `GITHUB_TOKEN` authenticates the checkout and the bot's pushes using the workflow's existing `contents: write` permission. A private repository does not require a new personal access token for those steps. Ensure branch rules still permit the existing bot writes. Private-repository runs on standard GitHub-hosted runners consume the account's included Actions allowance and any configured paid budget; check the account's current usage before changing visibility. See [GitHub Actions authentication](https://docs.github.com/en/actions/concepts/security/github_token) and [Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
+## Switching the GitHub repository to private
+
+Change visibility only after the image-upload implementation has passed its tests and a controlled live check. The code no longer uses public GitHub image URLs, but older Webflow posts must be audited separately.
+
+1. Update the GitHub `WEBFLOW_READ_AND_WRITE_BLOG_POSTS` secret and add the `WEBFLOW_SITE_ID` Actions secret. Keep CMS and Assets read/write permissions on the token; site settings permission is not needed.
+2. Run `python -m unittest discover -s tests -v`. The suite includes source and generated image uploads, reuse, failure handling and workflow cache recovery without real API calls.
+3. Audit every staged and live Webflow item, including `main-image`, `thumbnail-image`, `post-images` and embedded body images, for this repository's GitHub image URLs. Migrate any remaining references to verified Webflow-hosted assets before making the repository private. Preserve body words, image order, ALT text and existing publish state.
+4. Use a dedicated Webflow test item or collection for the controlled image-upload and CMS read-back check. Check a source-image gallery and a reviewed generated fallback. Confirm public image loading and a repeated run's cached reuse. `WEBFLOW_PUBLISH=false` still writes drafts and uploads public assets, so it is not a harmless preview setting.
+5. Merge and deploy the tested changes through the repository's normal approval process. Check authenticated Git access, Actions allowance and branch permissions. Then change the repository's visibility under **Settings → General → Danger Zone**, following [GitHub's visibility instructions](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility).
+6. Verify a GitHub production run after the switch, including asset uploads or reuse, CMS read-back, configured publication, bot output commits and public blog image loading. A run that neither processes a new post nor recovers a pending item proves the no-post path only.
+
+Run the read-only CMS audit with the local environment active:
+
+~~~bash
+python -m pipeline.audit_image_hosts --output /tmp/private-repo-image-host-audit.json
+~~~
+
+It reads every staged and live CMS item, checks native and embedded image references, and writes a local report with counts and flagged item/field/URL details. It never writes CMS items or publishes. Exit code `0` means the complete audit found no repository-dependent images; a nonzero exit means dependencies or an audit error need attention. Ordinary links to the repository are reported separately because authorised readers may still follow them after the visibility change. This audit proves image-reference coverage; use the controlled integration check to prove image uploads and CMS writes.
+
+Existing images already hosted on Webflow remain accessible when GitHub becomes private. Repository privacy does not make Webflow Assets private. Keep uploaded content suitable for the public blog, and do not put credentials in image files or the tracked cache.
 
 ## Project Files
 
@@ -998,6 +1054,8 @@ images/
 | `pipeline/image_generation.py` | Plans, generates once, reviews, reuses, and attaches a generated fallback PNG. |
 | `pipeline/image_processing.py` | Validates the raw result and prepares an exact-16:9 PNG under 800,000 bytes. |
 | `pipeline/image_references.py` | Validates and resolves the eleven bundled style references. |
+| `pipeline/image_assets.py` | Resolves source and generated files and prepares Webflow-hosted image URLs before enrichment. |
+| `pipeline/audit_image_hosts.py` | Read-only audit of all staged/live Webflow image references for repository dependencies. |
 | `pipeline/prepare_image.py` | Runs the pre-Webflow missing-image preparation stage. |
 | `pipeline/seo_preview.py` | Safely previews SEO metadata using a saved post and OpenAI only. |
 | `pipeline/webflow.py` | Builds the exact Webflow payload and syncs the CMS item. |
@@ -1007,6 +1065,7 @@ images/
 | `images/generated/` | OpenAI-generated PNG fallbacks, kept separate from source images. |
 | `assets/blog-main-image-style/` | Eleven bundled PNG style references used by every fallback generation. |
 | `data/generated_main_images.json` | Manifest for generated PNG checksums, provenance, prompt, review, dimensions, bytes, and ALT text. |
+| `data/webflow_assets.json` | Reusable per-site Webflow asset IDs, content fingerprints and verified hosted URLs. |
 | `data/` | Saved pipeline state and latest generated JSON files. |
 | `tests/` | Tests for the pipeline behavior. |
 | `webflow_schema.json` | Reference snapshot of the Webflow Blog Posts collection schema. |
@@ -1020,8 +1079,9 @@ The script writes these files:
 | --- | --- |
 | `data/last_linkedin_post.json` | The latest raw LinkedIn post found. |
 | `data/last_linkedin_post.enriched.json` | The post after headline, summary, ALT text, image attachment, and verified evidence links are added. |
-| `data/webflow_items.json` | Webflow item IDs and sync state. |
+| `data/webflow_items.json` | Webflow item IDs, completed sync state and unfinished verification checkpoints. |
 | `data/pipeline_state.json` | The latest run status. |
+| `data/webflow_assets.json` | Asset creation, pending upload and verified upload checkpoints, saved independently of the final post-sync outcome. |
 
 ## Webflow Maintenance Override
 

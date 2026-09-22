@@ -15,22 +15,22 @@ POST = {
     "images": [],
 }
 
-ENRICHED_POST = {
+HOSTED_POST = {
     **POST,
-    "headline": "Hello from LinkedIn",
-    "description": "A short description",
-}
-
-ATTACHED_POST = {
-    **ENRICHED_POST,
     "generated_main_image": {
         "url": "https://example.com/generated-main.jpeg",
         "alt": "Generated fallback image",
     },
 }
 
+ENRICHED_POST = {
+    **HOSTED_POST,
+    "headline": "Hello from LinkedIn",
+    "description": "A short description",
+}
+
 LINKED_POST = {
-    **ATTACHED_POST,
+    **ENRICHED_POST,
     "content": '<p><a href="https://example.org/evidence">Hello from LinkedIn</a>.</p>',
 }
 
@@ -70,6 +70,50 @@ def config(*, force_webflow_sync: bool = False) -> PipelineConfig:
 
 
 class MainPipelineTests(unittest.TestCase):
+    def setUp(self) -> None:
+        pending_check = patch("pipeline.main.pending_verification_urls", return_value=[])
+        self.pending_verification_urls = pending_check.start()
+        self.addCleanup(pending_check.stop)
+
+    def test_pending_verification_recovers_before_live_skip_or_paid_enrichment(self) -> None:
+        pipeline_config = config()
+        self.pending_verification_urls.return_value = [POST["url"]]
+        with (
+            patch("pipeline.main.ensure_directories"),
+            patch("pipeline.main.load_config", return_value=pipeline_config),
+            patch("pipeline.main.fetch_latest_linkedin_post", return_value=None) as fetch,
+            patch("pipeline.main.find_live_webflow_item") as find_live,
+            patch("pipeline.main.prepare_post_images") as prepare,
+            patch("pipeline.main.enrich_post") as enrich,
+            patch("pipeline.main.link_post_body") as link,
+            patch("pipeline.main.sync_post_to_webflow", return_value=WEBFLOW_STATUS) as sync,
+            patch("pipeline.main.write_json") as write,
+            patch("pipeline.main.save_pipeline_state") as save,
+        ):
+            sync.side_effect = lambda *_args: (fetch.assert_not_called() or WEBFLOW_STATUS)
+            self.assertEqual(pipeline_main.main(), 0)
+
+        self.pending_verification_urls.assert_called_once_with(pipeline_config)
+        sync.assert_called_once_with({"url": POST["url"]}, pipeline_config)
+        for unused in (find_live, prepare, enrich, link, write, save):
+            unused.assert_not_called()
+
+    def test_pending_verification_failure_propagates(self) -> None:
+        self.pending_verification_urls.return_value = [POST["url"]]
+        with (
+            patch("pipeline.main.ensure_directories"),
+            patch("pipeline.main.load_config", return_value=config()),
+            patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST) as fetch,
+            patch("pipeline.main.find_live_webflow_item") as find_live,
+            patch("pipeline.main.enrich_post") as enrich,
+            patch("pipeline.main.sync_post_to_webflow", side_effect=RuntimeError("Read-back mismatch")),
+            self.assertRaisesRegex(RuntimeError, "Read-back mismatch"),
+        ):
+            pipeline_main.main()
+        find_live.assert_not_called()
+        enrich.assert_not_called()
+        fetch.assert_not_called()
+
     def test_main_runs_the_active_linkedin_to_webflow_flow(self) -> None:
         pipeline_config = config()
         patches = [
@@ -78,7 +122,7 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
             patch("pipeline.main.find_live_webflow_item", return_value=None),
             patch("pipeline.main.enrich_post", return_value=ENRICHED_POST),
-            patch("pipeline.main.attach_generated_main_image", return_value=ATTACHED_POST),
+            patch("pipeline.main.prepare_post_images", return_value=HOSTED_POST),
             patch("pipeline.main.source_images", return_value=[]),
             patch("pipeline.main.link_post_body", return_value=(LINKED_POST, LINK_AUDIT)),
             patch("pipeline.main.sync_post_to_webflow", return_value=WEBFLOW_STATUS),
@@ -95,10 +139,10 @@ class MainPipelineTests(unittest.TestCase):
         mocks[1].assert_called_once_with()
         mocks[2].assert_called_once_with("linkedin-token")
         mocks[3].assert_called_once_with(pipeline_config, POST["url"])
-        mocks[4].assert_called_once_with(POST, pipeline_config)
-        mocks[5].assert_called_once_with(ENRICHED_POST, pipeline_config)
+        mocks[4].assert_called_once_with(HOSTED_POST, pipeline_config)
+        mocks[5].assert_called_once_with(POST, pipeline_config)
         mocks[6].assert_called_once_with(POST)
-        mocks[7].assert_called_once_with(ATTACHED_POST, pipeline_config)
+        mocks[7].assert_called_once_with(ENRICHED_POST, pipeline_config)
         mocks[8].assert_called_once_with(LINKED_POST, pipeline_config)
         self.assertEqual(
             mocks[9].call_args_list,
@@ -123,7 +167,7 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=None),
             patch("pipeline.main.find_live_webflow_item"),
             patch("pipeline.main.enrich_post"),
-            patch("pipeline.main.attach_generated_main_image"),
+            patch("pipeline.main.prepare_post_images"),
             patch("pipeline.main.source_images"),
             patch("pipeline.main.link_post_body"),
             patch("pipeline.main.sync_post_to_webflow"),
@@ -148,7 +192,7 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
             patch("pipeline.main.find_live_webflow_item", return_value={"id": "live-item"}),
             patch("pipeline.main.enrich_post"),
-            patch("pipeline.main.attach_generated_main_image"),
+            patch("pipeline.main.prepare_post_images"),
             patch("pipeline.main.source_images"),
             patch("pipeline.main.link_post_body"),
             patch("pipeline.main.sync_post_to_webflow"),
@@ -174,7 +218,7 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
             patch("pipeline.main.find_live_webflow_item", return_value={"id": "live-item"}),
             patch("pipeline.main.enrich_post", return_value=ENRICHED_POST) as enrich_post,
-            patch("pipeline.main.attach_generated_main_image", return_value=ATTACHED_POST) as attach_image,
+            patch("pipeline.main.prepare_post_images", return_value=HOSTED_POST) as attach_image,
             patch("pipeline.main.source_images", return_value=[]),
             patch("pipeline.main.link_post_body", return_value=(LINKED_POST, LINK_AUDIT)) as link_body,
             patch("pipeline.main.sync_post_to_webflow", return_value=WEBFLOW_STATUS) as sync_post,
@@ -184,9 +228,9 @@ class MainPipelineTests(unittest.TestCase):
             exit_code = pipeline_main.main()
 
         self.assertEqual(exit_code, 0)
-        enrich_post.assert_called_once_with(POST, pipeline_config)
-        attach_image.assert_called_once_with(ENRICHED_POST, pipeline_config)
-        link_body.assert_called_once_with(ATTACHED_POST, pipeline_config)
+        enrich_post.assert_called_once_with(HOSTED_POST, pipeline_config)
+        attach_image.assert_called_once_with(POST, pipeline_config)
+        link_body.assert_called_once_with(ENRICHED_POST, pipeline_config)
         sync_post.assert_called_once_with(LINKED_POST, pipeline_config)
 
     def test_main_stops_before_webflow_when_generated_image_is_not_prepared(self) -> None:
@@ -200,7 +244,7 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.write_json") as write_json,
             patch("pipeline.main.enrich_post", return_value=ENRICHED_POST),
             patch(
-                "pipeline.main.attach_generated_main_image",
+                "pipeline.main.prepare_post_images",
                 side_effect=RuntimeError("image-preparation stage"),
             ),
             patch("pipeline.main.source_images") as source_images,
@@ -227,7 +271,7 @@ class MainPipelineTests(unittest.TestCase):
             patch("pipeline.main.find_live_webflow_item", return_value=None),
             patch("pipeline.main.write_json") as write_json,
             patch("pipeline.main.enrich_post", return_value=ENRICHED_POST),
-            patch("pipeline.main.attach_generated_main_image", return_value=ATTACHED_POST),
+            patch("pipeline.main.prepare_post_images", return_value=HOSTED_POST),
             patch("pipeline.main.source_images", return_value=[]),
             patch(
                 "pipeline.main.link_post_body",

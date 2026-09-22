@@ -10,6 +10,7 @@ on:
       - 'config/**'
       - 'assets/blog-main-image-style/**'
       - 'requirements.txt'
+      - '.env.example'
       - '.github/workflows/validate_linkedin_fetch.yml'
       - '.github/workflows/webflow_cms_pipeline.yml'
   workflow_dispatch:

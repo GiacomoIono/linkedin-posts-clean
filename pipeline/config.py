@@ -22,7 +22,6 @@ PROMPTS_PATH = CONFIG_DIR / "prompts.json"
 
 DEFAULT_OPENAI_MODEL = "gpt-5.6-sol"
 DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-2"
-DEFAULT_IMAGE_PUBLIC_REF = "main"
 DEFAULT_WEBFLOW_COLLECTION_ID = "63250855178122098387d7ef"
 NO_POSTS_FOUND_EXIT_CODE = 2
 
@@ -52,7 +51,7 @@ class PipelineConfig:
     webflow_publish: bool
     force_webflow_sync: bool
     openai_image_model: str = DEFAULT_OPENAI_IMAGE_MODEL
-    image_public_ref: str = DEFAULT_IMAGE_PUBLIC_REF
+    webflow_site_id: str = ""
 
 
 def load_config() -> PipelineConfig:
@@ -70,7 +69,7 @@ def load_config() -> PipelineConfig:
         force_webflow_sync=env_bool("FORCE_WEBFLOW_SYNC", False),
         openai_image_model=first_env("OPENAI_IMAGE_MODEL")
         or DEFAULT_OPENAI_IMAGE_MODEL,
-        image_public_ref=first_env("IMAGE_PUBLIC_REF") or DEFAULT_IMAGE_PUBLIC_REF,
+        webflow_site_id=first_env("WEBFLOW_SITE_ID"),
     )
 
 

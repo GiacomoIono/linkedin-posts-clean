@@ -16,7 +16,6 @@ from pipeline.generated_images import load_generated_image_manifest, record_gene
 from pipeline.image_generation import (
     BACKGROUND_STATUS_TIMEOUT_SECONDS,
     GENERATED_IMAGE_TIMEOUT_SECONDS,
-    PUBLIC_IMAGE_MAX_ATTEMPTS,
     RAW_GENERATION_FORMAT,
     RAW_GENERATION_QUALITY,
     RAW_GENERATION_SIZE,
@@ -24,7 +23,6 @@ from pipeline.image_generation import (
     generate_missing_main_image,
     generated_image_filename,
     generated_image_path,
-    wait_for_generated_image_public,
 )
 from pipeline.image_processing import (
     MAX_GENERATED_IMAGE_BYTES,
@@ -33,7 +31,6 @@ from pipeline.image_processing import (
     prepare_blog_main_png,
 )
 from pipeline.image_references import STYLE_REFERENCES, reference_manifest, validated_style_references
-from pipeline.webflow import build_field_data
 
 POST = {
     "content": "<p>AI is changing how customers discover and evaluate products.</p>",
@@ -90,7 +87,6 @@ def config(**overrides):
         "openai_api_key": "existing-openai-key",
         "openai_model": "gpt-5.6-sol",
         "openai_image_model": "gpt-image-2",
-        "image_public_ref": "main",
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -190,7 +186,7 @@ class ImageGenerationTests(unittest.TestCase):
         return output, final_bytes
 
     def test_source_images_skip_every_openai_call(self) -> None:
-        post = {**POST, "images": [{"url": "https://example.com/source.jpg", "alt": "Source"}]}
+        post = {**POST, "images": [{"local_path": "images/2026-08-25.jpg", "filename": "2026-08-25.jpg", "alt": "Source"}]}
         client, edit, generate, completions = self.fake_client()
 
         result = generate_missing_main_image(post, config(), client=client)
@@ -310,10 +306,10 @@ class ImageGenerationTests(unittest.TestCase):
         self.assertIn("Primary request", entry["prompt"])
 
         attached = attach_generated_main_image(
-            POST, config(image_public_ref="committed-image-sha")
+            POST, config()
         )
         self.assertEqual(
-            build_field_data(attached)["main-image"]["alt"], PASSING_REVIEW["alt"]
+            attached["generated_main_image"]["alt"], PASSING_REVIEW["alt"]
         )
 
     def test_default_client_allows_one_long_request_without_sdk_retries(self) -> None:
@@ -497,10 +493,10 @@ class ImageGenerationTests(unittest.TestCase):
 
         attached = attach_generated_main_image(
             {**raw_post, "headline": "A newly generated SEO headline"},
-            config(image_public_ref="commit-sha"),
+            config(),
         )
 
-        self.assertIn("/commit-sha/images/generated/", attached["generated_main_image"]["url"])
+        self.assertEqual(attached["generated_main_image"]["local_path"], f"images/generated/{generated_image_filename(raw_post)}")
 
     def test_reuses_registered_png_without_openai_calls(self) -> None:
         output, _ = self.write_registered_image()
@@ -523,23 +519,22 @@ class ImageGenerationTests(unittest.TestCase):
 
         edit.assert_not_called()
 
-    def test_generated_fallback_attaches_only_as_commit_pinned_nested_url(self) -> None:
+    def test_generated_fallback_attaches_only_as_registered_local_file(self) -> None:
         self.write_registered_image()
 
-        enriched = attach_generated_main_image(POST, config(image_public_ref="abc123"))
+        enriched = attach_generated_main_image(POST, config())
 
         self.assertEqual(enriched["images"], [])
         self.assertEqual(enriched["generated_main_image"]["alt"], PASSING_REVIEW["alt"])
         self.assertEqual(
-            enriched["generated_main_image"]["url"],
-            "https://raw.githubusercontent.com/GiacomoIono/linkedin-posts-clean/abc123/"
+            enriched["generated_main_image"]["local_path"],
             f"images/generated/{generated_image_filename(POST)}",
         )
 
     def test_source_image_post_never_keeps_generated_fallback(self) -> None:
         source_post = {
             **POST,
-            "images": [{"url": "https://example.com/source.jpg", "alt": "Source"}],
+            "images": [{"local_path": "images/2026-08-25.jpg", "filename": "2026-08-25.jpg", "alt": "Source"}],
             "generated_main_image": {"url": "https://example.com/generated.png"},
         }
 
@@ -554,41 +549,6 @@ class ImageGenerationTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "manifest checksum"):
             attach_generated_main_image(POST, config())
-
-    def test_public_png_must_match_manifest_checksum(self) -> None:
-        _, final_bytes = self.write_registered_image()
-        request_get = Mock(return_value=SimpleNamespace(status_code=200, content=final_bytes))
-        sleep = Mock()
-
-        url = wait_for_generated_image_public(
-            POST,
-            config(image_public_ref="abc123"),
-            request_get=request_get,
-            sleep_fn=sleep,
-        )
-
-        self.assertIn("/abc123/images/generated/", url)
-        request_get.assert_called_once_with(url, timeout=30)
-        sleep.assert_not_called()
-
-    def test_wrong_public_checksum_stops_before_webflow(self) -> None:
-        self.write_registered_image()
-        different_bytes, _ = prepare_blog_main_png(png_bytes(color=(4, 5, 6)))
-        request_get = Mock(
-            return_value=SimpleNamespace(status_code=200, content=different_bytes)
-        )
-        sleep = Mock()
-
-        with self.assertRaisesRegex(RuntimeError, "Stopping before Webflow"):
-            wait_for_generated_image_public(
-                POST,
-                config(image_public_ref="abc123"),
-                request_get=request_get,
-                sleep_fn=sleep,
-            )
-
-        self.assertEqual(request_get.call_count, PUBLIC_IMAGE_MAX_ATTEMPTS)
-        self.assertEqual(sleep.call_count, PUBLIC_IMAGE_MAX_ATTEMPTS - 1)
 
     def test_prepared_bytes_are_valid_png(self) -> None:
         final_bytes, dimensions = prepare_blog_main_png(png_bytes())

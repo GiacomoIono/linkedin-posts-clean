@@ -13,11 +13,17 @@ from .config import (
     load_config,
 )
 from .enrichment import enrich_post
-from .image_generation import attach_generated_main_image, source_images
+from .image_assets import prepare_post_images
+from .image_generation import source_images
 from .linkedin import fetch_latest_linkedin_post
 from .linking import link_post_body
 from .utils import load_json, post_hash, post_identity, write_json
-from .webflow import find_live_webflow_item, item_id_from, sync_post_to_webflow
+from .webflow import (
+    find_live_webflow_item,
+    item_id_from,
+    pending_verification_urls,
+    sync_post_to_webflow,
+)
 
 
 def save_pipeline_state(latest_post: dict[str, Any], enriched_post: dict[str, Any], statuses: dict[str, Any]) -> None:
@@ -42,10 +48,16 @@ def main() -> int:
     statuses: dict[str, Any] = {}
 
     print("Starting LinkedIn to Webflow CMS pipeline.")
+    recovered = False
+    for source_url in pending_verification_urls(config):
+        result = sync_post_to_webflow({"url": source_url}, config)
+        print(f"Completed pending Webflow verification for item {result['item_id']}.")
+        recovered = True
+
     latest_post = fetch_latest_linkedin_post(config.linkedin_access_token)
     if not latest_post:
         print("No recent LinkedIn posts found.")
-        return NO_POSTS_FOUND_EXIT_CODE
+        return 0 if recovered else NO_POSTS_FOUND_EXIT_CODE
 
     latest_source_url = post_identity(latest_post)
     print(f"Latest LinkedIn post: {latest_post.get('url')}")
@@ -61,9 +73,9 @@ def main() -> int:
 
     write_json(RAW_POST_PATH, latest_post)
 
-    enriched_post = enrich_post(latest_post, config)
+    hosted_post = prepare_post_images(latest_post, config)
+    enriched_post = enrich_post(hosted_post, config)
     statuses["enrichment"] = "generated"
-    enriched_post = attach_generated_main_image(enriched_post, config)
     statuses["image"] = "source_images" if source_images(latest_post) else "generated_main_image"
     enriched_post, link_audit = link_post_body(enriched_post, config)
     statuses["links"] = link_audit
