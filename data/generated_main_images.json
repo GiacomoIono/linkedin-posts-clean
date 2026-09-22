@@ -146,6 +146,77 @@
       },
       "bytes": 599093,
       "alt": "A focused advertising analyst marks a paper campaign map while holding back a friendly chart-projecting robot beside an untouched amber control button."
+    },
+    "2026-09-21-last-week-i-started-a-new-job-at-comparis-ch-ag-ai-2e41e01390.png": {
+      "post_url": "https://www.linkedin.com/feed/update/urn:li:share:7507827543966670849",
+      "published_at": "2026-09-21T15:46:15.677000",
+      "sha256": "ee4a7eb5dacd4eb43f5d6aec2226081ce649add9f98caaf5d31d81d29a7a5c6f",
+      "renderer_model": "gpt-image-2",
+      "planner": {
+        "model": "gpt-5.6-sol",
+        "concept": {
+          "use_case": "illustration-story",
+          "central_claim": "A new job can become known to AI with unnerving immediacy, making a personal milestone feel preemptively exposed.",
+          "tension": "The employee’s optimism about starting fresh collides with the uncanny sense that an automated system arrived before they did.",
+          "audience": "Professionals navigating career changes and readers concerned about AI, digital footprints, and personal privacy.",
+          "emotional_register": "Wry, unsettled, and quietly paranoid rather than alarmist.",
+          "motifs": [
+            "A small box of desk belongings",
+            "A blank employee badge catching amber light",
+            "A translucent data-shaped double already occupying the desk"
+          ],
+          "scene": "A lone new employee steps into a dim office carrying a small box, then freezes upon seeing their translucent, faceless data-double already seated at the waiting desk, hands poised over the keyboard as if it began the job first.",
+          "backdrop": "A restrained charcoal workplace recedes into smoky darkness, with a narrow slate-blue path from the doorway to the desk and sparse amber task lighting; no visible logos or text.",
+          "subject": "The unmistakable protagonist stands mid-step at the threshold, clutching the box and staring at the automated double with a subtle, believable expression of surprise and unease.",
+          "mood": "Muted human-centered noir with tactile editorial texture, soft haze, restrained blue-gray shadows, and fine amber accents.",
+          "reference_ids": [
+            "11",
+            "01",
+            "10"
+          ],
+          "alt": "A startled new employee carrying desk belongings finds a translucent data-double already seated at the office desk."
+        }
+      },
+      "quality_review": {
+        "model": "gpt-5.6-sol",
+        "result": {
+          "article_fit": 98,
+          "human_editorial_resonance": 96,
+          "thumbnail_clarity": 91,
+          "house_style_match": 96,
+          "technical_cleanliness": 95,
+          "material_defect": false,
+          "issues": [],
+          "passed": true,
+          "rationale": "The image delivers the core metaphor immediately: a visibly startled new employee arrives with a personal-effects box to find a spectral data-double already working at the desk. The human reaction provides a strong editorial anchor, while the doorway, illuminated workstation, and restrained palette create clear visual hierarchy. Both figures remain distinct at reduced size, though some fine detail in the translucent double will naturally recede. The muted ink texture, smoky washes, selective warm light, and noir atmosphere closely match the requested house style, with no prohibited text, framing, graphic devices, or malformed focal elements.",
+          "alt": "A new employee carrying a box pauses in a dim office doorway as a translucent data-double already works at the desk, suggesting AI knew about the job before they arrived.",
+          "weighted_score": 95.5
+        }
+      },
+      "references": [
+        {
+          "id": "11",
+          "filename": "11-corporate-interview-ball-overload.png",
+          "sha256": "b97758864084fcf327810b922c3658fe47384160606d94404f850bd188072cbe"
+        },
+        {
+          "id": "01",
+          "filename": "01-market-bubble-industrial-system.png",
+          "sha256": "9514e23896f9d1b0d013eed25ad83d5e45b5e30b5c779f667fb03715b9abcd93"
+        },
+        {
+          "id": "10",
+          "filename": "10-guided-path-versus-maze.png",
+          "sha256": "d8078936ca8ba2deb8e61b18c50ee04177b7ccbf693ec4a4733fa3dbdfb01f9c"
+        }
+      ],
+      "prompt": "Use case: illustration-story\nAsset type: borderless blog main image\nPrimary request: A lone new employee steps into a dim office carrying a small box, then freezes upon seeing their translucent, faceless data-double already seated at the waiting desk, hands poised over the keyboard as if it began the job first.\nInput images: Image 1: style reference for human narrative - expressive human reaction inside an absurd workplace overload with minimal red accents; Image 2: style reference for medium and palette - industrial scale, smoky charcoal atmosphere, transparent fragility, and fine amber accents; Image 3: style reference for composition or metaphor - luminous route versus smoky maze with restrained blue accents\nScene/backdrop: A restrained charcoal workplace recedes into smoky darkness, with a narrow slate-blue path from the doorway to the desk and sparse amber task lighting; no visible logos or text.\nSubject: The unmistakable protagonist stands mid-step at the threshold, clutching the box and staring at the automated double with a subtle, believable expression of surprise and unease.\nStyle/medium: muted, human-centered noir editorial illustration; graphic-novel ink linework; charcoal, graphite, and restrained watercolor/gouache washes; tactile paper grain; sophisticated rather than superhero-comic styling\nComposition/framing: cinematic 16:9 landscape; full bleed; readable focal hierarchy at thumbnail size; no ornamental frame\nLighting/mood: Muted human-centered noir with tactile editorial texture, soft haze, restrained blue-gray shadows, and fine amber accents.; shadows retain detail and are never crushed to pure black\nColor palette: greyscale-led, low-saturation stone and charcoal midtones with one or two restrained blue, rust, amber, burgundy, or forest accents\nText: none\nConstraints: concept must communicate the article's central thesis; synthesize the references' visual family without copying their literal subjects or layouts; prefer a clear human emotional anchor; non-photorealistic; no title, caption, lettering, logo, watermark, or visible brand mark\nAvoid: neon or flashy colors, pitch-black areas, glossy 3D, flat corporate vector art, generic stock imagery, visual clutter, ornate mechanical spectacle, speech bubbles, dialogue or word balloons, speed lines, panel grids, comic panels, superhero-comic exaggeration, and comic-panel borders",
+      "dimensions": {
+        "width": 1200,
+        "height": 675
+      },
+      "bytes": 664139,
+      "alt": "A new employee carrying a box pauses in a dim office doorway as a translucent data-double already works at the desk, suggesting AI knew about the job before they arrived."
     }
   }
 }
