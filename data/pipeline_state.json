@@ -1,15 +1,23 @@
 {
-  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7500912618014941184",
-  "last_raw_hash": "f8d68033d00616212a949d4a56e6faf098299deba54eea1af7c510e6f8984f7f",
-  "last_enriched_hash": "a0b5d656bb1f83c2c8479f3f49d024dc01e9f028999adda4cef44f9d2119eb62",
-  "last_run_at": "2026-09-02T18:03:47.221531+00:00",
+  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7507827543966670849",
+  "last_raw_hash": "01c41da6616bd4a191605c9aa620fb2e2414f2685daa89bdc5995ae0a501f265",
+  "last_enriched_hash": "f83054e51bb5b36c3ff806d2a28737c1619d18c140fda60b7eee4dac7c8c3e9f",
+  "last_run_at": "2026-09-22T05:09:03.791051+00:00",
   "statuses": {
     "enrichment": "generated",
     "image": "generated_main_image",
+    "links": {
+      "decision": "no_material_claims",
+      "links_added": 0,
+      "proposals_reviewed": 0,
+      "rejected_candidates": 0,
+      "links": []
+    },
     "webflow": {
       "action": "created",
-      "item_id": "6a9864fff405428ed72a3baa",
-      "published": true
+      "item_id": "6ab20d6e0889bf39d7b57994",
+      "published": true,
+      "read_back_verified": true
     }
   }
 }
