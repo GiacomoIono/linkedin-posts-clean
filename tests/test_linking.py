@@ -4,11 +4,12 @@ from copy import deepcopy
 import json
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from pipeline.enrichment import load_prompts
 from pipeline.linking import (
     LINK_RESPONSE_SCHEMA,
+    _LinkSession,
     LinkProposal,
     LinkingError,
     apply_anchor_applications,
@@ -18,6 +19,7 @@ from pipeline.linking import (
     validate_source_url,
     validate_verification_response,
     validate_coverage_verification_response,
+    verify_link_coverage,
 )
 
 
@@ -86,14 +88,28 @@ def verification_payload(
                 "source_url": item["source_url"],
                 "supports_claim": is_accepted,
                 "authoritative": is_accepted,
+                "reason": ("The source supports the full claim." if is_accepted else "The source does not establish the claimed participant count."),
             }
             for index, (item, is_accepted) in enumerate(zip(proposals, flags), start=1)
         ]
     }
 
 
-def coverage_payload(complete: bool = True) -> dict[str, object]:
-    return {"complete": complete}
+def coverage_payload(
+    complete: bool = True,
+    *,
+    objections: list[dict[str, str]] | None = None,
+) -> dict[str, object]:
+    return {"complete": complete, "objections": objections or []}
+
+
+def coverage_objection(item: dict[str, str]) -> dict[str, str]:
+    return {
+        "claim_text": item["claim_text"],
+        "reason": "This material claim lacks a supporting link; the opened source directly supports it.",
+        "source_url": item["source_url"],
+        "anchor_text": item["anchor_text"],
+    }
 
 
 class LinkingTests(unittest.TestCase):
@@ -541,7 +557,7 @@ class LinkingTests(unittest.TestCase):
         self.assertEqual(audit["links_added"], 1)
         self.assertEqual(audit["rejected_candidates"], 1)
 
-    def test_independent_audit_rejects_a_false_no_material_claims_decision(self) -> None:
+    def test_independent_audit_flags_false_no_material_claims_for_manual_review(self) -> None:
         post = {
             "content": "<p>Revenue reached $10 billion in 2024.</p>",
             "url": "https://www.linkedin.com/feed/update/example",
@@ -552,14 +568,23 @@ class LinkingTests(unittest.TestCase):
             {"decision": "no_material_claims", "links": []},
             searched=False,
         )
+        item = proposal("$10 billion in 2024", "Revenue reached $10 billion in 2024.")
+        objection = coverage_objection(item)
         verify = response(
-            coverage_payload(complete=False),
-            searched=False,
+            coverage_payload(complete=False, objections=[objection]),
+            opened=(item["source_url"],),
         )
-        client, _ = self.fake_client(research, verify)
+        client, create = self.fake_client(research, verify, research, verify)
 
-        with self.assertRaisesRegex(LinkingError, "incomplete evidence-link coverage"):
-            link_post_body(post, self.config, client=client)
+        linked, audit = link_post_body(post, self.config, client=client)
+
+        self.assertEqual(linked, post)
+        self.assertTrue(audit["manual_review_required"])
+        self.assertEqual(audit["decision"], "manual_review_required")
+        self.assertEqual(audit["fallback"], "original_body")
+        self.assertEqual(audit["corrections_attempted"], 1)
+        self.assertEqual(create.call_count, 4)
+        self.assertIn(objection["reason"], json.dumps(audit["attempts"]))
 
     def test_no_suitable_source_audit_requires_search_and_an_opened_page(self) -> None:
         cases = [
@@ -713,7 +738,7 @@ class LinkingTests(unittest.TestCase):
         self.assertEqual(audit["links_added"], 0)
         self.assertEqual(audit["rejected_candidates"], 1)
 
-    def test_partial_rejection_fails_when_final_coverage_remains_incomplete(self) -> None:
+    def test_partial_rejection_uses_original_body_when_correction_still_incomplete(self) -> None:
         first_claim = "Revenue reached $10 billion in 2024."
         second_claim = "The study included 12,000 participants."
         first = proposal(
@@ -745,19 +770,366 @@ class LinkingTests(unittest.TestCase):
             verification_payload([second], accepted=(False,)),
             opened=(second["source_url"],),
         )
+        objection = coverage_objection(second)
         incomplete_coverage = response(
-            coverage_payload(complete=False),
-            opened=("https://example.org/reports/alternate-evidence",),
+            coverage_payload(complete=False, objections=[objection]),
+            opened=(second["source_url"],),
         )
-        client, _ = self.fake_client(
+        client, create = self.fake_client(
+            research,
+            accept_first,
+            reject_second,
+            incomplete_coverage,
             research,
             accept_first,
             reject_second,
             incomplete_coverage,
         )
 
-        with self.assertRaisesRegex(LinkingError, "incomplete evidence-link coverage"):
-            link_post_body(post, self.config, client=client)
+        linked, audit = link_post_body(post, self.config, client=client)
+
+        self.assertEqual(linked, post)
+        self.assertEqual(audit["links_added"], 0)
+        self.assertEqual(audit["links"], [])
+        self.assertTrue(audit["manual_review_required"])
+        self.assertEqual(audit["corrections_attempted"], 1)
+        self.assertEqual(len(audit["attempts"]), 2)
+        self.assertEqual(create.call_count, 8)
+        self.assertIn(objection["reason"], json.dumps(audit["attempts"]))
+
+
+class LinkingRecoveryTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.config = SimpleNamespace(
+            openai_api_key="test-private-openai-key",
+            openai_model="gpt-test",
+            webflow_api_token="test-private-webflow-token",
+        )
+        self.first = proposal("$10 billion in 2024", "Revenue reached $10 billion in 2024.")
+        self.second = proposal(
+            "12,000 participants",
+            "The study included 12,000 participants.",
+            "https://research.example.edu/studies/participant-count",
+            source_type="original_research",
+        )
+        self.post = {
+            "content": (
+                "<h2>Evidence &amp; opinion</h2>\n"
+                f"<p><strong>Result:</strong> {self.first['claim_text']}</p>\n"
+                f"<p>{self.second['claim_text']}</p>\n"
+                '<p>Already <a href="https://example.org/reports/existing" target="_blank">supported</a>.</p>'
+            ),
+            "url": "https://www.linkedin.com/feed/update/recovery-example",
+            "published_at": "2026-09-03T08:00:00",
+            "images": [{"url": "https://images.example.org/chart.png", "alt": "Chart"}],
+            "generated_main_image": {"url": "https://images.example.org/generated.png"},
+            "headline": "Original title",
+            "description": "Original summary.",
+            "category": "AI",
+            "tags": ["research"],
+            "featured": True,
+        }
+        self.original = deepcopy(self.post)
+
+    @staticmethod
+    def fake_client(*responses: object) -> tuple[SimpleNamespace, Mock]:
+        create = Mock(side_effect=list(responses))
+        return SimpleNamespace(responses=SimpleNamespace(create=create)), create
+
+    def research(self, *items: dict[str, str]) -> SimpleNamespace:
+        return response(
+            {"decision": "links", "links": list(items)},
+            opened=tuple(item["source_url"] for item in items),
+        )
+
+    def verification(self, item: dict[str, str]) -> SimpleNamespace:
+        return response(verification_payload([item]), opened=(item["source_url"],))
+
+    def incomplete(self) -> SimpleNamespace:
+        return response(
+            coverage_payload(False, objections=[coverage_objection(self.second)]),
+            opened=(self.second["source_url"],),
+        )
+
+    def assert_manual_fallback(self, linked: dict[str, object], audit: dict[str, object]) -> None:
+        self.assertEqual(linked, self.original)
+        self.assertEqual(self.post, self.original)
+        self.assertEqual(audit["decision"], "manual_review_required")
+        self.assertTrue(audit["manual_review_required"])
+        self.assertEqual(audit["fallback"], "original_body")
+        self.assertEqual(audit["links_added"], 0)
+        self.assertEqual(audit["links"], [])
+        self.assertIn("attempts", audit)
+
+    def assert_error_recorded(self, audit: dict[str, object], message: str) -> None:
+        self.assertTrue(audit["errors"])
+        serialised = json.dumps(audit["errors"])
+        self.assertIn(message, serialised)
+        error = audit["errors"][-1]
+        for key in ("stage", "type", "message", "traceback"):
+            self.assertIsInstance(error[key], str, key)
+            self.assertTrue(error[key].strip(), key)
+
+    def test_one_correction_researches_original_html_and_fixes_omitted_claim(self) -> None:
+        client, create = self.fake_client(
+            self.research(self.first),
+            self.verification(self.first),
+            self.incomplete(),
+            self.research(self.first, self.second),
+            self.verification(self.first),
+            self.verification(self.second),
+            response(coverage_payload(), searched=False),
+        )
+
+        linked, audit = link_post_body(self.post, self.config, client=client)
+
+        expected = self.original["content"]
+        for item in (self.first, self.second):
+            expected = expected.replace(
+                item["anchor_text"],
+                f'<a href="{item["source_url"]}">{item["anchor_text"]}</a>',
+                1,
+            )
+        self.assertEqual(linked["content"], expected)
+        self.assertEqual(linked["content"].count("<a "), 3)
+        self.assertEqual(self.post, self.original)
+        for key in self.original.keys() - {"content"}:
+            self.assertEqual(linked[key], self.original[key], key)
+        self.assertFalse(audit["manual_review_required"])
+        self.assertEqual(audit["corrections_attempted"], 1)
+        self.assertEqual(audit["links_added"], 2)
+        self.assertEqual(len(audit["attempts"]), 2)
+        self.assertEqual(create.call_count, 7)
+        correction_input = create.call_args_list[3].kwargs["input"][0]["content"][0]["text"]
+        self.assertIn(self.original["content"], correction_input)
+        self.assertNotIn(f'<a href="{self.first["source_url"]}">', correction_input)
+        for value in coverage_objection(self.second).values():
+            self.assertIn(value, correction_input)
+        self.assertIn(coverage_objection(self.second)["reason"], json.dumps(audit["attempts"]))
+
+    def test_initial_success_does_not_spend_a_correction_attempt(self) -> None:
+        client, create = self.fake_client(
+            self.research(self.first),
+            self.verification(self.first),
+            response(coverage_payload(), searched=False),
+        )
+
+        _, audit = link_post_body(self.post, self.config, client=client)
+
+        self.assertFalse(audit["manual_review_required"])
+        self.assertEqual(audit["corrections_attempted"], 0)
+        self.assertEqual(len(audit["attempts"]), 1)
+        self.assertEqual(create.call_count, 3)
+
+    def test_exceptions_in_each_initial_model_stage_preserve_entire_original_post(self) -> None:
+        stages = {
+            "research": [],
+            "proposal_verification": [self.research(self.first)],
+            "coverage": [self.research(self.first), self.verification(self.first)],
+        }
+        for stage, completed in stages.items():
+            with self.subTest(stage=stage):
+                client, create = self.fake_client(*completed, TimeoutError(f"timeout at {stage}"))
+
+                linked, audit = link_post_body(self.post, self.config, client=client)
+
+                self.assert_manual_fallback(linked, audit)
+                self.assert_error_recorded(audit, f"timeout at {stage}")
+                self.assertEqual(audit["corrections_attempted"], 0)
+                self.assertEqual(create.call_count, len(completed) + 1)
+
+    def test_exceptions_in_each_correction_stage_keep_original_and_first_objections(self) -> None:
+        initial = [self.research(self.first), self.verification(self.first), self.incomplete()]
+        stages = {
+            "research": [],
+            "proposal_verification": [self.research(self.first, self.second)],
+            "coverage": [
+                self.research(self.first, self.second),
+                self.verification(self.first),
+                self.verification(self.second),
+            ],
+        }
+        for stage, completed in stages.items():
+            with self.subTest(stage=stage):
+                client, create = self.fake_client(
+                    *initial, *completed, RuntimeError(f"correction failed at {stage}")
+                )
+
+                linked, audit = link_post_body(self.post, self.config, client=client)
+
+                self.assert_manual_fallback(linked, audit)
+                self.assert_error_recorded(audit, f"correction failed at {stage}")
+                self.assertEqual(audit["corrections_attempted"], 1)
+                self.assertEqual(len(audit["attempts"]), 2)
+                self.assertEqual(create.call_count, len(initial) + len(completed) + 1)
+                self.assertIn(coverage_objection(self.second)["reason"], json.dumps(audit["attempts"]))
+
+    def test_malformed_responses_in_each_stage_are_logged_and_do_not_block_post(self) -> None:
+        invalid = response({"unexpected": "malformed response"}, searched=False)
+        stages = {
+            "research": [],
+            "proposal_verification": [self.research(self.first)],
+            "coverage": [self.research(self.first), self.verification(self.first)],
+        }
+        for stage, completed in stages.items():
+            with self.subTest(stage=stage):
+                client, create = self.fake_client(*completed, invalid, invalid)
+
+                linked, audit = link_post_body(self.post, self.config, client=client)
+
+                self.assert_manual_fallback(linked, audit)
+                self.assert_error_recorded(audit, "LinkingError")
+                self.assertEqual(audit["corrections_attempted"], 0)
+                self.assertLessEqual(create.call_count, len(completed) + 2)
+
+    def test_credentials_are_removed_from_error_messages_and_tracebacks(self) -> None:
+        error_text = (
+            "Upstream failed; Authorization: Bearer " + self.config.openai_api_key
+            + "; Webflow token=" + self.config.webflow_api_token
+        )
+        client, _ = self.fake_client(RuntimeError(error_text))
+
+        linked, audit = link_post_body(self.post, self.config, client=client)
+
+        self.assert_manual_fallback(linked, audit)
+        serialised = json.dumps(audit)
+        self.assertIn("Upstream failed", serialised)
+        self.assertNotIn(self.config.openai_api_key, serialised)
+        self.assertNotIn(self.config.webflow_api_token, serialised)
+
+    def test_missing_key_and_prompt_loading_failure_return_original_with_diagnostics(self) -> None:
+        with self.subTest(stage="missing key"):
+            self.config.openai_api_key = ""
+            linked, audit = link_post_body(self.post, self.config)
+            self.assert_manual_fallback(linked, audit)
+            self.assert_error_recorded(audit, "OPENAI_API_KEY")
+        self.config.openai_api_key = "test-private-openai-key"
+        with self.subTest(stage="prompt load"), patch(
+            "pipeline.linking.load_prompts", side_effect=OSError("Prompt file unavailable")
+        ):
+            linked, audit = link_post_body(self.post, self.config)
+            self.assert_manual_fallback(linked, audit)
+            self.assert_error_recorded(audit, "Prompt file unavailable")
+
+    def test_client_initialisation_is_bounded_and_its_errors_do_not_block_post(self) -> None:
+        with patch("pipeline.linking.OpenAI", side_effect=RuntimeError("client setup failed")) as factory:
+            linked, audit = link_post_body(self.post, self.config)
+
+        self.assert_manual_fallback(linked, audit)
+        self.assert_error_recorded(audit, "client setup failed")
+        self.assertEqual(factory.call_args.kwargs["max_retries"], 0)
+        self.assertGreater(factory.call_args.kwargs["timeout"], 0)
+        self.assertLessEqual(factory.call_args.kwargs["timeout"], 300)
+
+    def test_valid_incomplete_coverage_returns_specific_objections_without_throwing(self) -> None:
+        payload = coverage_payload(False, objections=[coverage_objection(self.second)])
+        checked = response(payload, opened=(self.second["source_url"],))
+
+        self.assertEqual(
+            validate_coverage_verification_response(checked, research_required=False), payload
+        )
+        client, create = self.fake_client(checked)
+        self.assertEqual(
+            verify_link_coverage(
+                _LinkSession(client, self.config),
+                self.config,
+                load_prompts(),
+                self.post,
+                research_required=False,
+            ),
+            payload,
+        )
+        self.assertEqual(create.call_count, 1)
+
+    def test_total_time_budget_shortens_requests_then_preserves_original(self) -> None:
+        client, create = self.fake_client(self.research(self.first), self.verification(self.first))
+        # Session starts at zero; the second request has only 50 seconds left.
+        # The coverage check begins after the full 300-second allowance.
+        with patch("pipeline.linking.time.monotonic", side_effect=[0, 10, 20, 250, 260, 300, 301]):
+            linked, audit = link_post_body(self.post, self.config, client=client)
+
+        self.assert_manual_fallback(linked, audit)
+        self.assert_error_recorded(audit, "time budget was exhausted")
+        self.assertEqual(audit["errors"][-1]["stage"], "coverage")
+        self.assertEqual(create.call_count, 2)
+        self.assertEqual(create.call_args_list[0].kwargs["timeout"], 90)
+        self.assertEqual(create.call_args_list[1].kwargs["timeout"], 50)
+
+    def test_malformed_correction_preserves_original_and_records_rejected_output(self) -> None:
+        invalid = response({"complete": "not research JSON"}, searched=False)
+        client, create = self.fake_client(
+            self.research(self.first), self.verification(self.first), self.incomplete(), invalid, invalid
+        )
+
+        linked, audit = link_post_body(self.post, self.config, client=client)
+
+        self.assert_manual_fallback(linked, audit)
+        self.assertEqual(audit["corrections_attempted"], 1)
+        self.assertEqual(len(audit["attempts"]), 2)
+        self.assertEqual(create.call_count, 5)
+        self.assert_error_recorded(audit, "LinkingError")
+        self.assertIn("not research JSON", json.dumps(audit["attempts"]))
+        self.assertIn(coverage_objection(self.second)["reason"], json.dumps(audit["attempts"]))
+
+    def test_checker_cannot_object_to_an_already_linked_anchor(self) -> None:
+        invalid = response(
+            coverage_payload(False, objections=[coverage_objection(self.first)]),
+            opened=(self.first["source_url"],),
+        )
+        client, create = self.fake_client(
+            self.research(self.first), self.verification(self.first), invalid, invalid
+        )
+
+        linked, audit = link_post_body(self.post, self.config, client=client)
+
+        self.assert_manual_fallback(linked, audit)
+        self.assertEqual(audit["corrections_attempted"], 0)
+        self.assertEqual(create.call_count, 4)
+        self.assert_error_recorded(audit, "found 0")
+
+    def test_coverage_requires_consistent_complete_flag_and_detailed_objections(self) -> None:
+        objection = coverage_objection(self.second)
+        bad_payloads = [
+            {"complete": False},
+            {"complete": "false", "objections": [objection]},
+            {"complete": False, "objections": []},
+            {"complete": True, "objections": [objection]},
+            {"complete": False, "objections": "unsourced claim"},
+            {"complete": False, "objections": ["unsourced claim"]},
+        ]
+        for field in objection:
+            for invalid in (None, "", "   "):
+                bad_payloads.append(coverage_payload(False, objections=[{**objection, field: invalid}]))
+            bad_payloads.append(coverage_payload(False, objections=[{
+                key: value for key, value in objection.items() if key != field
+            }]))
+        for payload in bad_payloads:
+            with self.subTest(payload=payload), self.assertRaises(LinkingError):
+                validate_coverage_verification_response(
+                    response(payload, opened=(self.second["source_url"],)), research_required=False
+                )
+
+    def test_coverage_objections_require_an_opened_precise_safe_source(self) -> None:
+        objection = coverage_objection(self.second)
+        cases = [
+            response(coverage_payload(False, objections=[objection]), searched_sources=(objection["source_url"],)),
+            response(coverage_payload(False, objections=[objection]), opened=(self.first["source_url"],)),
+        ]
+        for url in ("https://google.com/search?q=study", "https://example.org/", "http://example.org/report"):
+            cases.append(response(coverage_payload(False, objections=[{**objection, "source_url": url}]), opened=(url,)))
+        for checked in cases:
+            with self.subTest(payload=checked.output_text), self.assertRaises(LinkingError):
+                validate_coverage_verification_response(checked, research_required=False)
+
+    def test_proposal_verdict_requires_a_useful_reason(self) -> None:
+        item = LinkProposal(**self.first)
+        for reason in (None, "", "   "):
+            payload = verification_payload([self.first])
+            payload["verdicts"][0]["reason"] = reason
+            with self.subTest(reason=reason), self.assertRaises(LinkingError):
+                validate_verification_response(
+                    response(payload, opened=(self.first["source_url"],)), [item]
+                )
 
 
 if __name__ == "__main__":

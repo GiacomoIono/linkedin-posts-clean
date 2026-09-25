@@ -350,7 +350,7 @@
         "3. Read the complete immutable post HTML supplied with the proposals. Assess each claim in its full surrounding context, including adjacent qualifiers; never assess the model-selected claim_text in isolation.",
         "4. Decide whether the page supports the precise contextual claim, including its value, unit, date, time period, geography, population, comparison basis, methodology, product tier, stage, and causal versus correlational wording when relevant.",
         "5. Reject generic homepages, search results, aggregators, copied releases, AI summaries, inaccessible evidence, and pages that merely discuss the same subject.",
-        "6. Return one verdict for every proposal ID and exact source URL. Do not propose replacements, rewrite claims, or omit a verdict.",
+        "6. Return one verdict for every proposal ID and exact source URL. Include a specific reason explaining which contextual claim is supported or why it is rejected (such as a mismatched date, population, value, product stage, weak authority, or inaccessible evidence). Do not propose replacements, rewrite claims, or omit a verdict.",
         "",
         "Return only the required structured output."
       ],
@@ -367,8 +367,10 @@
         "- Zero links is valid for opinion or personal-experience posts and when no precise suitable source exists, but never approve zero or partial coverage merely to minimise work.",
         "- Search the live web and open plausible candidate pages whenever an unsupported material claim may still have a suitable source.",
         "- When the user message says additional live research is mandatory, perform at least one web search before deciding.",
-        "- If any unsupported material claim has a suitable source, set complete to false.",
-        "- Do not rewrite the post or propose links. Return only the required structured output."
+        "- If any unsupported material claim has a suitable source AND a safe existing body-text anchor, set complete to false and list every specific objection in objections. Each objection must contain claim_text copied exactly from the post, reason explaining the precise missing support, source_url pointing to an exact canonical HTTPS page you opened, and anchor_text copied exactly from one unlinked text node. These are candidates for a separate correction and verification pass, not approved links.",
+        "- Use the same source precision and safe-anchor rules as research: preserve existing anchors, never cross HTML boundaries, and never request a rewrite. Interpret relative dates against publication time; distinguish tested, announced and launched; check every adjacent qualifier, value, unit, population, geography and comparison basis. Do not object when no precise public source or safe body-text anchor is available.",
+        "- When complete is true, return objections as an empty array. Never return complete false without specific claim, reason, opened source and safe anchor details.",
+        "- Do not rewrite the post or return modified HTML. Return only the required structured output."
       ],
       "link_coverage_verify_user": "Audit the evidence-link coverage of this final body independently.\n\nAdditional live research is mandatory:\n{RESEARCH_REQUIRED}\n\nPost publication date:\n{PUBLICATION_DATE}\n\nComplete final post HTML, through the final byte:\n{POST_HTML}",
       "alt_system": "You write accurate, concise ALT text for images used in articles and social posts. Describe only what is visible in the image. Use post context only to disambiguate names, brands, charts, or screenshots, not to invent details. Mention important visible text when it is central. Avoid opinions, marketing language, emojis, hashtags, and phrases like Image of or Picture of.",

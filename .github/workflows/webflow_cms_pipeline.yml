@@ -128,6 +128,16 @@ jobs:
 
           exit "$status"
 
+      - name: Upload evidence-link review reports
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: link-review-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/link-reviews/*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
       - name: Commit and push pipeline outputs
         run: |
           set -e

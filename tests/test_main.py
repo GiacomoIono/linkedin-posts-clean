@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 from contextlib import ExitStack
+from copy import deepcopy
+import json
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import call, patch
 
 from pipeline import main as pipeline_main
 from pipeline.config import ENRICHED_POST_PATH, NO_POSTS_FOUND_EXIT_CODE, RAW_POST_PATH, PipelineConfig
+from pipeline.link_review import record_link_review
 
 
 POST = {
@@ -70,6 +76,10 @@ def config(*, force_webflow_sync: bool = False) -> PipelineConfig:
 
 
 class MainPipelineTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.review = patch("pipeline.main.record_link_review", return_value={"report_id": "test"}).start()
+        self.addCleanup(patch.stopall)
+
     def test_main_runs_the_active_linkedin_to_webflow_flow(self) -> None:
         pipeline_config = config()
         patches = [
@@ -217,7 +227,7 @@ class MainPipelineTests(unittest.TestCase):
         sync_post.assert_not_called()
         save_state.assert_not_called()
 
-    def test_main_stops_before_enriched_write_or_webflow_when_linking_fails(self) -> None:
+    def test_main_publishes_original_body_and_reports_unexpected_linking_error(self) -> None:
         pipeline_config = config()
 
         with (
@@ -233,15 +243,107 @@ class MainPipelineTests(unittest.TestCase):
                 "pipeline.main.link_post_body",
                 side_effect=RuntimeError("authoritative-link stage"),
             ),
-            patch("pipeline.main.sync_post_to_webflow") as sync_post,
+            patch("pipeline.main.sync_post_to_webflow", return_value=WEBFLOW_STATUS) as sync_post,
             patch("pipeline.main.save_pipeline_state") as save_state,
-            self.assertRaisesRegex(RuntimeError, "authoritative-link stage"),
         ):
-            pipeline_main.main()
+            self.assertEqual(pipeline_main.main(), 0)
 
-        write_json.assert_called_once_with(RAW_POST_PATH, POST)
-        sync_post.assert_not_called()
-        save_state.assert_not_called()
+        self.assertEqual(write_json.call_args_list, [call(RAW_POST_PATH, POST), call(ENRICHED_POST_PATH, ATTACHED_POST)])
+        sync_post.assert_called_once_with(ATTACHED_POST, pipeline_config)
+        audit = save_state.call_args.args[2]["links"]
+        self.assertTrue(audit["manual_review_required"])
+        self.assertEqual(audit["fallback"], "original_body")
+        self.assertEqual(audit["errors"][0]["type"], "RuntimeError")
+        self.assertIn("authoritative-link stage", audit["errors"][0]["message"])
+        self.assertEqual(self.review.call_count, 2)
+
+    def _run_with_linker(self, linker, *, webflow_error=None):
+        original = deepcopy(ATTACHED_POST)
+        with (
+            patch("pipeline.main.ensure_directories"),
+            patch("pipeline.main.load_config", return_value=config()),
+            patch("pipeline.main.fetch_latest_linkedin_post", return_value=POST),
+            patch("pipeline.main.find_live_webflow_item", return_value=None),
+            patch("pipeline.main.write_json"),
+            patch("pipeline.main.enrich_post", return_value=ENRICHED_POST),
+            patch("pipeline.main.attach_generated_main_image", return_value=original),
+            patch("pipeline.main.source_images", return_value=[]),
+            patch("pipeline.main.link_post_body", side_effect=linker),
+            patch("pipeline.main.sync_post_to_webflow", return_value=WEBFLOW_STATUS, side_effect=webflow_error) as sync,
+            patch("pipeline.main.save_pipeline_state") as state,
+        ):
+            exit_code = pipeline_main.main()
+        return exit_code, original, sync, state
+
+    def test_linker_mutation_before_exception_cannot_corrupt_fallback(self) -> None:
+        def broken(post, _config):
+            post["content"] = "corrupt"
+            post["generated_main_image"]["url"] = "corrupt"
+            raise ValueError("linker defect")
+
+        code, original, sync, state = self._run_with_linker(broken)
+        self.assertEqual(code, 0)
+        self.assertEqual(original, ATTACHED_POST)
+        sync.assert_called_once_with(ATTACHED_POST, config())
+        self.assertTrue(state.call_args.args[2]["links"]["manual_review_required"])
+
+    def test_linker_cannot_modify_non_body_fields_even_when_it_returns(self) -> None:
+        def broken(post, _config):
+            post["generated_main_image"]["url"] = "corrupt"
+            return post, LINK_AUDIT
+
+        code, _, sync, state = self._run_with_linker(broken)
+        self.assertEqual(code, 0)
+        sync.assert_called_once_with(ATTACHED_POST, config())
+        self.assertIn("outside the post body", state.call_args.args[2]["links"]["errors"][0]["message"])
+
+    def test_manual_review_result_always_uses_defensive_original_copy(self) -> None:
+        def result(post, _config):
+            post["content"] = "corrupt"
+            return post, {**LINK_AUDIT, "manual_review_required": True}
+
+        code, _, sync, _ = self._run_with_linker(result)
+        self.assertEqual(code, 0)
+        sync.assert_called_once_with(ATTACHED_POST, config())
+
+    def test_reporting_failure_does_not_block_cms(self) -> None:
+        self.review.side_effect = OSError("read-only report directory")
+        code, _, sync, _ = self._run_with_linker(lambda *_: (LINKED_POST, LINK_AUDIT))
+        self.assertEqual(code, 0)
+        sync.assert_called_once_with(LINKED_POST, config())
+
+    def test_webflow_failure_remains_a_failure_and_updates_report(self) -> None:
+        error = RuntimeError("real CMS failure")
+        with self.assertRaisesRegex(RuntimeError, "real CMS failure"):
+            self._run_with_linker(lambda *_: (LINKED_POST, LINK_AUDIT), webflow_error=error)
+        self.assertIs(self.review.call_args.kwargs["webflow_error"], error)
+
+    def test_keyboard_interrupt_is_not_suppressed(self) -> None:
+        def interrupted(*_):
+            raise KeyboardInterrupt()
+        with self.assertRaises(KeyboardInterrupt):
+            self._run_with_linker(interrupted)
+
+    def test_real_report_survives_linker_failure_and_records_successful_cms_item(self) -> None:
+        def broken(post, _config):
+            post["content"] = "corrupted body"
+            raise RuntimeError("network error exposing openai-token")
+
+        self.review.side_effect = record_link_review
+        with TemporaryDirectory() as directory, patch("pipeline.link_review.LINK_REVIEW_DIR", Path(directory)), patch.dict(os.environ, {}, clear=True):
+            code, _, sync, _ = self._run_with_linker(broken)
+            files = list(Path(directory).glob("*.json"))
+            self.assertEqual(len(files), 1)
+            text = files[0].read_text()
+            report = json.loads(text)
+        self.assertEqual(code, 0)
+        sync.assert_called_once_with(ATTACHED_POST, config())
+        self.assertTrue(report["manual_review_required"])
+        self.assertEqual(report["original_html"], ATTACHED_POST["content"])
+        self.assertEqual(report["final_html"], ATTACHED_POST["content"])
+        self.assertEqual(report["webflow"]["item_id"], WEBFLOW_STATUS["item_id"])
+        self.assertTrue(report["webflow"]["published"])
+        self.assertNotIn("openai-token", text)
 
 
 if __name__ == "__main__":

@@ -133,7 +133,7 @@ def prompt_text(value: Any, key: str) -> str:
     raise RuntimeError(f"Selected enrichment prompt is missing {key}.")
 
 
-def load_prompts() -> dict[str, str]:
+def load_prompts(*, require_links: bool = False) -> dict[str, str]:
     if not PROMPTS_PATH.exists():
         raise RuntimeError(f"Missing prompts file: {PROMPTS_PATH}")
 
@@ -153,12 +153,6 @@ def load_prompts() -> dict[str, str]:
     required = [
         "seo_system",
         "seo_user",
-        "link_system",
-        "link_user",
-        "link_verify_system",
-        "link_verify_user",
-        "link_coverage_verify_system",
-        "link_coverage_verify_user",
         "alt_system",
         "alt_user",
         "image_system",
@@ -168,6 +162,17 @@ def load_prompts() -> dict[str, str]:
     ]
     for key in required:
         selected[key] = prompt_text(chosen.get(key), key)
+    # Optional linking configuration must not prevent required SEO/image work.
+    for key in (
+        "link_system", "link_user", "link_verify_system", "link_verify_user",
+        "link_coverage_verify_system", "link_coverage_verify_user",
+    ):
+        try:
+            selected[key] = prompt_text(chosen.get(key), key)
+        except RuntimeError:
+            if require_links:
+                raise
+            selected.pop(key, None)
     return selected
 
 

@@ -905,12 +905,19 @@ The stage:
 3. Uses a separate web-backed verification request, with the complete immutable body for context, to check that every exact source supports the adjacent claim. A separate audit also checks every proposed zero-link decision.
 4. Locally inserts only `<a href="...">` and `</a>` around one exact, unique substring in an existing text node.
 5. Rejects nested, overlapping, ambiguous, non-HTTPS, unopened, generic, search-result, or tracking URLs. After one correction attempt, an unsafe individual proposal is skipped without discarding other valid proposals.
-6. Proves that removing only the new wrappers restores the original body byte for byte. Structurally invalid model responses fail the run before the enriched JSON or Webflow write.
-7. Reads every staged write back before any configured publish step and reads every live update or publish back too. A body mismatch stops the run and is not recorded as a successful sync.
+6. Proves that removing only the new wrappers restores the original body byte for byte. If the independent coverage check identifies missing evidence, makes one correction pass and verifies the proposed links again.
+7. If linking still fails, keeps the complete original body and continues the normal Webflow upload and configured publication. An evidence-link error alone cannot prevent the post from being uploaded.
+8. Reads every staged Webflow write back before any configured publish step and reads every live update or publish back too. A Webflow write or body read-back failure still stops the run and is not recorded as a successful sync.
 
 There is no fixed one-link or two-link limit. The result is the minimum useful number for the post, which can be zero, one, two, or more.
 
 The evidence-link stage does not change the pipeline's existing `WEBFLOW_PUBLISH` setting. It only adds and verifies the body links; publication remains controlled by the existing configuration.
+
+Each processed post gets a separate JSON report under `data/link_reviews/`, including the original and final body, research and verification attempts, coverage objections, sanitised errors, GitHub run details, and Webflow item ID and outcome. The report is first saved before the Webflow call and updated afterwards. API credentials are redacted before diagnostics are saved or printed.
+
+When links need manual review, the run shows a warning and adds a review entry to its GitHub Actions summary. Open the `link-review-reports-<run ID>-<attempt>` artifact on that run to inspect the current run's reports, even if the later Git commit or push fails. The artifact is retained for 30 days; reports are also included in the normal successful output commit. Report-writing or artifact-upload failures do not block the CMS upload.
+
+To review an affected post, use the report's LinkedIn URL to identify the source and its Webflow collection and item IDs to find the CMS item. The report includes proposed sources and the reason automatic linking was abandoned. Review and add any warranted links in Webflow. A later pipeline run skips existing live posts, so it does not automatically revisit these manual-review items.
 
 ## ALT Text
 
@@ -995,6 +1002,7 @@ images/
 | `pipeline/linkedin.py` | Fetches the latest LinkedIn post from the last 48 hours. |
 | `pipeline/enrichment.py` | Creates headline, summary, and ALT text. |
 | `pipeline/linking.py` | Researches, verifies, validates, and inserts authoritative evidence links without changing body wording. |
+| `pipeline/link_review.py` | Saves credential-safe evidence-link reports and emits manual-review warnings without blocking CMS sync. |
 | `pipeline/image_generation.py` | Plans, generates once, reviews, reuses, and attaches a generated fallback PNG. |
 | `pipeline/image_processing.py` | Validates the raw result and prepares an exact-16:9 PNG under 800,000 bytes. |
 | `pipeline/image_references.py` | Validates and resolves the eleven bundled style references. |
@@ -1022,6 +1030,7 @@ The script writes these files:
 | `data/last_linkedin_post.enriched.json` | The post after headline, summary, ALT text, image attachment, and verified evidence links are added. |
 | `data/webflow_items.json` | Webflow item IDs and sync state. |
 | `data/pipeline_state.json` | The latest run status. |
+| `data/link_reviews/*.json` | Separate reports for each processed post and run, with evidence-link diagnostics and the Webflow outcome. |
 
 ## Webflow Maintenance Override
 
