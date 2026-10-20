@@ -217,6 +217,80 @@
       },
       "bytes": 664139,
       "alt": "A new employee carrying a box pauses in a dim office doorway as a translucent data-double already works at the desk, suggesting AI knew about the job before they arrived."
+    },
+    "2026-10-19-ai-overviews-are-killing-my-non-brand-traffic-but-76f5ad035f.png": {
+      "post_url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7517686936992624641",
+      "published_at": "2026-10-19T06:30:25.748000",
+      "sha256": "f5ca44b3bdc9b72ca33612814ae7e72da04b4f365b72d8358865d5bb9950c5de",
+      "renderer_model": "gpt-image-2",
+      "planner": {
+        "model": "gpt-5.6-sol",
+        "concept": {
+          "use_case": "illustration-story",
+          "central_claim": "AI Overviews can outrank a brand’s own website and reconstruct its story from third-party sources, making rigorous cross-channel brand consistency essential.",
+          "tension": "A brand steward tries to maintain one coherent identity while an elevated AI answer assembles a competing narrative from outside fragments.",
+          "audience": "Brand leaders, marketers, SEO professionals, and communications teams",
+          "emotional_register": "Sober, threatened, and strategically resolute",
+          "motifs": [
+            "A translucent AI summary layer eclipsing an official website sheet",
+            "Third-party media fragments feeding into the summary",
+            "A brass stencil used to apply one consistent mark across channel materials"
+          ],
+          "scene": "At a dark worktable, a solitary brand steward presses a brass stencil onto scattered channel sheets, giving each the same simple mark; directly above the official website sheet, a large translucent search-answer layer hangs in first position, assembled from mismatched video, profile, and reference fragments that flow in from the surrounding darkness.",
+          "backdrop": "A smoky charcoal search-results environment with the official page visibly pushed beneath the luminous AI layer, rendered in muted slate, paper gray, and restrained amber accents.",
+          "subject": "One focused human protagonist actively enforcing consistency across brand materials while an automated synthesis looms over the brand’s own page.",
+          "mood": "Human-centered noir with tactile paper, transparent fragility, quiet concentration, and controlled strategic anxiety.",
+          "reference_ids": [
+            "03",
+            "01",
+            "10"
+          ],
+          "alt": "A brand steward stamps one consistent mark across channel sheets as a translucent AI answer built from outside sources eclipses the official website."
+        }
+      },
+      "quality_review": {
+        "model": "gpt-5.6-sol",
+        "result": {
+          "article_fit": 96,
+          "human_editorial_resonance": 93,
+          "thumbnail_clarity": 80,
+          "house_style_match": 92,
+          "technical_cleanliness": 94,
+          "material_defect": false,
+          "issues": [
+            "Peripheral fragments and fine connector lines become somewhat busy at thumbnail size.",
+            "The elevated answer reads more as a broad assembled data layer than a distinctly recognizable search result."
+          ],
+          "passed": true,
+          "rationale": "The image strongly communicates a human steward imposing one consistent mark across channel sheets while a luminous elevated layer constructs a competing narrative from disparate outside fragments. The steward, stencil, repeated marks, and suspended answer layer create a clear editorial hierarchy, with muted ink textures, restrained brass accents, and noir lighting closely matching the intended house style. Despite dense peripheral detail, the central metaphor remains legible at reduced size, and there is no readable text, watermark, external border, malformed focal anatomy, or other material defect.",
+          "alt": "A solitary brand steward presses a brass stencil onto channel sheets at a dark worktable while an elevated AI answer assembles a competing brand narrative from floating",
+          "weighted_score": 91.25
+        }
+      },
+      "references": [
+        {
+          "id": "03",
+          "filename": "03-human-craft-paper-automation.png",
+          "sha256": "4b4e044ba9b211dc5b6c16f998adfe1eea4ea7ef74e2eacbc8d8db59a2842b0a"
+        },
+        {
+          "id": "01",
+          "filename": "01-market-bubble-industrial-system.png",
+          "sha256": "9514e23896f9d1b0d013eed25ad83d5e45b5e30b5c779f667fb03715b9abcd93"
+        },
+        {
+          "id": "10",
+          "filename": "10-guided-path-versus-maze.png",
+          "sha256": "d8078936ca8ba2deb8e61b18c50ee04177b7ccbf693ec4a4733fa3dbdfb01f9c"
+        }
+      ],
+      "prompt": "Use case: illustration-story\nAsset type: borderless blog main image\nPrimary request: At a dark worktable, a solitary brand steward presses a brass stencil onto scattered channel sheets, giving each the same simple mark; directly above the official website sheet, a large translucent search-answer layer hangs in first position, assembled from mismatched video, profile, and reference fragments that flow in from the surrounding darkness.\nInput images: Image 1: style reference for human narrative - close human craft, believable hands, tactile paper, and automation held in the background; Image 2: style reference for medium and palette - industrial scale, smoky charcoal atmosphere, transparent fragility, and fine amber accents; Image 3: style reference for composition or metaphor - luminous route versus smoky maze with restrained blue accents\nScene/backdrop: A smoky charcoal search-results environment with the official page visibly pushed beneath the luminous AI layer, rendered in muted slate, paper gray, and restrained amber accents.\nSubject: One focused human protagonist actively enforcing consistency across brand materials while an automated synthesis looms over the brand’s own page.\nStyle/medium: muted, human-centered noir editorial illustration; graphic-novel ink linework; charcoal, graphite, and restrained watercolor/gouache washes; tactile paper grain; sophisticated rather than superhero-comic styling\nComposition/framing: cinematic 16:9 landscape; full bleed; readable focal hierarchy at thumbnail size; no ornamental frame\nLighting/mood: Human-centered noir with tactile paper, transparent fragility, quiet concentration, and controlled strategic anxiety.; shadows retain detail and are never crushed to pure black\nColor palette: greyscale-led, low-saturation stone and charcoal midtones with one or two restrained blue, rust, amber, burgundy, or forest accents\nText: none\nConstraints: concept must communicate the article's central thesis; synthesize the references' visual family without copying their literal subjects or layouts; prefer a clear human emotional anchor; non-photorealistic; no title, caption, lettering, logo, watermark, or visible brand mark\nAvoid: neon or flashy colors, pitch-black areas, glossy 3D, flat corporate vector art, generic stock imagery, visual clutter, ornate mechanical spectacle, speech bubbles, dialogue or word balloons, speed lines, panel grids, comic panels, superhero-comic exaggeration, and comic-panel borders",
+      "dimensions": {
+        "width": 1200,
+        "height": 675
+      },
+      "bytes": 693232,
+      "alt": "A solitary brand steward presses a brass stencil onto channel sheets at a dark worktable while an elevated AI answer assembles a competing brand narrative from floating"
     }
   }
 }
