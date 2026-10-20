@@ -1,21 +1,537 @@
 {
-  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:share:7507827543966670849",
-  "last_raw_hash": "01c41da6616bd4a191605c9aa620fb2e2414f2685daa89bdc5995ae0a501f265",
-  "last_enriched_hash": "f83054e51bb5b36c3ff806d2a28737c1619d18c140fda60b7eee4dac7c8c3e9f",
-  "last_run_at": "2026-09-22T05:09:03.791051+00:00",
+  "last_source_url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7517686936992624641",
+  "last_raw_hash": "dfd67c2cc4707a3259a4311a1683ac87f448d6d6b75a313deea22c4e6546886d",
+  "last_enriched_hash": "a205f1894fa4e67157972b2ec2c661afe66d47cabad0ac0bd0461b65c1394bfb",
+  "last_run_at": "2026-10-20T05:03:32.425965+00:00",
   "statuses": {
     "enrichment": "generated",
     "image": "generated_main_image",
     "links": {
-      "decision": "no_material_claims",
-      "links_added": 0,
-      "proposals_reviewed": 0,
-      "rejected_candidates": 0,
-      "links": []
+      "decision": "links",
+      "manual_review_required": false,
+      "links_added": 4,
+      "proposals_reviewed": 5,
+      "rejected_candidates": 1,
+      "links": [
+        {
+          "anchor_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+          "claim_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+          "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+          "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+          "source_type": "original_research"
+        },
+        {
+          "anchor_text": "Of those, 76% appeared in position one.",
+          "claim_text": "Of those, 76% appeared in position one.",
+          "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+          "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+          "source_type": "original_research"
+        },
+        {
+          "anchor_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+          "claim_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+          "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+          "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+          "source_type": "original_research"
+        },
+        {
+          "anchor_text": "Google is investing billions in AI",
+          "claim_text": "Google is investing billions in AI, they need ROI somehow.",
+          "source_url": "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/",
+          "source_title": "Announcing America-India Connect and new investments to advance global AI access",
+          "source_type": "official_primary"
+        }
+      ],
+      "corrections_attempted": 1,
+      "attempts": [
+        {
+          "attempt": 1,
+          "calls": [
+            {
+              "stage": "research",
+              "attempt": 1,
+              "response_id": "resp_078b56aa468f31fa016ad6f595c33c87d18916c1c738078b0a",
+              "status": "completed",
+              "output_text": "{\"decision\":\"links\",\"links\":[{\"anchor_text\":\"In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.\",\"claim_text\":\"In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"},{\"anchor_text\":\"In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.\",\"claim_text\":\"In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"},{\"anchor_text\":\"Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.\",\"claim_text\":\"Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"}]}",
+              "search_count": 1,
+              "searched_urls": [
+                "https://21464181.fs1.hubspotusercontent-na1.net/hubfs/21464181/2026%20Marketing%20Guide%20Reveal.pdf",
+                "https://ahrefs.com/blog",
+                "https://ahrefs.com/blog/ai-marketing-trends",
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches",
+                "https://ahrefs.com/blog/wp-content/uploads/2025/06/AI-in-Content-Marketing-by-Ahrefs.pdf",
+                "https://ahrefscom-3b70.kxcdn.com/es/blog/ai-overviews-en-busquedas-de-marca",
+                "https://arxiv.org/abs/2602.18455",
+                "https://arxiv.org/abs/2605.14021",
+                "https://arxiv.org/abs/2606.25787",
+                "https://arxiv.org/abs/2610.15033",
+                "https://cdn0.scrvt.com/6d226c03f32a8ea4e8ae8e5cbe6c6e2c/30a619ef951f44e3/48019f031474/Generative-Engine-Optimization-whitepaper.pdf",
+                "https://en.wikipedia.org/wiki/2026_in_artificial_intelligence",
+                "https://en.wikipedia.org/wiki/AI_Overviews",
+                "https://en.wikipedia.org/wiki/Generative_engine_optimization",
+                "https://en.wikipedia.org/wiki/Google",
+                "https://en.wikipedia.org/wiki/Google_Search",
+                "https://en.wikipedia.org/wiki/Timeline_of_Google_Search",
+                "https://marketinghelm.com/news/google-ai-overviews-brand-name-searches",
+                "https://note.com/ahrefs_jp/n/nbef794f4521c?hl=en",
+                "https://thevisibilityreport.com/posts/visibility-37-ai-overviews-reach-branded-searches",
+                "https://uk.linkedin.com/in/thinkingslow",
+                "https://www.5wpr.com/research/citation-source-audit-q1-2026/5W_Citation_Source_Audit_Q1_2026.pdf",
+                "https://www.5wpr.com/research/wedding-industry-ai-visibility-index-2026/wedding-industry-ai-visibility-index-2026.pdf",
+                "https://www.coachdo.com/google-ai-overviews-branded-searches-september-2026",
+                "https://www.datocms-assets.com/153350/1760437911-ai-overview-ai-mode-holistic-search-digital-pov-version-1-4.pdf",
+                "https://www.rank.ai/statistics/ai-overviews-statistics",
+                "https://www.reddit.com/r/AISearchLab/comments/1qi4ymv/ai_search_roi_frameworks_73_track_the_wrong",
+                "https://www.reddit.com/r/AISearchLab/comments/1x4p7xp/i_tracked_which_sites_googles_ai_overviews_cite",
+                "https://www.reddit.com/r/GEO_GenEngineTalk/comments/1tvwjgd/ahrefs_cmo_shared_these_data_points",
+                "https://www.reddit.com/r/PPC/comments/1v3h3hs/anyone_noticing_ai_overview_negatively_impacting",
+                "https://www.reddit.com/r/SEMrush/comments/1x01hym/avezvous_remarqu%C3%A9_des_aio_sur_des_requ%C3%AAtes_marque",
+                "https://www.reddit.com/r/SEO_LLM/comments/1tvhsbb/tim_soulo_ahrefs_cmo_posted_this_on_x_thoughts",
+                "https://www.reddit.com/r/Superframeworks/comments/1wbfi5u/zeroclick_search_2026_ai_overviews_killed_58_of",
+                "https://www.reddit.com/r/Superframeworks/comments/1wf1tmk/ai_overviews_just_killed_position_1_ctr_heres_the",
+                "https://www.reddit.com/r/Superframeworks/comments/1wt4emb/ai_overviews_cut_1_ctr_by_58_google_searches_are",
+                "https://www.reddit.com/r/Superframeworks/comments/1wzr3t5/82_of_branded_searches_now_show_an_ai_overview",
+                "https://www.reddit.com/r/aeo/comments/1x5z7jf/i_tracked_which_sites_googles_ai_overviews_cite",
+                "https://www.reddit.com/r/localseo/comments/1uq3i6k/only_38_of_ai_overview_citations_still_rank_in",
+                "https://www.searchenginejournal.com/ai-overviews-big-brand-searches/592280",
+                "https://www.techradar.com/reviews/ahrefs"
+              ],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 17.639,
+              "rejected_proposals": []
+            },
+            {
+              "stage": "proposal_verification",
+              "attempt": 1,
+              "response_id": "resp_0b59a6c1f87c6f41016ad6f5a74af087d1a7e9193a35dff705",
+              "status": "completed",
+              "output_text": "{\"verdicts\":[{\"proposal_id\":\"link_1\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"supports_claim\":true,\"authoritative\":true,\"reason\":\"Ahrefs reports original analysis of 232.8 million US desktop Google result crawls and states that, during September 2026, 73.3% of branded keywords triggered AI Overviews. This supports the rounded 73% claim, though the post should ideally retain the desktop-Google scope.\"}]}",
+              "search_count": 0,
+              "searched_urls": [],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 6.414
+            },
+            {
+              "stage": "proposal_verification",
+              "attempt": 1,
+              "response_id": "resp_0cb7111e25c3b52b016ad6f5adb23887d1972e0ad225d75ed6",
+              "status": "completed",
+              "output_text": "{\"verdicts\":[{\"proposal_id\":\"link_1\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"supports_claim\":true,\"authoritative\":true,\"reason\":\"Ahrefs reports its own separate sample of exact-name queries for 100 brands selected from Interbrand’s Best Global Brands 2025. It states that on September 30, 2026, 63 of the 100 queries produced an AI Overview, precisely supporting the contextual claim.\"}]}",
+              "search_count": 0,
+              "searched_urls": [],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 5.657
+            },
+            {
+              "stage": "proposal_verification",
+              "attempt": 1,
+              "response_id": "resp_0c9c22a70efa5275016ad6f5b35a6c87d1af67849e62f6e967",
+              "status": "completed",
+              "output_text": "{\"verdicts\":[{\"proposal_id\":\"link_1\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"supports_claim\":true,\"authoritative\":true,\"reason\":\"Ahrefs’ original study reports that, in its panel of 100 brands, Wikipedia, YouTube, and LinkedIn were the three most frequently cited external domains in branded AI Overviews. This directly supports the contextual claim, although the source specifically qualifies them as external citations.\"}]}",
+              "search_count": 0,
+              "searched_urls": [],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 4.954
+            },
+            {
+              "stage": "coverage",
+              "attempt": 1,
+              "response_id": "resp_008f9f7c85ee193e016ad6f5b8508487d18874cbd73edbd659",
+              "status": "completed",
+              "output_text": "{\"complete\":false,\"objections\":[{\"anchor_text\":\"Google is investing billions in AI\",\"claim_text\":\"Google is investing billions in AI, they need ROI somehow.\",\"reason\":\"The concrete investment claim lacks a nearby source. Google’s official announcement documents a five-year $15 billion AI infrastructure investment; the ROI statement is opinion and does not require support.\",\"source_url\":\"https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/\"}]}",
+              "search_count": 1,
+              "searched_urls": [
+                "https://abc.xyz/2025-q2-earnings-call",
+                "https://abc.xyz/assets/59/ff/66de11a3bfa7db6cb929ba12a01b/6b3f31ad08de72f11d32f2b4f712b918.pdf",
+                "https://abc.xyz/assets/99/21/46cafdba41089a12a2d86ea47d44/goog026-annualreport2024-web.pdf",
+                "https://blog.google/alphabet/investor-presentation-june-2026",
+                "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q1-2026",
+                "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q2-2026",
+                "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q4-2025",
+                "https://blog.google/innovation-and-ai/infrastructure-and-cloud/global-network/alabama-investment-june-2026",
+                "https://blog.google/innovation-and-ai/infrastructure-and-cloud/global-network/google-ai-commitment-to-finland",
+                "https://blog.google/innovation-and-ai/infrastructure-and-cloud/google-cloud/cloud-next-2026-sundar-pichai",
+                "https://blog.google/innovation-and-ai/technology/ai/ai-applications-science-people",
+                "https://blog.google/innovation-and-ai/technology/ai/ai-impact-summit-2026-collection",
+                "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access",
+                "https://blog.google/products-and-platforms/products/search/search-io-2026?pubDate=20260519"
+              ],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches",
+                "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q4-2025",
+                "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access"
+              ],
+              "elapsed_seconds": 14.612
+            }
+          ],
+          "research_decision": "links",
+          "proposals": [
+            {
+              "anchor_text": "In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.",
+              "claim_text": "In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+              "claim_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+              "claim_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            }
+          ],
+          "locally_rejected": 0,
+          "verdicts": [
+            true,
+            true,
+            true
+          ],
+          "approved_links": [
+            {
+              "anchor_text": "In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.",
+              "claim_text": "In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+              "claim_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+              "claim_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            }
+          ],
+          "candidate_html": "<p>“AI Overviews are killing my non-brand traffic.<br>But at least they’ll never touch my brand traffic.”</p><p>&nbsp;</p><p>Wrong!</p><p>&nbsp;</p><p><a href=\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\">In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.</a></p><p>&nbsp;</p><p>“Fine. But my website will still appear above the AI answer.”</p><p>&nbsp;</p><p>Wrong again.</p><p>&nbsp;</p><p><a href=\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\">In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.</a></p><p>&nbsp;</p><p>Of those, 76% appeared in position one.</p><p>&nbsp;</p><p>Your website will rank first organically for your brand exact query, and still sit below an AI-generated answer.</p><p>&nbsp;</p><p>“No problem. At least the AI answer will cite me and link to my website.”</p><p>&nbsp;</p><p>Not necessarily.</p><p>&nbsp;</p><p><a href=\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\">Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.</a></p><p>&nbsp;</p><p>That YouTube video could be from your own channel. Or it could be someone else’s product review.</p><p>&nbsp;</p><p>That LinkedIn post could be your announcement.<br>Or, likely, somebody else’s opinion.</p><p>&nbsp;</p><p>In other words, people can search for your brand and get someone else’s version of your story.</p><p>&nbsp;</p><p>Brands are losing control over their most valuable asset, their own brand. At least on search engines, at least on non-paid placements.</p><p>&nbsp;</p><p>On one hand it’s clear brands will have to invest more in advertising, above and below the line. Even in brand search advertising.<br>Google is investing billions in AI, they need ROI somehow.</p><p>&nbsp;</p><p>On the other hand, good brand governance and extreme consistency across non-paid channels is becoming a must. So whatever story other people tell about you, you make sure it can only be one.</p><p>&nbsp;</p>",
+          "coverage": {
+            "complete": false,
+            "objections": [
+              {
+                "anchor_text": "Google is investing billions in AI",
+                "claim_text": "Google is investing billions in AI, they need ROI somehow.",
+                "reason": "The concrete investment claim lacks a nearby source. Google’s official announcement documents a five-year $15 billion AI infrastructure investment; the ROI statement is opinion and does not require support.",
+                "source_url": "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/"
+              }
+            ]
+          }
+        },
+        {
+          "attempt": 2,
+          "calls": [
+            {
+              "stage": "research",
+              "attempt": 1,
+              "response_id": "resp_0b17d76396cbb037016ad6f5c6f13087d198831c52c35c9611",
+              "status": "completed",
+              "output_text": "{\"decision\":\"links\",\"links\":[{\"anchor_text\":\"In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.\",\"claim_text\":\"In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"},{\"anchor_text\":\"In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.\",\"claim_text\":\"In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"},{\"anchor_text\":\"Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.\",\"claim_text\":\"Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"},{\"anchor_text\":\"Google is investing billions in AI\",\"claim_text\":\"Google is investing billions in AI, they need ROI somehow.\",\"source_url\":\"https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/\",\"source_title\":\"Announcing America-India Connect and new investments to advance global AI access\",\"source_type\":\"official_primary\"}]}",
+              "search_count": 0,
+              "searched_urls": [],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 10.878,
+              "rejected_proposals": [
+                {
+                  "proposal": {
+                    "anchor_text": "Google is investing billions in AI",
+                    "claim_text": "Google is investing billions in AI, they need ROI somehow.",
+                    "source_url": "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/",
+                    "source_title": "Announcing America-India Connect and new investments to advance global AI access",
+                    "source_type": "official_primary"
+                  },
+                  "reason": "Every proposed source must come from a completed web search or opened page: https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/"
+                }
+              ],
+              "validation_error": {
+                "type": "LinkingError",
+                "message": "Every proposed source must come from a completed web search or opened page: https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/",
+                "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/linkedin-posts-clean/linkedin-posts-clean/pipeline/linking.py\", line 855, in research_link_proposals\n    return validate_research_response(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/linkedin-posts-clean/linkedin-posts-clean/pipeline/linking.py\", line 807, in validate_research_response\n    raise LinkingError(\npipeline.linking.LinkingError: Every proposed source must come from a completed web search or opened page: https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/\n"
+              }
+            },
+            {
+              "stage": "research",
+              "attempt": 2,
+              "response_id": "resp_00639721925e4627016ad6f5d1ce5887d18665ea69b2f0f6d0",
+              "status": "completed",
+              "output_text": "{\"decision\":\"links\",\"links\":[{\"anchor_text\":\"In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.\",\"claim_text\":\"In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"},{\"anchor_text\":\"In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.\",\"claim_text\":\"In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"},{\"anchor_text\":\"Of those, 76% appeared in position one.\",\"claim_text\":\"Of those, 76% appeared in position one.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"},{\"anchor_text\":\"Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.\",\"claim_text\":\"Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"source_title\":\"AI Overviews Currently Appear for 83% of Branded Searches\",\"source_type\":\"original_research\"},{\"anchor_text\":\"Google is investing billions in AI\",\"claim_text\":\"Google is investing billions in AI, they need ROI somehow.\",\"source_url\":\"https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/\",\"source_title\":\"Announcing America-India Connect and new investments to advance global AI access\",\"source_type\":\"official_primary\"}]}",
+              "search_count": 1,
+              "searched_urls": [
+                "https://ahrefs.com/blog/ai-overview-brand-correlation?LanguageId=1",
+                "https://ahrefs.com/blog/ai-overview-citations-top-10?hsPreviewerApp=page",
+                "https://ahrefs.com/blog/ai-overview-triggers?via=topaitools",
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches",
+                "https://ahrefs.com/blog/branded-search",
+                "https://ahrefs.com/blog/product-announcement-ahrefs-adds-youtube-and-reddit-tracking-to-brand-radar",
+                "https://ahrefs.com/blog/websites-with-more-traffic-have-more-mentions",
+                "https://ahrefs.com/blog/wp-content/uploads/2025/04/everything-your-boss-wants-to-know-about-ai-search.pdf",
+                "https://ahrefs.com/blog/wp-content/uploads/2025/06/AI-in-Content-Marketing-by-Ahrefs.pdf",
+                "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access",
+                "https://blog.google/intl/en-in/company-news/no-technology-has-me-dreaming-bigger-than-ai",
+                "https://blog.google/intl/en-in/company-news/our-first-ai-hub-in-india-powered-by-a-15-billion-investment",
+                "https://blog.google/intl/en-in/google-ai-hub-scaling-indias-ai-infrastructure-and-community-impact",
+                "https://blog.google/intl/en-in/products/google-companies/helping-our-customers-build-resilient"
+              ],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 15.122,
+              "rejected_proposals": []
+            },
+            {
+              "stage": "proposal_verification",
+              "attempt": 1,
+              "response_id": "resp_06c60f57d07a1e3c016ad6f5e0edcc87d1920b9a3218341685",
+              "status": "completed",
+              "output_text": "{\"verdicts\":[{\"proposal_id\":\"link_1\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"supports_claim\":false,\"authoritative\":true,\"reason\":\"Ahrefs is the authoritative original research source, and it reports a September 2026 monthly average of 73.3%. However, the study specifically covers US desktop Google result crawls and Ahrefs-defined branded keywords; the post states the finding broadly as US results involving a popular brand name without the desktop limitation, so the precise contextual scope is not fully supported.\"}]}",
+              "search_count": 0,
+              "searched_urls": [],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 7.252
+            },
+            {
+              "stage": "proposal_verification",
+              "attempt": 1,
+              "response_id": "resp_089ed453e0deb1b5016ad6f5e8306c87d1b6cbb52125179dd5",
+              "status": "completed",
+              "output_text": "{\"verdicts\":[{\"proposal_id\":\"link_1\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"supports_claim\":true,\"authoritative\":true,\"reason\":\"Ahrefs reports its own research on exact-name queries for 100 brands selected from Interbrand’s Best Global Brands 2025. It states that by September 30, 2026, 63 of the 100 queries displayed an AI Overview, precisely supporting the contextual claim.\"}]}",
+              "search_count": 0,
+              "searched_urls": [],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 5.064
+            },
+            {
+              "stage": "proposal_verification",
+              "attempt": 1,
+              "response_id": "resp_0824680fb8be14bb016ad6f5ed3fe887d195e6b4c8db0477f6",
+              "status": "completed",
+              "output_text": "{\"verdicts\":[{\"proposal_id\":\"link_1\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"supports_claim\":true,\"authoritative\":true,\"reason\":\"Ahrefs reports its own original analysis of exact-name queries for 100 brands. At the September 30, 2026 checkpoint, 63 queries produced an AI Overview, and 48 of those appeared in position one (76.2%), directly supporting the contextual claim rounded to 76%.\"}]}",
+              "search_count": 0,
+              "searched_urls": [],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 4.792
+            },
+            {
+              "stage": "proposal_verification",
+              "attempt": 1,
+              "response_id": "resp_02814bf619c17b7c016ad6f5f20a1887d1aa71d1fcae8b6c07",
+              "status": "completed",
+              "output_text": "{\"verdicts\":[{\"proposal_id\":\"link_1\",\"source_url\":\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\",\"supports_claim\":true,\"authoritative\":true,\"reason\":\"Ahrefs’ original research directly reports that, in its panel of 100 brands, Wikipedia, YouTube, and LinkedIn were the three most common external citation domains in branded AI Overviews. The page provides the sample context, September 2026 timing, and domain-level counts and shares, so it supports the contextual claim.\"}]}",
+              "search_count": 0,
+              "searched_urls": [],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches"
+              ],
+              "elapsed_seconds": 4.858
+            },
+            {
+              "stage": "proposal_verification",
+              "attempt": 1,
+              "response_id": "resp_0d9488cac9ed1781016ad6f5f6e70887d1b40f42f34cb3e0f0",
+              "status": "completed",
+              "output_text": "{\"verdicts\":[{\"proposal_id\":\"link_1\",\"source_url\":\"https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/\",\"supports_claim\":true,\"authoritative\":true,\"reason\":\"The exact official Google page states that America-India Connect is anchored by Google’s five-year $15 billion AI infrastructure investment in India. This directly supports the anchored claim that Google is investing billions in AI. It does not substantiate the adjacent speculation that Google needs advertising ROI from that investment.\"}]}",
+              "search_count": 0,
+              "searched_urls": [],
+              "opened_urls": [
+                "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access"
+              ],
+              "elapsed_seconds": 5.329
+            },
+            {
+              "stage": "coverage",
+              "attempt": 1,
+              "response_id": "resp_06aef4649e79468a016ad6f5fc3b4c87d1af4ae19e19f8d882",
+              "status": "completed",
+              "output_text": "{\"complete\":true,\"objections\":[]}",
+              "search_count": 2,
+              "searched_urls": [
+                "https://aeloapp.io/en/knowledge/research",
+                "https://ahrefs.com/blog/ai-impact-on-seo",
+                "https://ahrefs.com/blog/ai-overview-brand-correlation?LanguageId=1",
+                "https://ahrefs.com/blog/ai-overview-triggers?tab=tab-crm",
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches",
+                "https://ahrefs.com/blog/branded-web-mentions-visibility-ai-search",
+                "https://ahrefs.com/blog/category/data-studies",
+                "https://ahrefs.com/blog/how-to-rank-in-ai-overviews",
+                "https://ahrefs.com/blog/semantic-search",
+                "https://ahrefs.com/blog/seo-trends",
+                "https://ahrefs.com/blog/share-of-search",
+                "https://ahrefs.com/blog/unique-ahrefs-features-ai-edition",
+                "https://ahrefs.com/blog/wp-content/uploads/2025/04/everything-your-boss-wants-to-know-about-ai-search.pdf",
+                "https://ahrefs.com/blog/wp-content/uploads/2025/06/AI-in-Content-Marketing-by-Ahrefs.pdf",
+                "https://am.gs.com/cms-assets/gsam-app/documents/insights/en/2026/market_monitor_021326.pdf",
+                "https://apnews.com/article/a984e6756032dc4af260f8fa27e8f4a9",
+                "https://arxiv.org/abs/2306.01785",
+                "https://arxiv.org/abs/2407.19099",
+                "https://arxiv.org/abs/2609.05059",
+                "https://babur.people.clemson.edu/research/SEO_What_Drives_Organic_Traffic_to_Retail_Sites.pdf",
+                "https://developers.google.cn/search/blog/2025/11/search-console-branded-filter?hl=en",
+                "https://doi.org/10.1111/jems.12141",
+                "https://en.wikipedia.org/wiki/Google",
+                "https://en.wikipedia.org/wiki/Google_Trends",
+                "https://en.wikipedia.org/wiki/Local_search_%28Internet%29",
+                "https://en.wikipedia.org/wiki/Organic_search_results",
+                "https://en.wikipedia.org/wiki/Search_advertising",
+                "https://en.wikipedia.org/wiki/Search_engine_results_page",
+                "https://en.wikipedia.org/wiki/Web_query",
+                "https://gofishdigital.com/blog/brand-rep-mgt-domains",
+                "https://marketing.wharton.upenn.edu/wp-content/uploads/2020/10/11.05.2020-Sahni-Navdeep-PAPER.pdf",
+                "https://s206.q4cdn.com/479360582/files/doc_events/2026/Apr/29/2026_Q1_Earnings_Transcript.pdf",
+                "https://s206.q4cdn.com/479360582/files/doc_events/2026/Jun/02/Alphabet-Investor-Presentation-June-2026.pdf",
+                "https://searchengineland.com/fake-brand-ai-search-experiment-475947",
+                "https://slatehq.com/blog/ai-overviews-brand-searches",
+                "https://static.advancedwebranking.com/ebooks/Google-Organic-CTR-Study-2014.pdf",
+                "https://www.anafernandezseo.com/en/blog/branded-traffic",
+                "https://www.axios.com/2026/05/21/google-ai-anthropic-openai-war",
+                "https://www.axios.com/2026/06/01/alphabet-80-billion-ai-buildout",
+                "https://www.axios.com/2026/06/11/google-trade-worker-initiative-ai",
+                "https://www.catalystdigital.com/wp-content/uploads/GoogleCTRStudy-Catalyst.pdf",
+                "https://www.nber.org/system/files/working_papers/w20171/w20171.pdf",
+                "https://www.reddit.com/r/PPC/comments/s29rb6/should_you_advertise_if_you_are_ranking_1st",
+                "https://www.reddit.com/r/SEO/comments/15iu0j4",
+                "https://www.reddit.com/r/SEO/comments/1d1sigo",
+                "https://www.reddit.com/r/SEO/comments/1eljtho",
+                "https://www.reddit.com/r/SEO/comments/1idqwia",
+                "https://www.reddit.com/r/SEO/comments/1jnynzb/suddenly_dropped_from_1_to_40_for_my_brand_name",
+                "https://www.reddit.com/r/SEO/comments/1qvn03v/brand_clicks_in_aio_search_create_new_google",
+                "https://www.reddit.com/r/SEO/comments/1wgcwpr/brand_query_disappeared_overnight_in_most",
+                "https://www.reddit.com/r/SEO_for_AI/comments/1rvoyue/organic_visibility_of_a_brand_directly_correlates",
+                "https://www.reddit.com/r/bigseo/comments/d0kfhu",
+                "https://www.reddit.com/r/juststart/comments/1uxb8y2/my_pages_rank_on_page_1_and_still_barely_get",
+                "https://www.reddit.com/r/localseo/comments/1ml1ujc",
+                "https://www.reddit.com/r/technology/comments/1wbi1cu/google_to_invest_15_billion_in_ai_infrastructure",
+                "https://www.searchenginejournal.com/ai-brand-mention-study-victorious-spa/582765",
+                "https://www.sec.gov/Archives/edgar/data/1652044/000119312526251733/d160205dfwp.htm",
+                "https://www.suffdigital.com/resources/data-studies/marketplace-share-google-product-results",
+                "https://www.suffdigital.com/resources/data-studies/walmart-google-page-one-rate",
+                "https://www.vanisleseo.ca/research-and-data/we-analyzed-googles-business-amp-marketing-serps-what-actually-ranks-in-2026",
+                "https://www.yext.com/research",
+                "https://www.youtube.com/watch?v=-04fK8eqszY",
+                "https://www.youtube.com/watch?v=f23hv1zXN8I"
+              ],
+              "opened_urls": [
+                "https://ahrefs.com/blog/ai-overviews-on-branded-searches",
+                "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access"
+              ],
+              "elapsed_seconds": 28.007
+            }
+          ],
+          "research_decision": "links",
+          "proposals": [
+            {
+              "anchor_text": "In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.",
+              "claim_text": "In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+              "claim_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "Of those, 76% appeared in position one.",
+              "claim_text": "Of those, 76% appeared in position one.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+              "claim_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "Google is investing billions in AI",
+              "claim_text": "Google is investing billions in AI, they need ROI somehow.",
+              "source_url": "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/",
+              "source_title": "Announcing America-India Connect and new investments to advance global AI access",
+              "source_type": "official_primary"
+            }
+          ],
+          "locally_rejected": 0,
+          "verdicts": [
+            false,
+            true,
+            true,
+            true,
+            true
+          ],
+          "approved_links": [
+            {
+              "anchor_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+              "claim_text": "In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "Of those, 76% appeared in position one.",
+              "claim_text": "Of those, 76% appeared in position one.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+              "claim_text": "Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.",
+              "source_url": "https://ahrefs.com/blog/ai-overviews-on-branded-searches/",
+              "source_title": "AI Overviews Currently Appear for 83% of Branded Searches",
+              "source_type": "original_research"
+            },
+            {
+              "anchor_text": "Google is investing billions in AI",
+              "claim_text": "Google is investing billions in AI, they need ROI somehow.",
+              "source_url": "https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/",
+              "source_title": "Announcing America-India Connect and new investments to advance global AI access",
+              "source_type": "official_primary"
+            }
+          ],
+          "candidate_html": "<p>“AI Overviews are killing my non-brand traffic.<br>But at least they’ll never touch my brand traffic.”</p><p>&nbsp;</p><p>Wrong!</p><p>&nbsp;</p><p>In September 2026, Ahrefs found AI Overviews in 73% of US results for searches containing a popular brand name.</p><p>&nbsp;</p><p>“Fine. But my website will still appear above the AI answer.”</p><p>&nbsp;</p><p>Wrong again.</p><p>&nbsp;</p><p><a href=\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\">In a separate sample of 100 major brands, 63 exact brand-name searches triggered an AI Overview.</a></p><p>&nbsp;</p><p><a href=\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\">Of those, 76% appeared in position one.</a></p><p>&nbsp;</p><p>Your website will rank first organically for your brand exact query, and still sit below an AI-generated answer.</p><p>&nbsp;</p><p>“No problem. At least the AI answer will cite me and link to my website.”</p><p>&nbsp;</p><p>Not necessarily.</p><p>&nbsp;</p><p><a href=\"https://ahrefs.com/blog/ai-overviews-on-branded-searches/\">Wikipedia, YouTube and LinkedIn are still among the most common AI Overviews citations, even for brand queries.</a></p><p>&nbsp;</p><p>That YouTube video could be from your own channel. Or it could be someone else’s product review.</p><p>&nbsp;</p><p>That LinkedIn post could be your announcement.<br>Or, likely, somebody else’s opinion.</p><p>&nbsp;</p><p>In other words, people can search for your brand and get someone else’s version of your story.</p><p>&nbsp;</p><p>Brands are losing control over their most valuable asset, their own brand. At least on search engines, at least on non-paid placements.</p><p>&nbsp;</p><p>On one hand it’s clear brands will have to invest more in advertising, above and below the line. Even in brand search advertising.<br><a href=\"https://blog.google/intl/en-in/company-news/announcing-america-india-connect-and-new-investments-to-advance-global-ai-access/\">Google is investing billions in AI</a>, they need ROI somehow.</p><p>&nbsp;</p><p>On the other hand, good brand governance and extreme consistency across non-paid channels is becoming a must. So whatever story other people tell about you, you make sure it can only be one.</p><p>&nbsp;</p>",
+          "coverage": {
+            "complete": true,
+            "objections": []
+          }
+        }
+      ],
+      "errors": []
     },
     "webflow": {
       "action": "created",
-      "item_id": "6ab20d6e0889bf39d7b57994",
+      "item_id": "6ad6f621cbc67c3370fa7289",
       "published": true,
       "read_back_verified": true
     }
