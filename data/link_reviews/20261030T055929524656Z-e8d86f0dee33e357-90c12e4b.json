@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "report_id": "20261030T055929524656Z-e8d86f0dee33e357-90c12e4b",
+  "report_path": "data/link_reviews/20261030T055929524656Z-e8d86f0dee33e357-90c12e4b.json",
+  "source_url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7521473600097345536",
+  "published_at": "2026-10-29T07:30:48.896000",
+  "headline": "Lead organic growth at comparis.ch: we're hiring",
+  "created_at": "2026-10-30T05:59:29.524656+00:00",
+  "model": "gpt-5.6-sol",
+  "actions": {
+    "repository": "GiacomoIono/linkedin-posts-clean",
+    "run_id": "41011238661",
+    "run_attempt": "1",
+    "sha": "b124f499069947203e4f7135aeef2a0dc1a10109",
+    "run_url": "https://github.com/GiacomoIono/linkedin-posts-clean/actions/runs/41011238661",
+    "attempt_url": "https://github.com/GiacomoIono/linkedin-posts-clean/actions/runs/41011238661/attempts/1"
+  },
+  "original_html": "<p>🚨Hiring alert!<br>comparis.ch AG has a massive potential for organic growth, want to be the one leading it?</p><p>&nbsp;</p><p>I’ll value motivation and hard skills over formal experience. English required, other languages a plus.</p><p>&nbsp;</p><p>Feel free to apply down here or text me if you have specific questions!</p><p>&nbsp;</p>",
+  "final_html": "<p>🚨Hiring alert!<br>comparis.ch AG has a massive potential for organic growth, want to be the one leading it?</p><p>&nbsp;</p><p>I’ll value motivation and hard skills over formal experience. English required, other languages a plus.</p><p>&nbsp;</p><p>Feel free to apply down here or text me if you have specific questions!</p><p>&nbsp;</p>",
+  "audit": {
+    "decision": "no_material_claims",
+    "manual_review_required": false,
+    "links_added": 0,
+    "proposals_reviewed": 0,
+    "rejected_candidates": 0,
+    "links": [],
+    "corrections_attempted": 0,
+    "attempts": [
+      {
+        "attempt": 1,
+        "calls": [
+          {
+            "stage": "research",
+            "attempt": 1,
+            "response_id": "resp_09f58076a032a818016ae4323e15fc87d2bca1031de8e8bd07",
+            "status": "completed",
+            "output_text": "{\"decision\":\"no_material_claims\",\"links\":[]}",
+            "search_count": 0,
+            "searched_urls": [],
+            "opened_urls": [],
+            "elapsed_seconds": 2.42,
+            "rejected_proposals": []
+          },
+          {
+            "stage": "coverage",
+            "attempt": 1,
+            "response_id": "resp_07d552626c4e1de1016ae4324050fc87d2bfd6961d875d8913",
+            "status": "completed",
+            "output_text": "{\"complete\":true,\"objections\":[]}",
+            "search_count": 0,
+            "searched_urls": [],
+            "opened_urls": [],
+            "elapsed_seconds": 1.292
+          }
+        ],
+        "research_decision": "no_material_claims",
+        "proposals": [],
+        "locally_rejected": 0,
+        "verdicts": [],
+        "approved_links": [],
+        "candidate_html": "<p>🚨Hiring alert!<br>comparis.ch AG has a massive potential for organic growth, want to be the one leading it?</p><p>&nbsp;</p><p>I’ll value motivation and hard skills over formal experience. English required, other languages a plus.</p><p>&nbsp;</p><p>Feel free to apply down here or text me if you have specific questions!</p><p>&nbsp;</p>",
+        "coverage": {
+          "complete": true,
+          "objections": []
+        }
+      }
+    ],
+    "errors": []
+  },
+  "manual_review_required": false,
+  "webflow": {
+    "collection_id": "63250855178122098387d7ef",
+    "status": "completed",
+    "action": "created",
+    "item_id": "6ae43246537f45fbff6cfa14",
+    "published": true,
+    "read_back_verified": true
+  },
+  "updated_at": "2026-10-30T05:59:35.959129+00:00"
+}
