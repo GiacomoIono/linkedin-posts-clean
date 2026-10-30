@@ -291,6 +291,80 @@
       },
       "bytes": 693232,
       "alt": "A solitary brand steward presses a brass stencil onto channel sheets at a dark worktable while an elevated AI answer assembles a competing brand narrative from floating"
+    },
+    "2026-10-29-hiring-alert-comparis-ch-ag-has-a-massive-potential-e8d86f0dee.png": {
+      "post_url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7521473600097345536",
+      "published_at": "2026-10-29T07:30:48.896000",
+      "sha256": "c2db394b7c857187e65e5accbe1188ae5917a497f3dd97fbdda06dad3375e82f",
+      "renderer_model": "gpt-image-2",
+      "planner": {
+        "model": "gpt-5.6-sol",
+        "concept": {
+          "use_case": "illustration-story",
+          "central_claim": "comparis.ch AG is seeking a motivated, skilled person to lead its untapped organic growth, with practical ability valued above formal experience.",
+          "tension": "A capable candidate faces a large but unshaped growth opportunity while stepping beyond conventional credential barriers.",
+          "audience": "SEO and organic-growth professionals with strong practical skills, motivation, and English proficiency.",
+          "emotional_register": "Inviting ambition with focused, high-stakes optimism.",
+          "motifs": [
+            "an open doorway cut through a wall of stacked formal certificates",
+            "a living vine branching across a search-performance map",
+            "a hand placing a practical toolkit on the lead strategist’s desk"
+          ],
+          "scene": "A determined professional in rolled-up sleeves steps through an opening in a wall built from muted, blank certificates, carrying a compact practical toolkit toward a desk where an organic vine spreads across a map-like field of search paths; the protagonist reaches forward to guide its strongest branch into open space.",
+          "backdrop": "A subdued charcoal office recedes into smoky shadow behind the certificate wall, while the space ahead opens into forest green and slate-blue layers with restrained amber task light illuminating the branching growth path.",
+          "subject": "One unmistakable job candidate actively crossing a credential barrier and taking hold of a tangible organic-growth system.",
+          "mood": "Human-centered noir, tactile and quietly cinematic, balancing uncertainty with credible opportunity.",
+          "reference_ids": [
+            "09",
+            "03",
+            "10"
+          ],
+          "alt": "A determined professional crosses through a wall of blank certificates and guides a living vine across an illuminated map of organic search paths."
+        }
+      },
+      "quality_review": {
+        "model": "gpt-5.6-sol",
+        "result": {
+          "article_fit": 97,
+          "human_editorial_resonance": 95,
+          "thumbnail_clarity": 86,
+          "house_style_match": 94,
+          "technical_cleanliness": 93,
+          "material_defect": false,
+          "issues": [
+            "Dense detail and deep shadow on the left may lose some secondary workplace and certificate-wall detail at thumbnail size.",
+            "The vine network and papers are visually busy, though the protagonist, toolkit, opening, and main branch remain distinct."
+          ],
+          "passed": true,
+          "rationale": "The image clearly expresses practical ability overcoming credential barriers: a determined, rolled-sleeved professional carries a real toolkit through a wall of certificates and actively directs organic growth across a search-path map toward open territory. The strong human silhouette, directional gesture, and bright landscape preserve the editorial metaphor and focal hierarchy despite some dense peripheral detail. The muted ink-and-wash palette, noir shadows, tactile linework, and restrained warmth closely match the requested house style, with no visible text, branding, border, or malformed focal element.",
+          "alt": "A rolled-sleeved professional carrying a toolkit steps through a wall of certificates and guides a living vine across a search-path map toward open terrain, symbolizing practical",
+          "weighted_score": 93.45
+        }
+      },
+      "references": [
+        {
+          "id": "09",
+          "filename": "09-wall-break-work-to-community.png",
+          "sha256": "eaed29ca0558e66c7ee0a5b9ccf61ca6bb688806f7ab55f5e17133e0353a92f5"
+        },
+        {
+          "id": "03",
+          "filename": "03-human-craft-paper-automation.png",
+          "sha256": "4b4e044ba9b211dc5b6c16f998adfe1eea4ea7ef74e2eacbc8d8db59a2842b0a"
+        },
+        {
+          "id": "10",
+          "filename": "10-guided-path-versus-maze.png",
+          "sha256": "d8078936ca8ba2deb8e61b18c50ee04177b7ccbf693ec4a4733fa3dbdfb01f9c"
+        }
+      ],
+      "prompt": "Use case: illustration-story\nAsset type: borderless blog main image\nPrimary request: A determined professional in rolled-up sleeves steps through an opening in a wall built from muted, blank certificates, carrying a compact practical toolkit toward a desk where an organic vine spreads across a map-like field of search paths; the protagonist reaches forward to guide its strongest branch into open space.\nInput images: Image 1: style reference for human narrative - human movement through a breaking boundary and a coherent environmental transformation; Image 2: style reference for medium and palette - close human craft, believable hands, tactile paper, and automation held in the background; Image 3: style reference for composition or metaphor - luminous route versus smoky maze with restrained blue accents\nScene/backdrop: A subdued charcoal office recedes into smoky shadow behind the certificate wall, while the space ahead opens into forest green and slate-blue layers with restrained amber task light illuminating the branching growth path.\nSubject: One unmistakable job candidate actively crossing a credential barrier and taking hold of a tangible organic-growth system.\nStyle/medium: muted, human-centered noir editorial illustration; graphic-novel ink linework; charcoal, graphite, and restrained watercolor/gouache washes; tactile paper grain; sophisticated rather than superhero-comic styling\nComposition/framing: cinematic 16:9 landscape; full bleed; readable focal hierarchy at thumbnail size; no ornamental frame\nLighting/mood: Human-centered noir, tactile and quietly cinematic, balancing uncertainty with credible opportunity.; shadows retain detail and are never crushed to pure black\nColor palette: greyscale-led, low-saturation stone and charcoal midtones with one or two restrained blue, rust, amber, burgundy, or forest accents\nText: none\nConstraints: concept must communicate the article's central thesis; synthesize the references' visual family without copying their literal subjects or layouts; prefer a clear human emotional anchor; non-photorealistic; no title, caption, lettering, logo, watermark, or visible brand mark\nAvoid: neon or flashy colors, pitch-black areas, glossy 3D, flat corporate vector art, generic stock imagery, visual clutter, ornate mechanical spectacle, speech bubbles, dialogue or word balloons, speed lines, panel grids, comic panels, superhero-comic exaggeration, and comic-panel borders",
+      "dimensions": {
+        "width": 1200,
+        "height": 675
+      },
+      "bytes": 671831,
+      "alt": "A rolled-sleeved professional carrying a toolkit steps through a wall of certificates and guides a living vine across a search-path map toward open terrain, symbolizing practical"
     }
   }
 }
